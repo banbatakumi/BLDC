@@ -5,6 +5,387 @@
 	(uuid "20039c5b-7fff-4c6c-b0d4-63b9484bce35")
 	(paper "A4")
 	(lib_symbols
+		(symbol "AS5600-ASOT:AS5600-ASOT"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "IC"
+				(at 6.35 5.08 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "AS5600-ASOT"
+				(at 6.35 -12.7 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" "AS5600-ASOT:SOIC127P600X175-8N"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "MANUFACTURER_NAME" "ams"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "MF" "ams"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "MOUSER_PRICE-STOCK" "https://www.mouser.co.uk/ProductDetail/ams/AS5600-ASOT?qs=KTMMzrZdriGJpjhsnAEYBA%3D%3D"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "DESCRIPTION" "Board Mount Hall Effect / Magnetic Sensors AS5600 Magnetic Sensor 12-Bit"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "MOUSER_PART_NUMBER" "985-AS5600-ASOT"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "Price" "None"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "Package" "SOIC-8 ams"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "Check_prices" "https://www.snapeda.com/parts/AS5600-ASOT/ams/view-part/?ref=eda"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "HEIGHT" "1.75mm"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "MP" "AS5600-ASOT"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "SnapEDA_Link" "https://www.snapeda.com/parts/AS5600-ASOT/ams/view-part/?ref=snap"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "ARROW_PRICE-STOCK" "https://www.arrow.com/en/products/as5600-asot/ams-ag?region=nac"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "ARROW_PART_NUMBER" "AS5600-ASOT"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "Purchase-URL" "https://www.snapeda.com/api/url_track_click_mouser/?unipart_id=2474367&manufacturer=ams&part_name=AS5600-ASOT&search_term=as5600"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "Description_1" "\nHall Effect Sensor Angle External Magnet, Not Included Gull Wing\n"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "Availability" "In Stock"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(property "MANUFACTURER_PART_NUMBER" "AS5600-ASOT"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+					(hide yes)
+				)
+			)
+			(symbol "AS5600-ASOT_0_0"
+				(rectangle
+					(start 5.08 -10.16)
+					(end 25.4 2.54)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(pin bidirectional line
+					(at 0 0 0)
+					(length 5.08)
+					(name "VDD5V"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at 0 -2.54 0)
+					(length 5.08)
+					(name "VDD3V3"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at 0 -5.08 0)
+					(length 5.08)
+					(name "OUT"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at 0 -7.62 0)
+					(length 5.08)
+					(name "GND"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at 30.48 -7.62 180)
+					(length 5.08)
+					(name "PGO"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at 30.48 -5.08 180)
+					(length 5.08)
+					(name "SDA"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at 30.48 -2.54 180)
+					(length 5.08)
+					(name "SCL"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at 30.48 0 180)
+					(length 5.08)
+					(name "DIR"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+		)
 		(symbol "CSTNE16M0V530000R0:CSTNE16M0V530000R0"
 			(pin_names
 				(offset 1.016)
@@ -3848,6 +4229,12 @@
 		(uuid "2ac047c9-72ed-4938-89dc-3011133168ad")
 	)
 	(junction
+		(at 55.88 38.1)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "3b811d60-ca19-41a3-9457-7d35c630704c")
+	)
+	(junction
 		(at 220.98 146.05)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3956,6 +4343,12 @@
 		(uuid "c0b7fb75-e4b7-47e0-a078-910f515462d1")
 	)
 	(junction
+		(at 43.18 43.18)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "c29db255-1050-42e2-960f-ec71aad82c4d")
+	)
+	(junction
 		(at 210.82 106.68)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3966,6 +4359,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "d5906dad-44d0-4fdc-8d43-d6f8e759ebd5")
+	)
+	(junction
+		(at 101.6 147.32)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d5cd4db6-b52e-4cf7-b1be-d2f81f861a98")
 	)
 	(junction
 		(at 210.82 55.88)
@@ -4053,6 +4452,16 @@
 	)
 	(wire
 		(pts
+			(xy 34.29 69.85) (xy 34.29 72.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "069900d8-5715-436e-9b15-67f1403b337d")
+	)
+	(wire
+		(pts
 			(xy 170.18 86.36) (xy 170.18 88.9)
 		)
 		(stroke
@@ -4123,6 +4532,16 @@
 	)
 	(wire
 		(pts
+			(xy 53.34 38.1) (xy 55.88 38.1)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0e39543c-6b36-4d8e-bc8c-29872b963094")
+	)
+	(wire
+		(pts
 			(xy 195.58 91.44) (xy 195.58 88.9)
 		)
 		(stroke
@@ -4173,6 +4592,16 @@
 	)
 	(wire
 		(pts
+			(xy 99.06 152.4) (xy 101.6 152.4)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1a1bd651-b8b0-47d2-8496-8d7eb3e68bb3")
+	)
+	(wire
+		(pts
 			(xy 210.82 148.59) (xy 198.12 148.59)
 		)
 		(stroke
@@ -4210,6 +4639,16 @@
 			(type default)
 		)
 		(uuid "23d1bf0a-8cf0-43f8-9520-bcefd75ae471")
+	)
+	(wire
+		(pts
+			(xy 107.95 54.61) (xy 110.49 54.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "250d3027-a8bc-4d7a-b12c-e39f7a51eee1")
 	)
 	(wire
 		(pts
@@ -4583,6 +5022,16 @@
 	)
 	(wire
 		(pts
+			(xy 43.18 38.1) (xy 43.18 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "76dbbc7c-9ba4-4955-9f17-69e2a6629fc8")
+	)
+	(wire
+		(pts
 			(xy 269.24 91.44) (xy 271.78 91.44)
 		)
 		(stroke
@@ -4713,6 +5162,16 @@
 	)
 	(wire
 		(pts
+			(xy 99.06 154.94) (xy 101.6 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "898ef05b-756d-4a3a-b84a-75fc57774d1c")
+	)
+	(wire
+		(pts
 			(xy 220.98 53.34) (xy 220.98 55.88)
 		)
 		(stroke
@@ -4753,13 +5212,23 @@
 	)
 	(wire
 		(pts
-			(xy 45.72 43.18) (xy 48.26 43.18)
+			(xy 43.18 43.18) (xy 48.26 43.18)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "9af0b039-3516-44cf-a02c-cf5f91cbf9ef")
+	)
+	(wire
+		(pts
+			(xy 58.42 48.26) (xy 21.59 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9bb1b925-3213-4a08-9f4e-492dc3e5f972")
 	)
 	(wire
 		(pts
@@ -4833,16 +5302,6 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 38.1) (xy 58.42 38.1)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b0afc2d0-f060-41cc-835a-7ddc6b1b087a")
-	)
-	(wire
-		(pts
 			(xy 86.36 73.66) (xy 88.9 73.66)
 		)
 		(stroke
@@ -4850,6 +5309,16 @@
 			(type default)
 		)
 		(uuid "b2b8a9a4-881f-4fbb-9e53-cd2e0fd4b788")
+	)
+	(wire
+		(pts
+			(xy 21.59 48.26) (xy 21.59 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "be0d108c-69ac-4e74-9b51-a8a79ab8f2b0")
 	)
 	(wire
 		(pts
@@ -4893,6 +5362,16 @@
 	)
 	(wire
 		(pts
+			(xy 55.88 35.56) (xy 55.88 38.1)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c8956318-dca2-4619-9dea-8f1da18306b2")
+	)
+	(wire
+		(pts
 			(xy 187.96 128.27) (xy 187.96 130.81)
 		)
 		(stroke
@@ -4900,6 +5379,36 @@
 			(type default)
 		)
 		(uuid "c9df1596-25aa-446f-b910-48777980c200")
+	)
+	(wire
+		(pts
+			(xy 58.42 50.8) (xy 46.99 50.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cd20babb-e2b3-4b9a-87ec-d8fda932346b")
+	)
+	(wire
+		(pts
+			(xy 99.06 147.32) (xy 101.6 147.32)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ceb19847-4343-4e5b-8474-d204b0aae421")
+	)
+	(wire
+		(pts
+			(xy 46.99 50.8) (xy 46.99 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d1a2b961-8773-45c8-ba52-93410616a7a3")
 	)
 	(wire
 		(pts
@@ -4953,6 +5462,16 @@
 	)
 	(wire
 		(pts
+			(xy 55.88 38.1) (xy 58.42 38.1)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d8494785-82bc-4782-8a46-c11cf0954e1e")
+	)
+	(wire
+		(pts
 			(xy 220.98 114.3) (xy 210.82 114.3)
 		)
 		(stroke
@@ -5000,6 +5519,16 @@
 			(type default)
 		)
 		(uuid "e80e1c8e-32d6-491f-a45c-f3cae3e674fa")
+	)
+	(wire
+		(pts
+			(xy 107.95 57.15) (xy 110.49 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e91a13f9-e595-4093-85fa-6b974d5a987e")
 	)
 	(wire
 		(pts
@@ -5103,6 +5632,16 @@
 	)
 	(wire
 		(pts
+			(xy 101.6 147.32) (xy 101.6 149.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fcabf087-7e69-4463-8de9-acde072c8c66")
+	)
+	(wire
+		(pts
 			(xy 104.14 115.57) (xy 106.68 115.57)
 		)
 		(stroke
@@ -5197,6 +5736,28 @@
 			)
 		)
 	)
+	(global_label "ENCODER_OUT"
+		(shape input)
+		(at 99.06 152.4 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "63e5b374-c531-4bbd-9e85-05d2b1dcbfc9")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 82.7096 152.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+				(hide yes)
+			)
+		)
+	)
 	(global_label "SWCLK"
 		(shape input)
 		(at 88.9 73.66 0)
@@ -5243,22 +5804,22 @@
 	)
 	(global_label "NSRT"
 		(shape input)
-		(at 55.88 38.1 180)
+		(at 55.88 35.56 90)
 		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify right)
+			(justify left)
 		)
 		(uuid "865f6733-e89d-48d2-bc32-beb94d4039f7")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 48.1172 38.1 0)
+			(at 55.88 27.7972 90)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 				(hide yes)
 			)
 		)
@@ -5674,6 +6235,72 @@
 	)
 	(symbol
 		(lib_id "power:GND")
+		(at 34.29 72.39 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "227d16fe-b465-4a3d-99e7-d951aee70237")
+		(property "Reference" "#PWR032"
+			(at 34.29 78.74 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 34.29 77.47 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 34.29 72.39 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 34.29 72.39 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 34.29 72.39 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "a677b246-b916-435d-b7f9-b9380690aae8")
+		)
+		(instances
+			(project "CurcuitV1"
+				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
+					(reference "#PWR032")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
 		(at 88.9 33.02 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -5733,6 +6360,262 @@
 			(project "CurcuitV1"
 				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
 					(reference "#PWR027")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "AS5600-ASOT:AS5600-ASOT")
+		(at 101.6 147.32 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "27ec6432-577d-4f13-a5ba-6db94555815b")
+		(property "Reference" "IC1"
+			(at 116.84 139.7 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "AS5600-ASOT"
+			(at 116.84 142.24 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+			(at 117.856 159.766 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MANUFACTURER_NAME" "ams"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MF" "ams"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MOUSER_PRICE-STOCK" "https://www.mouser.co.uk/ProductDetail/ams/AS5600-ASOT?qs=KTMMzrZdriGJpjhsnAEYBA%3D%3D"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "DESCRIPTION" "Board Mount Hall Effect / Magnetic Sensors AS5600 Magnetic Sensor 12-Bit"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MOUSER_PART_NUMBER" "985-AS5600-ASOT"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Price" "None"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Package" "SOIC-8 ams"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Check_prices" "https://www.snapeda.com/parts/AS5600-ASOT/ams/view-part/?ref=eda"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "HEIGHT" "1.75mm"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MP" "AS5600-ASOT"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "SnapEDA_Link" "https://www.snapeda.com/parts/AS5600-ASOT/ams/view-part/?ref=snap"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "ARROW_PRICE-STOCK" "https://www.arrow.com/en/products/as5600-asot/ams-ag?region=nac"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "ARROW_PART_NUMBER" "AS5600-ASOT"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Purchase-URL" "https://www.snapeda.com/api/url_track_click_mouser/?unipart_id=2474367&manufacturer=ams&part_name=AS5600-ASOT&search_term=as5600"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Description_1" "\nHall Effect Sensor Angle External Magnet, Not Included Gull Wing\n"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Availability" "In Stock"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MANUFACTURER_PART_NUMBER" "AS5600-ASOT"
+			(at 101.6 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(pin "7"
+			(uuid "99d95a2e-9162-4d0e-bde5-25c902c43aef")
+		)
+		(pin "8"
+			(uuid "9ca1e448-17c9-4463-ac97-6cb14a80a60c")
+		)
+		(pin "1"
+			(uuid "729111ef-d29f-4a89-8288-31aba3926320")
+		)
+		(pin "2"
+			(uuid "f7a277d5-2904-4bcf-8334-67134028e8f9")
+		)
+		(pin "4"
+			(uuid "9e6a7171-b50b-4309-b10b-d1b900e5848e")
+		)
+		(pin "5"
+			(uuid "d3963f5e-63a8-432a-86e6-48b8d8d79071")
+		)
+		(pin "6"
+			(uuid "1bec338b-9005-45ff-b248-855462127131")
+		)
+		(pin "3"
+			(uuid "81fa187b-5ab4-416f-b439-9ddd339946a7")
+		)
+		(instances
+			(project ""
+				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
+					(reference "IC1")
 					(unit 1)
 				)
 			)
@@ -5809,7 +6692,7 @@
 	)
 	(symbol
 		(lib_id "Switch:SW_Push")
-		(at 82.55 134.62 0)
+		(at 48.26 38.1 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -5818,7 +6701,7 @@
 		(fields_autoplaced yes)
 		(uuid "2cd0847a-82de-45e6-a707-0ed0a37b4a94")
 		(property "Reference" "SW1"
-			(at 82.55 127 0)
+			(at 48.26 30.48 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5826,7 +6709,7 @@
 			)
 		)
 		(property "Value" "SW_Push"
-			(at 82.55 129.54 0)
+			(at 48.26 33.02 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5834,7 +6717,7 @@
 			)
 		)
 		(property "Footprint" "Button_Switch_SMD:SW_Push_1P1T_NO_Vertical_Wuerth_434133025816"
-			(at 82.55 129.54 0)
+			(at 48.26 33.02 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5843,7 +6726,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 82.55 129.54 0)
+			(at 48.26 33.02 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5852,7 +6735,7 @@
 			)
 		)
 		(property "Description" "Push button switch, generic, two pins"
-			(at 82.55 134.62 0)
+			(at 48.26 38.1 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6139,6 +7022,72 @@
 			(project "CurcuitV1"
 				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
 					(reference "R11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:VCC")
+		(at 110.49 54.61 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "39383fa6-9987-451f-b9fa-ee584e91a5bf")
+		(property "Reference" "#PWR030"
+			(at 110.49 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "VCC"
+			(at 110.49 49.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 110.49 54.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 110.49 54.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"VCC\""
+			(at 110.49 54.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "7e9c5048-34ba-4369-8207-674ac9816886")
+		)
+		(instances
+			(project "CurcuitV1"
+				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
+					(reference "#PWR030")
 					(unit 1)
 				)
 			)
@@ -7307,16 +8256,15 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 45.72 43.18 270)
+		(at 43.18 43.18 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "6f362c9c-55d3-49c8-8094-e310128575c2")
 		(property "Reference" "#PWR018"
-			(at 39.37 43.18 0)
+			(at 43.18 49.53 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7325,16 +8273,15 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 41.91 43.1799 90)
+			(at 39.37 44.958 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
 			)
 		)
 		(property "Footprint" ""
-			(at 45.72 43.18 0)
+			(at 43.18 43.18 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7343,7 +8290,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 45.72 43.18 0)
+			(at 43.18 43.18 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7352,7 +8299,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 45.72 43.18 0)
+			(at 43.18 43.18 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7729,6 +8676,72 @@
 			(project "CurcuitV1"
 				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
 					(reference "U3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 110.49 57.15 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7ab451d6-530b-4094-b736-768e00a4c5b6")
+		(property "Reference" "#PWR031"
+			(at 110.49 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 110.49 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 110.49 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 110.49 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 110.49 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "66474b10-672e-4a3d-8f32-06f713c6e073")
+		)
+		(instances
+			(project "CurcuitV1"
+				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
+					(reference "#PWR031")
 					(unit 1)
 				)
 			)
@@ -8744,6 +9757,140 @@
 			(project ""
 				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
 					(reference "J2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x02")
+		(at 102.87 57.15 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a4aa5433-b4e9-4248-b3ec-730cd6205811")
+		(property "Reference" "J4"
+			(at 102.87 48.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "Conn_01x02"
+			(at 102.87 50.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal"
+			(at 102.87 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 102.87 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 102.87 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "5710e086-a1e1-404f-89b2-6bdfb68dd8b1")
+		)
+		(pin "1"
+			(uuid "6e834117-add2-410d-a4c9-665044b22625")
+		)
+		(instances
+			(project "CurcuitV1"
+				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
+					(reference "J4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 99.06 147.32 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a6b51848-1249-4b8d-973e-03a3a9054c89")
+		(property "Reference" "#PWR028"
+			(at 99.06 151.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 99.06 142.24 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 99.06 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 99.06 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 99.06 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "e448f787-c2a5-4686-9a67-4327f23e9191")
+		)
+		(instances
+			(project "CurcuitV1"
+				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
+					(reference "#PWR028")
 					(unit 1)
 				)
 			)
@@ -10488,6 +11635,72 @@
 			(project "CurcuitV1"
 				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
 					(reference "R5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 99.06 154.94 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f059f741-3ec0-4a64-8e63-393d00ff4ead")
+		(property "Reference" "#PWR029"
+			(at 99.06 161.29 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 99.06 160.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 99.06 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 99.06 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 99.06 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "7abc4d15-9a2e-42a5-a7ee-e8ade1c9ddb9")
+		)
+		(instances
+			(project "CurcuitV1"
+				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
+					(reference "#PWR029")
 					(unit 1)
 				)
 			)
