@@ -129,7 +129,10 @@ C_INCLUDES =  \
 -IDrivers/STM32F3xx_HAL_Driver/Inc \
 -IDrivers/STM32F3xx_HAL_Driver/Inc/Legacy \
 -IDrivers/CMSIS/Device/ST/STM32F3xx/Include \
--IDrivers/CMSIS/Include
+-IDrivers/CMSIS/Include \
+-Isrc/app \
+-Isrc/ \
+-Ilib/\
 
 
 # compile gcc flags
@@ -199,7 +202,9 @@ $(BUILD_DIR):
 #######################################
 clean:
 	-rm -fR $(BUILD_DIR)
-  
+run:
+	make -j12
+	sh SWDFlash.sh
 #######################################
 # dependencies
 #######################################
