@@ -27,7 +27,7 @@ build/adc.o: Core/Src/adc.c Core/Inc/adc.h Core/Inc/main.h \
  Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_tim.h \
  Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_tim_ex.h \
  Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_uart.h \
- Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_uart_ex.h
+ Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_uart_ex.h src/app/app.h
 Core/Inc/adc.h:
 Core/Inc/main.h:
 Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal.h:
@@ -61,3 +61,4 @@ Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_tim.h:
 Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_tim_ex.h:
 Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_uart.h:
 Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_uart_ex.h:
+src/app/app.h:
