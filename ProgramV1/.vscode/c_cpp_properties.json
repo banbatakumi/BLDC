@@ -10,6 +10,7 @@
                 "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32F3xx/Include",
                 "${workspaceFolder}/Drivers/CMSIS/Include",
                 "${workspaceFolder}/src/app",
+                "${workspaceFolder}/src/bldc",
                 "${workspaceFolder}/src/",
                 "${workspaceFolder}/lib/"
             ],
