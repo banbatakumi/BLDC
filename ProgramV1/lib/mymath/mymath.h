@@ -7,7 +7,7 @@
 #define DEG_TO_RAD 0.017453292519943295769236907684886
 #define RAD_TO_DEG 57.295779513082320876798154814105
 
-#define abs(x) ((x) > 0 ? (x) : -(x))
+#define Abs(x) ((x) > 0 ? (x) : -(x))
 #define Constrain(amt, low, high) ((amt) < (low) ? (low) : ((amt) > (high) ? (high) : (amt)))
 #define Radians(deg) ((deg) * DEG_TO_RAD)
 #define Degrees(rad) ((rad) * RAD_TO_DEG)
@@ -197,8 +197,14 @@ static const float sin_table[91] = {
     SIN89,
     SIN90};
 
+static inline int NormalizeDegrees(int deg) {
+      while (deg < 0) deg += 360;
+      while (deg >= 360) deg -= 360;
+      return deg;
+}
+
 static inline float SinDeg(int deg) {
-      deg = ormalizeDegrees(deg);
+      deg = NormalizeDegrees(deg);
       int theta_cal = deg % 90;
       if (deg >= 90 && deg < 180) {
             theta_cal = 90 - theta_cal;
@@ -230,12 +236,6 @@ static inline float Sin(float rad) {
 
 static inline float Cos(float rad) {
       return CosDeg(Degrees(rad));
-}
-
-static inline int NormalizeDegrees(int deg) {
-      while (deg < 0) deg += 360;
-      while (deg >= 360) deg -= 360;
-      return deg;
 }
 
 #endif  // MYMATH_H_

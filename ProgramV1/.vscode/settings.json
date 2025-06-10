@@ -1,5 +1,6 @@
 {
       "files.associations": {
-            "digitalinout.h": "c"
+            "digitalinout.h": "c",
+            "pwm_out.h": "c"
       }
 }
