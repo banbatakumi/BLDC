@@ -13,25 +13,23 @@ typedef struct {
       uint16_t pin;
 } DigitalIn;
 
-// DigitalOutの初期化
+// Out
 static inline void DigitalOutInit(DigitalOut *obj, GPIO_TypeDef *port, uint16_t pin) {
       obj->port = port;
       obj->pin = pin;
       HAL_GPIO_WritePin(port, pin, GPIO_PIN_RESET);
 }
 
-// DigitalOutに値を書き込む
 static inline void DigitalWrite(DigitalOut *obj, int value) {
       HAL_GPIO_WritePin(obj->port, obj->pin, value ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 
-// DigitalInの初期化
+// In
 static inline void DigitalInInit(DigitalIn *obj, GPIO_TypeDef *port, uint16_t pin) {
       obj->port = port;
       obj->pin = pin;
 }
 
-// DigitalInの状態を読む
 static inline int DigitalRead(DigitalIn *obj) {
       return HAL_GPIO_ReadPin(obj->port, obj->pin) == GPIO_PIN_SET;
 }
