@@ -1,7 +1,10 @@
-#ifndef __APP__
-#define __APP__
+#ifndef APP_H_
+#define APP_H_
+
+#include "DigitalInOut.h"
+// #include "main.h"
 
 void setup();
 void main_app();
 
-#endif
+#endif  // APP_H_
