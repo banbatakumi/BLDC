@@ -1,7 +1,7 @@
 #ifndef APP_H_
 #define APP_H_
 
-#include "DigitalInOut.h"
+#include "digitalinout.h"
 // #include "main.h"
 
 void setup();
