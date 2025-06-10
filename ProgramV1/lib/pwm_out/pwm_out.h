@@ -11,7 +11,7 @@ typedef struct {
       int usePwmPin_t;
 } PwmOut;
 
-static inline void PwmInit(PwmOut *obj, TIM_HandleTypeDef *htim, uint32_t channel) {
+static inline void PwmOut_Init(PwmOut *obj, TIM_HandleTypeDef *htim, uint32_t channel) {
       obj->htim = htim;
       obj->channel = channel;
       obj->usePwmPin_t = 0;
@@ -20,7 +20,7 @@ static inline void PwmInit(PwmOut *obj, TIM_HandleTypeDef *htim, uint32_t channe
       obj->maxValue = obj->htim->Init.Period;
 }
 
-static inline void PwmWrite(PwmOut *obj, float duty) {
+static inline void PwmOut_Write(PwmOut *obj, float duty) {
       int val = (int)(Constrain(duty, 0.0f, 1.0f) * obj->maxValue);
       __HAL_TIM_SET_COMPARE(obj->htim, obj->channel, val);
 }
