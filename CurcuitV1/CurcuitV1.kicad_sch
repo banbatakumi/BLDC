@@ -952,6 +952,108 @@
 				)
 			)
 		)
+		(symbol "Connector:TestPoint"
+			(pin_numbers hide)
+			(pin_names
+				(offset 0.762) hide)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "TP"
+				(at 0 6.858 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "TestPoint"
+				(at 0 5.08 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 5.08 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 5.08 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "test point"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "test point tp"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "Pin* Test*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "TestPoint_0_1"
+				(circle
+					(center 0 3.302)
+					(radius 0.762)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "TestPoint_1_1"
+				(pin passive line
+					(at 0 0 90)
+					(length 2.54)
+					(name "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+		)
 		(symbol "Connector_Generic:Conn_01x02"
 			(pin_names
 				(offset 1.016) hide)
@@ -3684,7 +3786,10 @@
 				)
 			)
 		)
-		(symbol "Regulator_Linear:LM1117MP-3.3"
+		(symbol "Regulator_Linear:APE8865NR-15-HF-3"
+			(pin_names
+				(offset 0.254)
+			)
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -3696,7 +3801,7 @@
 					)
 				)
 			)
-			(property "Value" "LM1117MP-3.3"
+			(property "Value" "APE8865NR-15-HF-3"
 				(at 0 3.175 0)
 				(effects
 					(font
@@ -3705,7 +3810,26 @@
 					(justify left)
 				)
 			)
-			(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
+			(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+				(at 0 5.715 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(italic yes)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "http://www.tme.eu/fr/Document/ced3461ed31ea70a3c416fb648e0cde7/APE8865-3.pdf"
+				(at 0 -1.27 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "300mA Low Dropout Voltage Regulator, Fixed Output 1.5V, SOT-23"
 				(at 0 0 0)
 				(effects
 					(font
@@ -3714,7 +3838,7 @@
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "http://www.ti.com/lit/ds/symlink/lm1117.pdf"
+			(property "ki_keywords" "300mA LDO Regulator Fixed Positive"
 				(at 0 0 0)
 				(effects
 					(font
@@ -3723,7 +3847,7 @@
 					(hide yes)
 				)
 			)
-			(property "Description" "800mA Low-Dropout Linear Regulator, 3.3V fixed output, SOT-223"
+			(property "ki_fp_filters" "SOT?23*"
 				(at 0 0 0)
 				(effects
 					(font
@@ -3732,28 +3856,10 @@
 					(hide yes)
 				)
 			)
-			(property "ki_keywords" "linear regulator ldo fixed positive"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "ki_fp_filters" "SOT?223*"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(symbol "LM1117MP-3.3_0_1"
+			(symbol "APE8865NR-15-HF-3_0_1"
 				(rectangle
-					(start -5.08 -5.08)
-					(end 5.08 1.905)
+					(start -5.08 1.905)
+					(end 5.08 -5.08)
 					(stroke
 						(width 0.254)
 						(type default)
@@ -3763,11 +3869,11 @@
 					)
 				)
 			)
-			(symbol "LM1117MP-3.3_1_1"
+			(symbol "APE8865NR-15-HF-3_1_1"
 				(pin power_in line
-					(at 0 -7.62 90)
+					(at -7.62 0 0)
 					(length 2.54)
-					(name "GND"
+					(name "VI"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -3801,9 +3907,9 @@
 					)
 				)
 				(pin power_in line
-					(at -7.62 0 0)
+					(at 0 -7.62 90)
 					(length 2.54)
-					(name "VI"
+					(name "GND"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -4546,7 +4652,7 @@
 		(at 66.04 147.32)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "46ba652d-5549-45d3-b7db-992e514a60b6")
+		(uuid "47385028-88d3-4b8d-804c-32cd4563aa5e")
 	)
 	(junction
 		(at 210.82 48.26)
@@ -4559,12 +4665,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "4ffe7ffb-b5ca-4f81-9adb-9f63001225b6")
-	)
-	(junction
-		(at 66.04 113.03)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "5318e702-aa0f-45a0-ac76-5a801b15d4a5")
 	)
 	(junction
 		(at 71.12 127)
@@ -4621,12 +4721,6 @@
 		(uuid "6d86b47f-a845-4194-93c5-e6a00aef191e")
 	)
 	(junction
-		(at 50.8 113.03)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "76b85cc2-d175-4558-a42b-d0b0037b87dc")
-	)
-	(junction
 		(at 60.96 134.62)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4657,6 +4751,12 @@
 		(uuid "80b8103b-2cb8-4221-8597-a70b018b9e00")
 	)
 	(junction
+		(at 50.8 147.32)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "84e421d3-c4c0-4e85-a711-7cb1bd98fb15")
+	)
+	(junction
 		(at 91.44 33.02)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4679,12 +4779,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "a3644a80-48f3-42d9-8319-89689e15944b")
-	)
-	(junction
-		(at 50.8 147.32)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "a3d31c76-28eb-4774-bffa-24a33375817b")
 	)
 	(junction
 		(at 177.8 130.81)
@@ -4757,6 +4851,18 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "cc4be383-7118-4943-b3b4-5679b906d9c1")
+	)
+	(junction
+		(at 50.8 113.03)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "cfc0267d-726d-4eef-938f-e17d760f3529")
+	)
+	(junction
+		(at 66.04 113.03)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d0224969-f814-4758-a0fa-e88b749a2284")
 	)
 	(junction
 		(at 35.56 127)
@@ -5037,16 +5143,6 @@
 			(type default)
 		)
 		(uuid "0e39543c-6b36-4d8e-bc8c-29872b963094")
-	)
-	(wire
-		(pts
-			(xy 104.14 105.41) (xy 106.68 105.41)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0ef53110-311c-43a7-863e-121706b2b187")
 	)
 	(wire
 		(pts
@@ -5350,6 +5446,16 @@
 	)
 	(wire
 		(pts
+			(xy 259.08 57.15) (xy 261.62 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2fa7022d-e162-4ccd-aa35-5e8c706bba26")
+	)
+	(wire
+		(pts
 			(xy 210.82 151.13) (xy 213.36 151.13)
 		)
 		(stroke
@@ -5377,16 +5483,6 @@
 			(type default)
 		)
 		(uuid "36af5f23-c67c-48af-b5f2-5b658c03e7cf")
-	)
-	(wire
-		(pts
-			(xy 104.14 107.95) (xy 106.68 107.95)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3a2c321a-2e9c-4aa2-a2b7-a334fb19f5a0")
 	)
 	(wire
 		(pts
@@ -5457,6 +5553,16 @@
 			(type default)
 		)
 		(uuid "43f65c57-449d-415d-8c59-73b46718eee0")
+	)
+	(wire
+		(pts
+			(xy 259.08 68.58) (xy 261.62 68.58)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "44353e91-4eef-451a-bf25-fafebfacfa5c")
 	)
 	(wire
 		(pts
@@ -5797,6 +5903,16 @@
 			(type default)
 		)
 		(uuid "6c7f8c02-6a05-4bc7-90c2-5d1ffc9f11bf")
+	)
+	(wire
+		(pts
+			(xy 259.08 62.23) (xy 261.62 62.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6c94a72d-e949-4840-b172-1cba7d552d0d")
 	)
 	(wire
 		(pts
@@ -6350,16 +6466,6 @@
 	)
 	(wire
 		(pts
-			(xy 104.14 110.49) (xy 106.68 110.49)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b7ed0ab8-e0bf-4af9-9e94-c27e2df60870")
-	)
-	(wire
-		(pts
 			(xy 135.89 101.6) (xy 138.43 101.6)
 		)
 		(stroke
@@ -6377,6 +6483,16 @@
 			(type default)
 		)
 		(uuid "be0d108c-69ac-4e74-9b51-a8a79ab8f2b0")
+	)
+	(wire
+		(pts
+			(xy 104.14 110.49) (xy 106.68 110.49)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bfaea53b-ac20-470e-ba4f-e953ea75ba11")
 	)
 	(wire
 		(pts
@@ -6550,6 +6666,16 @@
 	)
 	(wire
 		(pts
+			(xy 104.14 107.95) (xy 106.68 107.95)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d4f1a505-99ac-4605-99dc-8a6389247d5a")
+	)
+	(wire
+		(pts
 			(xy 86.36 71.12) (xy 88.9 71.12)
 		)
 		(stroke
@@ -6597,6 +6723,16 @@
 			(type default)
 		)
 		(uuid "d8494785-82bc-4782-8a46-c11cf0954e1e")
+	)
+	(wire
+		(pts
+			(xy 104.14 105.41) (xy 106.68 105.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ddeba26f-e507-4a1f-9bbe-bc2cd8c79f7b")
 	)
 	(wire
 		(pts
@@ -7126,9 +7262,31 @@
 			)
 		)
 	)
+	(global_label "V_OUT"
+		(shape input)
+		(at 259.08 62.23 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "3896aa32-08ee-4b7e-9e3a-e7dba47d40e4")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 250.41 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+				(hide yes)
+			)
+		)
+	)
 	(global_label "SWCLK"
 		(shape input)
-		(at 106.68 105.41 0)
+		(at 106.68 107.95 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -7138,7 +7296,7 @@
 		)
 		(uuid "3a065efe-5b6f-4d0d-8300-c32db686c2d2")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 115.8942 105.41 0)
+			(at 115.8942 107.95 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7172,7 +7330,7 @@
 	)
 	(global_label "NSRT"
 		(shape input)
-		(at 106.68 110.49 0)
+		(at 106.68 105.41 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -7182,12 +7340,34 @@
 		)
 		(uuid "4051cc06-1815-4890-83ed-c1488e8380f4")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 114.4428 110.49 0)
+			(at 114.4428 105.41 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
+				(hide yes)
+			)
+		)
+	)
+	(global_label "U_OUT"
+		(shape input)
+		(at 259.08 68.58 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "40975810-71e1-4b0f-a5ea-a9f26d15b314")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 250.1681 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
 				(hide yes)
 			)
 		)
@@ -7238,7 +7418,7 @@
 	)
 	(global_label "SWDIO"
 		(shape input)
-		(at 106.68 107.95 0)
+		(at 106.68 110.49 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -7248,7 +7428,7 @@
 		)
 		(uuid "55dffcaf-7b28-4372-b1b7-982f344ac01c")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 115.5314 107.95 0)
+			(at 115.5314 110.49 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7650,6 +7830,28 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+				(hide yes)
+			)
+		)
+	)
+	(global_label "W_OUT"
+		(shape input)
+		(at 259.08 57.15 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "db42c929-6da7-42ea-bc7b-9956a6e6ed5b")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 250.0472 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
 				(hide yes)
 			)
 		)
@@ -8168,42 +8370,35 @@
 		)
 	)
 	(symbol
-		(lib_id "Regulator_Linear:LM1117MP-3.3")
-		(at 58.42 113.03 0)
+		(lib_id "Connector:TestPoint")
+		(at 261.62 62.23 270)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "0ff1f716-c42b-4a58-b184-2cd26cc86cc9")
-		(property "Reference" "U5"
-			(at 58.42 106.68 0)
+		(uuid "09e5778c-13cd-428e-abb3-3b52a45552b4")
+		(property "Reference" "TP2"
+			(at 266.7 60.9599 90)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
-		(property "Value" "AP7375-3.3"
-			(at 58.42 109.22 0)
+		(property "Value" "TestPoint"
+			(at 266.7 63.4999 90)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
-			(at 58.42 113.03 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/lm1117.pdf"
-			(at 58.42 113.03 0)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
+			(at 261.62 67.31 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8211,8 +8406,17 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "800mA Low-Dropout Linear Regulator, 3.3V fixed output, SOT-223"
-			(at 58.42 113.03 0)
+		(property "Datasheet" "~"
+			(at 261.62 67.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 261.62 62.23 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8221,18 +8425,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "f48d007e-f9d1-42db-8943-2a2c7d6d80f2")
-		)
-		(pin "3"
-			(uuid "9c4d8661-20c1-4ab9-8172-44de79444758")
-		)
-		(pin "2"
-			(uuid "940ac1cf-6b6e-47c4-ad7a-485b6ad84063")
+			(uuid "40f5b2f2-be4c-4b0c-b4b9-2a6b0096ea06")
 		)
 		(instances
-			(project ""
+			(project "CurcuitV1"
 				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
-					(reference "U5")
+					(reference "TP2")
 					(unit 1)
 				)
 			)
@@ -9166,6 +9364,78 @@
 			(project ""
 				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
 					(reference "SW1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Regulator_Linear:APE8865NR-15-HF-3")
+		(at 58.42 113.03 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "2dc065fd-4e39-4a70-9796-86803c35751d")
+		(property "Reference" "U7"
+			(at 58.42 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "AP7375-3.3"
+			(at 58.42 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 58.42 107.315 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 58.42 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 58.42 113.03 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "3e010399-d676-478f-9eb3-6b6d7f292859")
+		)
+		(pin "1"
+			(uuid "143d8bbf-ae4e-4603-88dc-254e10e65bc6")
+		)
+		(pin "3"
+			(uuid "dc87e56d-b3fb-404f-a364-f01b1cfcd812")
+		)
+		(instances
+			(project ""
+				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
+					(reference "U7")
 					(unit 1)
 				)
 			)
@@ -10580,6 +10850,78 @@
 			(project "CurcuitV1"
 				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
 					(reference "#PWR040")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Regulator_Linear:APE8865NR-15-HF-3")
+		(at 58.42 147.32 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "53e2a852-4837-4384-a9d8-89c8909a1c82")
+		(property "Reference" "U5"
+			(at 58.42 140.97 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "AP7375-5"
+			(at 58.42 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 58.42 141.605 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 58.42 148.59 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 58.42 147.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "7498de42-715a-4280-8ead-ea39ef96aa06")
+		)
+		(pin "1"
+			(uuid "357a8196-d4bf-457d-ac28-27b57a470920")
+		)
+		(pin "3"
+			(uuid "23f9a3fb-56f3-4e3e-8aee-9da537a6a7e7")
+		)
+		(instances
+			(project "CurcuitV1"
+				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
+					(reference "U5")
 					(unit 1)
 				)
 			)
@@ -15672,6 +16014,73 @@
 		)
 	)
 	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 261.62 57.15 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "e88f097c-cd73-4229-8a99-7db9ba7aa70c")
+		(property "Reference" "TP1"
+			(at 266.7 55.8799 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 266.7 58.4199 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
+			(at 261.62 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 261.62 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 261.62 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "9305d2c6-d457-4ad7-b098-fcad8b42af8a")
+		)
+		(instances
+			(project ""
+				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
+					(reference "TP1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:C")
 		(at 173.99 86.36 270)
 		(unit 1)
@@ -16139,6 +16548,73 @@
 		)
 	)
 	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 261.62 68.58 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f919c5ed-ca4b-48fa-9375-3db3b6313bbb")
+		(property "Reference" "TP3"
+			(at 266.7 67.3099 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 266.7 69.8499 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D2.0mm"
+			(at 261.62 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 261.62 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 261.62 68.58 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "867ef23e-c95c-4a2c-b138-d23e674f9808")
+		)
+		(instances
+			(project "CurcuitV1"
+				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
+					(reference "TP3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 128.27 134.62 0)
 		(unit 1)
@@ -16198,77 +16674,6 @@
 			(project "CurcuitV1"
 				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
 					(reference "#PWR039")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Regulator_Linear:LM1117MP-3.3")
-		(at 58.42 147.32 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "fa360181-5e6d-406d-9250-e64add5e6898")
-		(property "Reference" "U6"
-			(at 58.42 140.97 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "AP7375-3.3"
-			(at 58.42 143.51 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
-			(at 58.42 147.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/lm1117.pdf"
-			(at 58.42 147.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "800mA Low-Dropout Linear Regulator, 3.3V fixed output, SOT-223"
-			(at 58.42 147.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "e45e75bf-71fb-45b0-a97e-cc2c938e3e7b")
-		)
-		(pin "3"
-			(uuid "dfb54e8f-85a1-4c3c-b9c0-fc9f0bbe6d8e")
-		)
-		(pin "2"
-			(uuid "aa3bb4d0-aea0-4fc9-a385-b6b14ca9cdcd")
-		)
-		(instances
-			(project "CurcuitV1"
-				(path "/20039c5b-7fff-4c6c-b0d4-63b9484bce35"
-					(reference "U6")
 					(unit 1)
 				)
 			)
