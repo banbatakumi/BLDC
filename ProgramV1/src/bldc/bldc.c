@@ -15,6 +15,9 @@ void BLDC_Init() {
 }
 
 static inline void BLDC_WritePwm(float u, float v, float w) {
+      if (u > 0.95f) u = 0.95f;  // 最大値制限
+      if (v > 0.95f) v = 0.95f;  // 最大値制限
+      if (w > 0.95f) w = 0.95f;  // 最大値制限
       PwmOut_Write(&u_pwm, u);
       PwmOut_Write(&v_pwm, v);
       PwmOut_Write(&w_pwm, w);

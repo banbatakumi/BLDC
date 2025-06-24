@@ -16,6 +16,6 @@ void setup() {
 
 void main_app() {
       while (1) {
-            BLDC_OpenLoopDrive(1, 30.0f);
+            BLDC_OpenLoopDrive(1, 50.0f);
       }
 }
