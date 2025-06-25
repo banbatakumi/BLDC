@@ -4,6 +4,7 @@
 #include "bldc.h"
 #include "digitalinout.h"
 #include "pwm_out.h"
+#include "timer.h"
 // #include "main.h"
 
 void setup();
