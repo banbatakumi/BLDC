@@ -1,0 +1,355 @@
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s 			page 1
+
+
+   1              		.cpu cortex-m4
+   2              		.arch armv7e-m
+   3              		.fpu fpv4-sp-d16
+   4              		.eabi_attribute 27, 1
+   5              		.eabi_attribute 28, 1
+   6              		.eabi_attribute 20, 1
+   7              		.eabi_attribute 21, 1
+   8              		.eabi_attribute 23, 3
+   9              		.eabi_attribute 24, 1
+  10              		.eabi_attribute 25, 1
+  11              		.eabi_attribute 26, 1
+  12              		.eabi_attribute 30, 1
+  13              		.eabi_attribute 34, 1
+  14              		.eabi_attribute 18, 4
+  15              		.file	"app.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.file 1 "src/app/app.c"
+  20              		.section	.text.setup,"ax",%progbits
+  21              		.align	1
+  22              		.global	setup
+  23              		.syntax unified
+  24              		.thumb
+  25              		.thumb_func
+  27              	setup:
+  28              	.LFB142:
+   1:src/app/app.c **** #include "app.h"
+   2:src/app/app.c **** 
+   3:src/app/app.c **** DigitalOut LED3;
+   4:src/app/app.c **** DigitalOut LED4;
+   5:src/app/app.c **** PwmOut LED2;
+   6:src/app/app.c **** PwmOut LED1;
+   7:src/app/app.c **** 
+   8:src/app/app.c **** void setup() {
+  29              		.loc 1 8 14 view -0
+  30              		.cfi_startproc
+  31              		@ args = 0, pretend = 0, frame = 0
+  32              		@ frame_needed = 0, uses_anonymous_args = 0
+  33 0000 70B5     		push	{r4, r5, r6, lr}
+  34              	.LCFI0:
+  35              		.cfi_def_cfa_offset 16
+  36              		.cfi_offset 4, -16
+  37              		.cfi_offset 5, -12
+  38              		.cfi_offset 6, -8
+  39              		.cfi_offset 14, -4
+   9:src/app/app.c ****       DigitalOut_Init(&LED3, GPIOB, LED3_Pin);    // LED3の初期化
+  40              		.loc 1 9 7 view .LVU1
+  41              	.LVL0:
+  42              	.LBB10:
+  43              	.LBI10:
+  44              		.file 2 "Lib/digitalinout/digitalinout.h"
+   1:Lib/digitalinout/digitalinout.h **** #ifndef DIGITALINOUT_H_
+   2:Lib/digitalinout/digitalinout.h **** #define DIGITALINOUT_H_
+   3:Lib/digitalinout/digitalinout.h **** 
+   4:Lib/digitalinout/digitalinout.h **** #include "main.h"
+   5:Lib/digitalinout/digitalinout.h **** 
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s 			page 2
+
+
+   6:Lib/digitalinout/digitalinout.h **** typedef struct {
+   7:Lib/digitalinout/digitalinout.h ****       GPIO_TypeDef *port;
+   8:Lib/digitalinout/digitalinout.h ****       uint16_t pin;
+   9:Lib/digitalinout/digitalinout.h **** } DigitalOut;
+  10:Lib/digitalinout/digitalinout.h **** 
+  11:Lib/digitalinout/digitalinout.h **** typedef struct {
+  12:Lib/digitalinout/digitalinout.h ****       GPIO_TypeDef *port;
+  13:Lib/digitalinout/digitalinout.h ****       uint16_t pin;
+  14:Lib/digitalinout/digitalinout.h **** } DigitalIn;
+  15:Lib/digitalinout/digitalinout.h **** 
+  16:Lib/digitalinout/digitalinout.h **** // Out
+  17:Lib/digitalinout/digitalinout.h **** static inline void DigitalOut_Init(DigitalOut *obj, GPIO_TypeDef *port, uint16_t pin) {
+  45              		.loc 2 17 20 view .LVU2
+  46              	.LBB11:
+  18:Lib/digitalinout/digitalinout.h ****       obj->port = port;
+  47              		.loc 2 18 7 view .LVU3
+  48              		.loc 2 18 17 is_stmt 0 view .LVU4
+  49 0002 164B     		ldr	r3, .L3
+  50 0004 164C     		ldr	r4, .L3+4
+  51 0006 1C60     		str	r4, [r3]
+  19:Lib/digitalinout/digitalinout.h ****       obj->pin = pin;
+  52              		.loc 2 19 7 is_stmt 1 view .LVU5
+  53              		.loc 2 19 16 is_stmt 0 view .LVU6
+  54 0008 1021     		movs	r1, #16
+  55 000a 9980     		strh	r1, [r3, #4]	@ movhi
+  20:Lib/digitalinout/digitalinout.h ****       HAL_GPIO_WritePin(port, pin, GPIO_PIN_RESET);
+  56              		.loc 2 20 7 is_stmt 1 view .LVU7
+  57 000c 0022     		movs	r2, #0
+  58 000e 2046     		mov	r0, r4
+  59 0010 FFF7FEFF 		bl	HAL_GPIO_WritePin
+  60              	.LVL1:
+  61              		.loc 2 20 7 is_stmt 0 view .LVU8
+  62              	.LBE11:
+  63              	.LBE10:
+  10:src/app/app.c ****       DigitalOut_Init(&LED4, GPIOB, LED4_Pin);    // LED4の初期化
+  64              		.loc 1 10 7 is_stmt 1 view .LVU9
+  65              	.LBB12:
+  66              	.LBI12:
+  17:Lib/digitalinout/digitalinout.h ****       obj->port = port;
+  67              		.loc 2 17 20 view .LVU10
+  68              	.LBB13:
+  18:Lib/digitalinout/digitalinout.h ****       obj->pin = pin;
+  69              		.loc 2 18 7 view .LVU11
+  18:Lib/digitalinout/digitalinout.h ****       obj->pin = pin;
+  70              		.loc 2 18 17 is_stmt 0 view .LVU12
+  71 0014 134B     		ldr	r3, .L3+8
+  72 0016 1C60     		str	r4, [r3]
+  19:Lib/digitalinout/digitalinout.h ****       HAL_GPIO_WritePin(port, pin, GPIO_PIN_RESET);
+  73              		.loc 2 19 7 is_stmt 1 view .LVU13
+  19:Lib/digitalinout/digitalinout.h ****       HAL_GPIO_WritePin(port, pin, GPIO_PIN_RESET);
+  74              		.loc 2 19 16 is_stmt 0 view .LVU14
+  75 0018 2021     		movs	r1, #32
+  76 001a 9980     		strh	r1, [r3, #4]	@ movhi
+  77              		.loc 2 20 7 is_stmt 1 view .LVU15
+  78 001c 0022     		movs	r2, #0
+  79 001e 2046     		mov	r0, r4
+  80 0020 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s 			page 3
+
+
+  81              	.LVL2:
+  82              		.loc 2 20 7 is_stmt 0 view .LVU16
+  83              	.LBE13:
+  84              	.LBE12:
+  11:src/app/app.c ****       PwmOut_Init(&LED2, &htim2, TIM_CHANNEL_2);  // LED2のPWM初期化
+  85              		.loc 1 11 7 is_stmt 1 view .LVU17
+  86              	.LBB14:
+  87              	.LBI14:
+  88              		.file 3 "Lib/pwm_out/pwm_out.h"
+   1:Lib/pwm_out/pwm_out.h **** #ifndef PWM_H_
+   2:Lib/pwm_out/pwm_out.h **** #define PWM_H_
+   3:Lib/pwm_out/pwm_out.h **** 
+   4:Lib/pwm_out/pwm_out.h **** #include "mymath.h"
+   5:Lib/pwm_out/pwm_out.h **** #include "tim.h"
+   6:Lib/pwm_out/pwm_out.h **** 
+   7:Lib/pwm_out/pwm_out.h **** typedef struct {
+   8:Lib/pwm_out/pwm_out.h ****       TIM_HandleTypeDef *htim;
+   9:Lib/pwm_out/pwm_out.h ****       uint32_t channel;
+  10:Lib/pwm_out/pwm_out.h ****       uint32_t maxValue;
+  11:Lib/pwm_out/pwm_out.h ****       int usePwmPin_t;
+  12:Lib/pwm_out/pwm_out.h **** } PwmOut;
+  13:Lib/pwm_out/pwm_out.h **** 
+  14:Lib/pwm_out/pwm_out.h **** static inline void PwmOut_Init(PwmOut *obj, TIM_HandleTypeDef *htim, uint32_t channel) {
+  89              		.loc 3 14 20 view .LVU18
+  90              	.LBB15:
+  15:Lib/pwm_out/pwm_out.h ****       obj->htim = htim;
+  91              		.loc 3 15 7 view .LVU19
+  92              		.loc 3 15 17 is_stmt 0 view .LVU20
+  93 0024 104C     		ldr	r4, .L3+12
+  94 0026 114D     		ldr	r5, .L3+16
+  95 0028 2560     		str	r5, [r4]
+  16:Lib/pwm_out/pwm_out.h ****       obj->channel = channel;
+  96              		.loc 3 16 7 is_stmt 1 view .LVU21
+  97              		.loc 3 16 20 is_stmt 0 view .LVU22
+  98 002a 0421     		movs	r1, #4
+  99 002c 6160     		str	r1, [r4, #4]
+  17:Lib/pwm_out/pwm_out.h ****       obj->usePwmPin_t = 0;
+ 100              		.loc 3 17 7 is_stmt 1 view .LVU23
+ 101              		.loc 3 17 24 is_stmt 0 view .LVU24
+ 102 002e 0026     		movs	r6, #0
+ 103 0030 E660     		str	r6, [r4, #12]
+  18:Lib/pwm_out/pwm_out.h **** 
+  19:Lib/pwm_out/pwm_out.h ****       HAL_TIM_PWM_Start(obj->htim, obj->channel);
+ 104              		.loc 3 19 7 is_stmt 1 view .LVU25
+ 105 0032 2846     		mov	r0, r5
+ 106 0034 FFF7FEFF 		bl	HAL_TIM_PWM_Start
+ 107              	.LVL3:
+  20:Lib/pwm_out/pwm_out.h ****       obj->maxValue = obj->htim->Init.Period;
+ 108              		.loc 3 20 7 view .LVU26
+ 109              		.loc 3 20 26 is_stmt 0 view .LVU27
+ 110 0038 2368     		ldr	r3, [r4]
+ 111              		.loc 3 20 38 view .LVU28
+ 112 003a DB68     		ldr	r3, [r3, #12]
+ 113              		.loc 3 20 21 view .LVU29
+ 114 003c A360     		str	r3, [r4, #8]
+ 115              	.LVL4:
+ 116              		.loc 3 20 21 view .LVU30
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s 			page 4
+
+
+ 117              	.LBE15:
+ 118              	.LBE14:
+  12:src/app/app.c ****       PwmOut_Init(&LED1, &htim2, TIM_CHANNEL_1);  // LED1のPWM初期化
+ 119              		.loc 1 12 7 is_stmt 1 view .LVU31
+ 120              	.LBB16:
+ 121              	.LBI16:
+  14:Lib/pwm_out/pwm_out.h ****       obj->htim = htim;
+ 122              		.loc 3 14 20 view .LVU32
+ 123              	.LBB17:
+  15:Lib/pwm_out/pwm_out.h ****       obj->channel = channel;
+ 124              		.loc 3 15 7 view .LVU33
+  15:Lib/pwm_out/pwm_out.h ****       obj->channel = channel;
+ 125              		.loc 3 15 17 is_stmt 0 view .LVU34
+ 126 003e 0C4C     		ldr	r4, .L3+20
+ 127 0040 2560     		str	r5, [r4]
+  16:Lib/pwm_out/pwm_out.h ****       obj->usePwmPin_t = 0;
+ 128              		.loc 3 16 7 is_stmt 1 view .LVU35
+  16:Lib/pwm_out/pwm_out.h ****       obj->usePwmPin_t = 0;
+ 129              		.loc 3 16 20 is_stmt 0 view .LVU36
+ 130 0042 6660     		str	r6, [r4, #4]
+  17:Lib/pwm_out/pwm_out.h **** 
+ 131              		.loc 3 17 7 is_stmt 1 view .LVU37
+  17:Lib/pwm_out/pwm_out.h **** 
+ 132              		.loc 3 17 24 is_stmt 0 view .LVU38
+ 133 0044 E660     		str	r6, [r4, #12]
+  19:Lib/pwm_out/pwm_out.h ****       obj->maxValue = obj->htim->Init.Period;
+ 134              		.loc 3 19 7 is_stmt 1 view .LVU39
+ 135 0046 3146     		mov	r1, r6
+ 136 0048 2846     		mov	r0, r5
+ 137 004a FFF7FEFF 		bl	HAL_TIM_PWM_Start
+ 138              	.LVL5:
+ 139              		.loc 3 20 7 view .LVU40
+ 140              		.loc 3 20 26 is_stmt 0 view .LVU41
+ 141 004e 2368     		ldr	r3, [r4]
+ 142              		.loc 3 20 38 view .LVU42
+ 143 0050 DB68     		ldr	r3, [r3, #12]
+ 144              		.loc 3 20 21 view .LVU43
+ 145 0052 A360     		str	r3, [r4, #8]
+ 146              	.LVL6:
+ 147              		.loc 3 20 21 view .LVU44
+ 148              	.LBE17:
+ 149              	.LBE16:
+  13:src/app/app.c **** 
+  14:src/app/app.c ****       BLDC_Init();
+ 150              		.loc 1 14 7 is_stmt 1 view .LVU45
+ 151 0054 FFF7FEFF 		bl	BLDC_Init
+ 152              	.LVL7:
+  15:src/app/app.c **** }
+ 153              		.loc 1 15 1 is_stmt 0 view .LVU46
+ 154 0058 70BD     		pop	{r4, r5, r6, pc}
+ 155              	.L4:
+ 156 005a 00BF     		.align	2
+ 157              	.L3:
+ 158 005c 00000000 		.word	LED3
+ 159 0060 00040048 		.word	1207960576
+ 160 0064 00000000 		.word	LED4
+ 161 0068 00000000 		.word	LED2
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s 			page 5
+
+
+ 162 006c 00000000 		.word	htim2
+ 163 0070 00000000 		.word	LED1
+ 164              		.cfi_endproc
+ 165              	.LFE142:
+ 167              		.section	.text.main_app,"ax",%progbits
+ 168              		.align	1
+ 169              		.global	main_app
+ 170              		.syntax unified
+ 171              		.thumb
+ 172              		.thumb_func
+ 174              	main_app:
+ 175              	.LFB143:
+  16:src/app/app.c **** 
+  17:src/app/app.c **** void main_app() {
+ 176              		.loc 1 17 17 is_stmt 1 view -0
+ 177              		.cfi_startproc
+ 178              		@ Volatile: function does not return.
+ 179              		@ args = 0, pretend = 0, frame = 0
+ 180              		@ frame_needed = 0, uses_anonymous_args = 0
+ 181 0000 08B5     		push	{r3, lr}
+ 182              	.LCFI1:
+ 183              		.cfi_def_cfa_offset 8
+ 184              		.cfi_offset 3, -8
+ 185              		.cfi_offset 14, -4
+ 186              	.L6:
+  18:src/app/app.c ****       while (1) {
+ 187              		.loc 1 18 7 discriminator 1 view .LVU48
+  19:src/app/app.c ****             BLDC_OpenLoopDrive(0.8, 50.0f);
+ 188              		.loc 1 19 13 discriminator 1 view .LVU49
+ 189 0002 DFED030A 		vldr.32	s1, .L8
+ 190 0006 9FED030A 		vldr.32	s0, .L8+4
+ 191 000a FFF7FEFF 		bl	BLDC_OpenLoopDrive
+ 192              	.LVL8:
+  18:src/app/app.c ****       while (1) {
+ 193              		.loc 1 18 13 discriminator 1 view .LVU50
+ 194 000e F8E7     		b	.L6
+ 195              	.L9:
+ 196              		.align	2
+ 197              	.L8:
+ 198 0010 00004842 		.word	1112014848
+ 199 0014 CDCC4C3F 		.word	1061997773
+ 200              		.cfi_endproc
+ 201              	.LFE143:
+ 203              		.global	LED1
+ 204              		.section	.bss.LED1,"aw",%nobits
+ 205              		.align	2
+ 208              	LED1:
+ 209 0000 00000000 		.space	16
+ 209      00000000 
+ 209      00000000 
+ 209      00000000 
+ 210              		.global	LED2
+ 211              		.section	.bss.LED2,"aw",%nobits
+ 212              		.align	2
+ 215              	LED2:
+ 216 0000 00000000 		.space	16
+ 216      00000000 
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s 			page 6
+
+
+ 216      00000000 
+ 216      00000000 
+ 217              		.global	LED4
+ 218              		.section	.bss.LED4,"aw",%nobits
+ 219              		.align	2
+ 222              	LED4:
+ 223 0000 00000000 		.space	8
+ 223      00000000 
+ 224              		.global	LED3
+ 225              		.section	.bss.LED3,"aw",%nobits
+ 226              		.align	2
+ 229              	LED3:
+ 230 0000 00000000 		.space	8
+ 230      00000000 
+ 231              		.text
+ 232              	.Letext0:
+ 233              		.file 4 "/opt/ST/STM32CubeCLT_1.16.0/GNU-tools-for-STM32/arm-none-eabi/include/machine/_default_ty
+ 234              		.file 5 "/opt/ST/STM32CubeCLT_1.16.0/GNU-tools-for-STM32/arm-none-eabi/include/sys/_stdint.h"
+ 235              		.file 6 "Drivers/CMSIS/Device/ST/STM32F3xx/Include/stm32f303x8.h"
+ 236              		.file 7 "Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_def.h"
+ 237              		.file 8 "Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_gpio.h"
+ 238              		.file 9 "Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_dma.h"
+ 239              		.file 10 "Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_tim.h"
+ 240              		.file 11 "Core/Inc/tim.h"
+ 241              		.file 12 "src/bldc/bldc.h"
+ 242              		.file 13 "Lib/mymath/mymath.h"
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s 			page 7
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 app.c
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:21     .text.setup:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:27     .text.setup:00000000 setup
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:158    .text.setup:0000005c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:229    .bss.LED3:00000000 LED3
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:222    .bss.LED4:00000000 LED4
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:215    .bss.LED2:00000000 LED2
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:208    .bss.LED1:00000000 LED1
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:168    .text.main_app:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:174    .text.main_app:00000000 main_app
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:198    .text.main_app:00000010 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:205    .bss.LED1:00000000 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:212    .bss.LED2:00000000 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:219    .bss.LED4:00000000 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccT8sQQU.s:226    .bss.LED3:00000000 $d
+
+UNDEFINED SYMBOLS
+HAL_GPIO_WritePin
+HAL_TIM_PWM_Start
+BLDC_Init
+htim2
+BLDC_OpenLoopDrive
