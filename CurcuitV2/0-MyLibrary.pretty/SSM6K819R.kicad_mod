@@ -1,7 +1,7 @@
 (footprint "SSM6K819R"
-	(version 20240108)
+	(version 20241229)
 	(generator "pcbnew")
-	(generator_version "8.0")
+	(generator_version "9.0")
 	(layer "F.Cu")
 	(property "Reference" "REF**"
 		(at 0 -4 0)
@@ -20,19 +20,6 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(uuid "e4bf4d58-6414-43dd-b0d8-b6a876bed0ec")
-		(effects
-			(font
-				(size 1 1)
-				(thickness 0.15)
-			)
-		)
-	)
-	(property "Footprint" ""
-		(at 0 0 0)
-		(unlocked yes)
-		(layer "F.Fab")
-		(hide yes)
-		(uuid "12960712-b2f4-4b9f-9d5e-9c876e478ce1")
 		(effects
 			(font
 				(size 1 1)
@@ -115,7 +102,7 @@
 			(width 0.12)
 			(type solid)
 		)
-		(fill solid)
+		(fill yes)
 		(layer "F.SilkS")
 		(uuid "b6047bdd-2644-4c29-ad81-1dc7b4ace881")
 	)
@@ -225,22 +212,34 @@
 	(pad "1" smd roundrect
 		(at 0 -0.475)
 		(size 3.6 1.55)
-		(layers "F.Cu" "F.Paste" "F.Mask")
+		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.09677419355)
 		(uuid "cd1e58b6-08eb-41a6-976c-27c16930a8a2")
 	)
 	(pad "2" smd roundrect
 		(at -1.1375 0.95)
 		(size 1.325 0.6)
-		(layers "F.Cu" "F.Paste" "F.Mask")
+		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(uuid "b135a3ac-a61f-4af4-8c68-44a13a48a9fd")
 	)
 	(pad "3" smd roundrect
 		(at 1.1375 0.95)
 		(size 1.325 0.6)
-		(layers "F.Cu" "F.Paste" "F.Mask")
+		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(uuid "4e041756-0fd1-45ad-a3c1-ecef5c0f6978")
+	)
+	(embedded_fonts no)
+	(model "${KICAD9_3DMODEL_DIR}/Package_SO.3dshapes/TSOP-6_1.65x3.05mm_P0.95mm.step"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
 	)
 )
