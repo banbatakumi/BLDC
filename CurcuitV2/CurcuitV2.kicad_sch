@@ -5630,6 +5630,12 @@
 		(uuid "ac1b051c-2b38-4635-bf08-28ffea36bcf0")
 	)
 	(junction
+		(at 50.8 26.67)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "af613979-9603-4ae8-ac34-1d011099a322")
+	)
+	(junction
 		(at 29.21 96.52)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5730,6 +5736,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "e3dfa0fb-e515-4b22-b264-dd76410afb72")
+	)
+	(junction
+		(at 35.56 36.83)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "e43bdb37-4f29-491d-a03a-10e6bb174705")
 	)
 	(junction
 		(at 176.53 24.13)
@@ -5957,7 +5969,7 @@
 	)
 	(wire
 		(pts
-			(xy 50.8 24.13) (xy 50.8 31.75)
+			(xy 50.8 24.13) (xy 50.8 26.67)
 		)
 		(stroke
 			(width 0)
@@ -6437,6 +6449,16 @@
 	)
 	(wire
 		(pts
+			(xy 50.8 26.67) (xy 50.8 31.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3b5b80d0-1ff0-4178-b34a-0ab6dc028c06")
+	)
+	(wire
+		(pts
 			(xy 127 109.22) (xy 127 111.76)
 		)
 		(stroke
@@ -6624,6 +6646,16 @@
 			(type default)
 		)
 		(uuid "4650def1-978b-4a52-946d-c0b4f1921e1e")
+	)
+	(wire
+		(pts
+			(xy 35.56 34.29) (xy 35.56 36.83)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "46902cdc-2b55-41a3-b824-948e063e0970")
 	)
 	(wire
 		(pts
@@ -7214,6 +7246,16 @@
 			(type default)
 		)
 		(uuid "7a38ca27-2f77-4773-bccf-e27678f3c654")
+	)
+	(wire
+		(pts
+			(xy 35.56 26.67) (xy 50.8 26.67)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7bcf58f7-183f-4b97-a139-8c40bff95124")
 	)
 	(wire
 		(pts
@@ -8144,6 +8186,16 @@
 			(type default)
 		)
 		(uuid "d54b7b53-3d93-4af9-99ea-75d765e79eae")
+	)
+	(wire
+		(pts
+			(xy 35.56 36.83) (xy 40.64 36.83)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d552b2e4-b768-48ba-be86-cbf867c239ff")
 	)
 	(wire
 		(pts
@@ -11803,6 +11855,75 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C")
+		(at 35.56 30.48 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2a365b0a-d549-416c-ae7d-c375979058f5")
+		(property "Reference" "C24"
+			(at 34.29 31.496 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "0.1u"
+			(at 34.29 29.21 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 36.5252 34.29 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 35.56 30.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 35.56 30.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "1cf47d9a-5a8c-4236-8121-12f86b3a104c")
+		)
+		(pin "2"
+			(uuid "b3e24a7f-a24c-4642-9e51-5fc12e34b632")
+		)
+		(instances
+			(project "CurcuitV2"
+				(path "/181931d1-2c3c-43ab-8337-eaba460a1744"
+					(reference "C24")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Switch:SW_Push")
 		(at 45.72 31.75 0)
 		(unit 1)
@@ -14871,7 +14992,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 40.64 36.83 0)
+		(at 35.56 36.83 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -14879,7 +15000,7 @@
 		(dnp no)
 		(uuid "6f362c9c-55d3-49c8-8094-e310128575c2")
 		(property "Reference" "#PWR018"
-			(at 40.64 43.18 0)
+			(at 35.56 43.18 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14888,7 +15009,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 36.83 38.608 0)
+			(at 31.75 38.608 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14896,7 +15017,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 40.64 36.83 0)
+			(at 35.56 36.83 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14905,7 +15026,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 40.64 36.83 0)
+			(at 35.56 36.83 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14914,7 +15035,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 40.64 36.83 0)
+			(at 35.56 36.83 0)
 			(effects
 				(font
 					(size 1.27 1.27)
