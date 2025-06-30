@@ -5768,6 +5768,12 @@
 		(uuid "f10c8d72-8717-4387-a47d-7e71ca3f3c38")
 	)
 	(junction
+		(at 50.8 31.75)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "f18dcc4e-5923-4413-b6c0-d5960a3b2367")
+	)
+	(junction
 		(at 57.15 100.33)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5948,6 +5954,16 @@
 			(type default)
 		)
 		(uuid "154fadc4-2eab-49ee-b9e1-a68e51ac8bdb")
+	)
+	(wire
+		(pts
+			(xy 50.8 24.13) (xy 50.8 31.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "15bb11af-c3ea-40d9-b483-da3e51320d27")
 	)
 	(wire
 		(pts
@@ -7758,6 +7774,16 @@
 			(type default)
 		)
 		(uuid "bb96b7d9-26e6-4f51-8e6c-8482fbacba44")
+	)
+	(wire
+		(pts
+			(xy 40.64 24.13) (xy 43.18 24.13)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bbc3ca99-630e-470b-b2e1-323bde8e89a2")
 	)
 	(wire
 		(pts
@@ -11784,10 +11810,9 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "2cd0847a-82de-45e6-a707-0ed0a37b4a94")
 		(property "Reference" "SW1"
-			(at 45.72 24.13 0)
+			(at 45.72 27.686 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11800,6 +11825,7 @@
 				(font
 					(size 1.27 1.27)
 				)
+				(hide yes)
 			)
 		)
 		(property "Footprint" "Button_Switch_SMD:SW_Push_1P1T_NO_Vertical_Wuerth_434133025816"
@@ -16444,6 +16470,71 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+3V3")
+		(at 40.64 24.13 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8ec55381-7096-42bb-88bf-cade0717d548")
+		(property "Reference" "#PWR049"
+			(at 40.64 27.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 40.64 20.574 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 40.64 24.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 40.64 24.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 40.64 24.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d6c740a5-dafb-4e2f-a4fc-285292cab765")
+		)
+		(instances
+			(project "CurcuitV2"
+				(path "/181931d1-2c3c-43ab-8337-eaba460a1744"
+					(reference "#PWR049")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Mechanical:MountingHole_Pad")
 		(at 33.02 179.07 0)
 		(unit 1)
@@ -17904,6 +17995,73 @@
 			(project "CurcuitV2"
 				(path "/181931d1-2c3c-43ab-8337-eaba460a1744"
 					(reference "#PWR021")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 46.99 24.13 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b26ef6d8-90b9-41e5-bf37-ed5f05416305")
+		(property "Reference" "R25"
+			(at 46.99 24.13 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10k"
+			(at 46.99 22.098 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 46.99 25.908 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 46.99 24.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 46.99 24.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "43693f6c-42ce-479a-a82b-afeb2dd2284f")
+		)
+		(pin "2"
+			(uuid "16848cc1-3e28-43cf-a6c6-448b4cad8d10")
+		)
+		(instances
+			(project "CurcuitV2"
+				(path "/181931d1-2c3c-43ab-8337-eaba460a1744"
+					(reference "R25")
 					(unit 1)
 				)
 			)
