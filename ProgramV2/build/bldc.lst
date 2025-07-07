@@ -1,0 +1,1331 @@
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 1
+
+
+   1              		.cpu cortex-m4
+   2              		.arch armv7e-m
+   3              		.fpu fpv4-sp-d16
+   4              		.eabi_attribute 27, 1
+   5              		.eabi_attribute 28, 1
+   6              		.eabi_attribute 20, 1
+   7              		.eabi_attribute 21, 1
+   8              		.eabi_attribute 23, 3
+   9              		.eabi_attribute 24, 1
+  10              		.eabi_attribute 25, 1
+  11              		.eabi_attribute 26, 1
+  12              		.eabi_attribute 30, 1
+  13              		.eabi_attribute 34, 1
+  14              		.eabi_attribute 18, 4
+  15              		.file	"bldc.c"
+  16              		.text
+  17              	.Ltext0:
+  18              		.cfi_sections	.debug_frame
+  19              		.file 1 "src/bldc/bldc.c"
+  20              		.section	.text.SinDeg,"ax",%progbits
+  21              		.align	1
+  22              		.syntax unified
+  23              		.thumb
+  24              		.thumb_func
+  26              	SinDeg:
+  27              	.LVL0:
+  28              	.LFB124:
+  29              		.file 2 "Lib/mymath/mymath.h"
+   1:Lib/mymath/mymath.h **** #ifndef MYMATH_H_
+   2:Lib/mymath/mymath.h **** #define MYMATH_H_
+   3:Lib/mymath/mymath.h **** 
+   4:Lib/mymath/mymath.h **** #define PI 3.1415926535897932384626433832795
+   5:Lib/mymath/mymath.h **** #define HALF_PI 1.5707963267948966192313216916398
+   6:Lib/mymath/mymath.h **** #define TWO_PI 6.283185307179586476925286766559
+   7:Lib/mymath/mymath.h **** #define DEG_TO_RAD 0.017453292519943295769236907684886
+   8:Lib/mymath/mymath.h **** #define RAD_TO_DEG 57.295779513082320876798154814105
+   9:Lib/mymath/mymath.h **** 
+  10:Lib/mymath/mymath.h **** #define Abs(x) ((x) > 0 ? (x) : -(x))
+  11:Lib/mymath/mymath.h **** #define Constrain(amt, low, high) ((amt) < (low) ? (low) : ((amt) > (high) ? (high) : (amt)))
+  12:Lib/mymath/mymath.h **** #define Radians(deg) ((deg) * DEG_TO_RAD)
+  13:Lib/mymath/mymath.h **** #define Degrees(rad) ((rad) * RAD_TO_DEG)
+  14:Lib/mymath/mymath.h **** 
+  15:Lib/mymath/mymath.h **** #define SIN0 0
+  16:Lib/mymath/mymath.h **** #define SIN1 0.0174524064372835
+  17:Lib/mymath/mymath.h **** #define SIN2 0.034899496702501
+  18:Lib/mymath/mymath.h **** #define SIN3 0.0523359562429438
+  19:Lib/mymath/mymath.h **** #define SIN4 0.0697564737441253
+  20:Lib/mymath/mymath.h **** #define SIN5 0.0871557427476582
+  21:Lib/mymath/mymath.h **** #define SIN6 0.104528463267653
+  22:Lib/mymath/mymath.h **** #define SIN7 0.121869343405147
+  23:Lib/mymath/mymath.h **** #define SIN8 0.139173100960065
+  24:Lib/mymath/mymath.h **** #define SIN9 0.156434465040231
+  25:Lib/mymath/mymath.h **** #define SIN10 0.17364817766693
+  26:Lib/mymath/mymath.h **** #define SIN11 0.190808995376545
+  27:Lib/mymath/mymath.h **** #define SIN12 0.207911690817759
+  28:Lib/mymath/mymath.h **** #define SIN13 0.224951054343865
+  29:Lib/mymath/mymath.h **** #define SIN14 0.241921895599668
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 2
+
+
+  30:Lib/mymath/mymath.h **** #define SIN15 0.258819045102521
+  31:Lib/mymath/mymath.h **** #define SIN16 0.275637355816999
+  32:Lib/mymath/mymath.h **** #define SIN17 0.292371704722737
+  33:Lib/mymath/mymath.h **** #define SIN18 0.309016994374947
+  34:Lib/mymath/mymath.h **** #define SIN19 0.325568154457157
+  35:Lib/mymath/mymath.h **** #define SIN20 0.342020143325669
+  36:Lib/mymath/mymath.h **** #define SIN21 0.3583679495453
+  37:Lib/mymath/mymath.h **** #define SIN22 0.374606593415912
+  38:Lib/mymath/mymath.h **** #define SIN23 0.390731128489274
+  39:Lib/mymath/mymath.h **** #define SIN24 0.4067366430758
+  40:Lib/mymath/mymath.h **** #define SIN25 0.422618261740699
+  41:Lib/mymath/mymath.h **** #define SIN26 0.438371146789077
+  42:Lib/mymath/mymath.h **** #define SIN27 0.453990499739547
+  43:Lib/mymath/mymath.h **** #define SIN28 0.469471562785891
+  44:Lib/mymath/mymath.h **** #define SIN29 0.484809620246337
+  45:Lib/mymath/mymath.h **** #define SIN30 0.5
+  46:Lib/mymath/mymath.h **** #define SIN31 0.515038074910054
+  47:Lib/mymath/mymath.h **** #define SIN32 0.529919264233205
+  48:Lib/mymath/mymath.h **** #define SIN33 0.544639035015027
+  49:Lib/mymath/mymath.h **** #define SIN34 0.559192903470747
+  50:Lib/mymath/mymath.h **** #define SIN35 0.573576436351046
+  51:Lib/mymath/mymath.h **** #define SIN36 0.587785252292473
+  52:Lib/mymath/mymath.h **** #define SIN37 0.601815023152048
+  53:Lib/mymath/mymath.h **** #define SIN38 0.615661475325658
+  54:Lib/mymath/mymath.h **** #define SIN39 0.629320391049838
+  55:Lib/mymath/mymath.h **** #define SIN40 0.642787609686539
+  56:Lib/mymath/mymath.h **** #define SIN41 0.656059028990507
+  57:Lib/mymath/mymath.h **** #define SIN42 0.669130606358858
+  58:Lib/mymath/mymath.h **** #define SIN43 0.681998360062498
+  59:Lib/mymath/mymath.h **** #define SIN44 0.694658370458997
+  60:Lib/mymath/mymath.h **** #define SIN45 0.707106781186547
+  61:Lib/mymath/mymath.h **** #define SIN46 0.719339800338651
+  62:Lib/mymath/mymath.h **** #define SIN47 0.73135370161917
+  63:Lib/mymath/mymath.h **** #define SIN48 0.743144825477394
+  64:Lib/mymath/mymath.h **** #define SIN49 0.754709580222772
+  65:Lib/mymath/mymath.h **** #define SIN50 0.766044443118978
+  66:Lib/mymath/mymath.h **** #define SIN51 0.777145961456971
+  67:Lib/mymath/mymath.h **** #define SIN52 0.788010753606722
+  68:Lib/mymath/mymath.h **** #define SIN53 0.798635510047293
+  69:Lib/mymath/mymath.h **** #define SIN54 0.809016994374947
+  70:Lib/mymath/mymath.h **** #define SIN55 0.819152044288992
+  71:Lib/mymath/mymath.h **** #define SIN56 0.829037572555042
+  72:Lib/mymath/mymath.h **** #define SIN57 0.838670567945424
+  73:Lib/mymath/mymath.h **** #define SIN58 0.848048096156426
+  74:Lib/mymath/mymath.h **** #define SIN59 0.857167300702112
+  75:Lib/mymath/mymath.h **** #define SIN60 0.866025403784439
+  76:Lib/mymath/mymath.h **** #define SIN61 0.874619707139396
+  77:Lib/mymath/mymath.h **** #define SIN62 0.882947592858927
+  78:Lib/mymath/mymath.h **** #define SIN63 0.891006524188368
+  79:Lib/mymath/mymath.h **** #define SIN64 0.898794046299167
+  80:Lib/mymath/mymath.h **** #define SIN65 0.90630778703665
+  81:Lib/mymath/mymath.h **** #define SIN66 0.913545457642601
+  82:Lib/mymath/mymath.h **** #define SIN67 0.92050485345244
+  83:Lib/mymath/mymath.h **** #define SIN68 0.927183854566787
+  84:Lib/mymath/mymath.h **** #define SIN69 0.933580426497202
+  85:Lib/mymath/mymath.h **** #define SIN70 0.939692620785908
+  86:Lib/mymath/mymath.h **** #define SIN71 0.945518575599317
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 3
+
+
+  87:Lib/mymath/mymath.h **** #define SIN72 0.951056516295154
+  88:Lib/mymath/mymath.h **** #define SIN73 0.956304755963035
+  89:Lib/mymath/mymath.h **** #define SIN74 0.961261695938319
+  90:Lib/mymath/mymath.h **** #define SIN75 0.965925826289068
+  91:Lib/mymath/mymath.h **** #define SIN76 0.970295726275996
+  92:Lib/mymath/mymath.h **** #define SIN77 0.974370064785235
+  93:Lib/mymath/mymath.h **** #define SIN78 0.978147600733806
+  94:Lib/mymath/mymath.h **** #define SIN79 0.981627183447664
+  95:Lib/mymath/mymath.h **** #define SIN80 0.984807753012208
+  96:Lib/mymath/mymath.h **** #define SIN81 0.987688340595138
+  97:Lib/mymath/mymath.h **** #define SIN82 0.99026806874157
+  98:Lib/mymath/mymath.h **** #define SIN83 0.992546151641322
+  99:Lib/mymath/mymath.h **** #define SIN84 0.994521895368273
+ 100:Lib/mymath/mymath.h **** #define SIN85 0.996194698091746
+ 101:Lib/mymath/mymath.h **** #define SIN86 0.997564050259824
+ 102:Lib/mymath/mymath.h **** #define SIN87 0.998629534754574
+ 103:Lib/mymath/mymath.h **** #define SIN88 0.999390827019096
+ 104:Lib/mymath/mymath.h **** #define SIN89 0.999847695156391
+ 105:Lib/mymath/mymath.h **** #define SIN90 1
+ 106:Lib/mymath/mymath.h **** 
+ 107:Lib/mymath/mymath.h **** static const float sin_table[91] = {
+ 108:Lib/mymath/mymath.h ****     SIN0,
+ 109:Lib/mymath/mymath.h ****     SIN1,
+ 110:Lib/mymath/mymath.h ****     SIN2,
+ 111:Lib/mymath/mymath.h ****     SIN3,
+ 112:Lib/mymath/mymath.h ****     SIN4,
+ 113:Lib/mymath/mymath.h ****     SIN5,
+ 114:Lib/mymath/mymath.h ****     SIN6,
+ 115:Lib/mymath/mymath.h ****     SIN7,
+ 116:Lib/mymath/mymath.h ****     SIN8,
+ 117:Lib/mymath/mymath.h ****     SIN9,
+ 118:Lib/mymath/mymath.h ****     SIN10,
+ 119:Lib/mymath/mymath.h ****     SIN11,
+ 120:Lib/mymath/mymath.h ****     SIN12,
+ 121:Lib/mymath/mymath.h ****     SIN13,
+ 122:Lib/mymath/mymath.h ****     SIN14,
+ 123:Lib/mymath/mymath.h ****     SIN15,
+ 124:Lib/mymath/mymath.h ****     SIN16,
+ 125:Lib/mymath/mymath.h ****     SIN17,
+ 126:Lib/mymath/mymath.h ****     SIN18,
+ 127:Lib/mymath/mymath.h ****     SIN19,
+ 128:Lib/mymath/mymath.h ****     SIN20,
+ 129:Lib/mymath/mymath.h ****     SIN21,
+ 130:Lib/mymath/mymath.h ****     SIN22,
+ 131:Lib/mymath/mymath.h ****     SIN23,
+ 132:Lib/mymath/mymath.h ****     SIN24,
+ 133:Lib/mymath/mymath.h ****     SIN25,
+ 134:Lib/mymath/mymath.h ****     SIN26,
+ 135:Lib/mymath/mymath.h ****     SIN27,
+ 136:Lib/mymath/mymath.h ****     SIN28,
+ 137:Lib/mymath/mymath.h ****     SIN29,
+ 138:Lib/mymath/mymath.h ****     SIN30,
+ 139:Lib/mymath/mymath.h ****     SIN31,
+ 140:Lib/mymath/mymath.h ****     SIN32,
+ 141:Lib/mymath/mymath.h ****     SIN33,
+ 142:Lib/mymath/mymath.h ****     SIN34,
+ 143:Lib/mymath/mymath.h ****     SIN35,
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 4
+
+
+ 144:Lib/mymath/mymath.h ****     SIN36,
+ 145:Lib/mymath/mymath.h ****     SIN37,
+ 146:Lib/mymath/mymath.h ****     SIN38,
+ 147:Lib/mymath/mymath.h ****     SIN39,
+ 148:Lib/mymath/mymath.h ****     SIN40,
+ 149:Lib/mymath/mymath.h ****     SIN41,
+ 150:Lib/mymath/mymath.h ****     SIN42,
+ 151:Lib/mymath/mymath.h ****     SIN43,
+ 152:Lib/mymath/mymath.h ****     SIN44,
+ 153:Lib/mymath/mymath.h ****     SIN45,
+ 154:Lib/mymath/mymath.h ****     SIN46,
+ 155:Lib/mymath/mymath.h ****     SIN47,
+ 156:Lib/mymath/mymath.h ****     SIN48,
+ 157:Lib/mymath/mymath.h ****     SIN49,
+ 158:Lib/mymath/mymath.h ****     SIN50,
+ 159:Lib/mymath/mymath.h ****     SIN51,
+ 160:Lib/mymath/mymath.h ****     SIN52,
+ 161:Lib/mymath/mymath.h ****     SIN53,
+ 162:Lib/mymath/mymath.h ****     SIN54,
+ 163:Lib/mymath/mymath.h ****     SIN55,
+ 164:Lib/mymath/mymath.h ****     SIN56,
+ 165:Lib/mymath/mymath.h ****     SIN57,
+ 166:Lib/mymath/mymath.h ****     SIN58,
+ 167:Lib/mymath/mymath.h ****     SIN59,
+ 168:Lib/mymath/mymath.h ****     SIN60,
+ 169:Lib/mymath/mymath.h ****     SIN61,
+ 170:Lib/mymath/mymath.h ****     SIN62,
+ 171:Lib/mymath/mymath.h ****     SIN63,
+ 172:Lib/mymath/mymath.h ****     SIN64,
+ 173:Lib/mymath/mymath.h ****     SIN65,
+ 174:Lib/mymath/mymath.h ****     SIN66,
+ 175:Lib/mymath/mymath.h ****     SIN67,
+ 176:Lib/mymath/mymath.h ****     SIN68,
+ 177:Lib/mymath/mymath.h ****     SIN69,
+ 178:Lib/mymath/mymath.h ****     SIN70,
+ 179:Lib/mymath/mymath.h ****     SIN71,
+ 180:Lib/mymath/mymath.h ****     SIN72,
+ 181:Lib/mymath/mymath.h ****     SIN73,
+ 182:Lib/mymath/mymath.h ****     SIN74,
+ 183:Lib/mymath/mymath.h ****     SIN75,
+ 184:Lib/mymath/mymath.h ****     SIN76,
+ 185:Lib/mymath/mymath.h ****     SIN77,
+ 186:Lib/mymath/mymath.h ****     SIN78,
+ 187:Lib/mymath/mymath.h ****     SIN79,
+ 188:Lib/mymath/mymath.h ****     SIN80,
+ 189:Lib/mymath/mymath.h ****     SIN81,
+ 190:Lib/mymath/mymath.h ****     SIN82,
+ 191:Lib/mymath/mymath.h ****     SIN83,
+ 192:Lib/mymath/mymath.h ****     SIN84,
+ 193:Lib/mymath/mymath.h ****     SIN85,
+ 194:Lib/mymath/mymath.h ****     SIN86,
+ 195:Lib/mymath/mymath.h ****     SIN87,
+ 196:Lib/mymath/mymath.h ****     SIN88,
+ 197:Lib/mymath/mymath.h ****     SIN89,
+ 198:Lib/mymath/mymath.h ****     SIN90};
+ 199:Lib/mymath/mymath.h **** 
+ 200:Lib/mymath/mymath.h **** static inline int NormalizeDegrees(int deg) {
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 5
+
+
+ 201:Lib/mymath/mymath.h ****       while (deg < 0) deg += 360;
+ 202:Lib/mymath/mymath.h ****       while (deg >= 360) deg -= 360;
+ 203:Lib/mymath/mymath.h ****       return deg;
+ 204:Lib/mymath/mymath.h **** }
+ 205:Lib/mymath/mymath.h **** 
+ 206:Lib/mymath/mymath.h **** static inline float SinDeg(int deg) {
+  30              		.loc 2 206 37 view -0
+  31              		.cfi_startproc
+  32              		@ args = 0, pretend = 0, frame = 0
+  33              		@ frame_needed = 0, uses_anonymous_args = 0
+  34              		@ link register save eliminated.
+ 207:Lib/mymath/mymath.h ****       deg = NormalizeDegrees(deg);
+  35              		.loc 2 207 7 view .LVU1
+  36              	.LBB8:
+  37              	.LBI8:
+ 200:Lib/mymath/mymath.h ****       while (deg < 0) deg += 360;
+  38              		.loc 2 200 19 view .LVU2
+  39              	.LBB9:
+ 201:Lib/mymath/mymath.h ****       while (deg >= 360) deg -= 360;
+  40              		.loc 2 201 7 view .LVU3
+ 201:Lib/mymath/mymath.h ****       while (deg >= 360) deg -= 360;
+  41              		.loc 2 201 13 is_stmt 0 view .LVU4
+  42 0000 01E0     		b	.L2
+  43              	.LVL1:
+  44              	.L3:
+ 201:Lib/mymath/mymath.h ****       while (deg >= 360) deg -= 360;
+  45              		.loc 2 201 23 is_stmt 1 view .LVU5
+ 201:Lib/mymath/mymath.h ****       while (deg >= 360) deg -= 360;
+  46              		.loc 2 201 27 is_stmt 0 view .LVU6
+  47 0002 00F5B470 		add	r0, r0, #360
+  48              	.LVL2:
+  49              	.L2:
+ 201:Lib/mymath/mymath.h ****       while (deg >= 360) deg -= 360;
+  50              		.loc 2 201 18 is_stmt 1 view .LVU7
+  51 0006 0028     		cmp	r0, #0
+  52 0008 FBDB     		blt	.L3
+ 201:Lib/mymath/mymath.h ****       while (deg >= 360) deg -= 360;
+  53              		.loc 2 201 18 is_stmt 0 view .LVU8
+  54 000a 01E0     		b	.L4
+  55              	.L5:
+ 202:Lib/mymath/mymath.h ****       return deg;
+  56              		.loc 2 202 26 is_stmt 1 view .LVU9
+ 202:Lib/mymath/mymath.h ****       return deg;
+  57              		.loc 2 202 30 is_stmt 0 view .LVU10
+  58 000c A0F5B470 		sub	r0, r0, #360
+  59              	.LVL3:
+  60              	.L4:
+ 202:Lib/mymath/mymath.h ****       return deg;
+  61              		.loc 2 202 18 is_stmt 1 view .LVU11
+  62 0010 B0F5B47F 		cmp	r0, #360
+  63 0014 FADA     		bge	.L5
+ 203:Lib/mymath/mymath.h **** }
+  64              		.loc 2 203 7 view .LVU12
+  65              	.LVL4:
+ 203:Lib/mymath/mymath.h **** }
+  66              		.loc 2 203 7 is_stmt 0 view .LVU13
+  67              	.LBE9:
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 6
+
+
+  68              	.LBE8:
+ 208:Lib/mymath/mymath.h ****       int theta_cal = deg % 90;
+  69              		.loc 2 208 7 is_stmt 1 view .LVU14
+  70              		.loc 2 208 11 is_stmt 0 view .LVU15
+  71 0016 214A     		ldr	r2, .L16
+  72 0018 82FB0032 		smull	r3, r2, r2, r0
+  73 001c 0244     		add	r2, r2, r0
+  74 001e C317     		asrs	r3, r0, #31
+  75 0020 C3EBA213 		rsb	r3, r3, r2, asr #6
+  76 0024 5A22     		movs	r2, #90
+  77 0026 02FB1303 		mls	r3, r2, r3, r0
+  78              	.LVL5:
+ 209:Lib/mymath/mymath.h ****       if (deg >= 90 && deg < 180) {
+  79              		.loc 2 209 7 is_stmt 1 view .LVU16
+  80              		.loc 2 209 21 is_stmt 0 view .LVU17
+  81 002a 0246     		mov	r2, r0
+  82 002c 5A38     		subs	r0, r0, #90
+  83              	.LVL6:
+  84              		.loc 2 209 10 view .LVU18
+  85 002e 5928     		cmp	r0, #89
+  86 0030 01D8     		bhi	.L6
+ 210:Lib/mymath/mymath.h ****             theta_cal = 90 - theta_cal;
+  87              		.loc 2 210 13 is_stmt 1 view .LVU19
+  88              		.loc 2 210 23 is_stmt 0 view .LVU20
+  89 0032 C3F15A03 		rsb	r3, r3, #90
+  90              	.LVL7:
+  91              	.L6:
+ 211:Lib/mymath/mymath.h ****       }
+ 212:Lib/mymath/mymath.h ****       if (deg >= 270 && deg < 360) {
+  92              		.loc 2 212 7 is_stmt 1 view .LVU21
+  93              		.loc 2 212 22 is_stmt 0 view .LVU22
+  94 0036 A2F58771 		sub	r1, r2, #270
+  95              		.loc 2 212 10 view .LVU23
+  96 003a 5929     		cmp	r1, #89
+  97 003c 01D8     		bhi	.L7
+ 213:Lib/mymath/mymath.h ****             theta_cal = 90 - theta_cal;
+  98              		.loc 2 213 13 is_stmt 1 view .LVU24
+  99              		.loc 2 213 23 is_stmt 0 view .LVU25
+ 100 003e C3F15A03 		rsb	r3, r3, #90
+ 101              	.LVL8:
+ 102              	.L7:
+ 214:Lib/mymath/mymath.h ****       }
+ 215:Lib/mymath/mymath.h **** 
+ 216:Lib/mymath/mymath.h ****       if (deg >= 0 && deg <= 90) {  // 0~90 第一象限
+ 103              		.loc 2 216 7 is_stmt 1 view .LVU26
+ 104              		.loc 2 216 10 is_stmt 0 view .LVU27
+ 105 0042 5A2A     		cmp	r2, #90
+ 106 0044 13D9     		bls	.L13
+ 217:Lib/mymath/mymath.h ****             return sin_table[theta_cal];
+ 218:Lib/mymath/mymath.h ****       } else if (deg > 90 && deg <= 180) {  // 91~180 第二象限
+ 107              		.loc 2 218 14 is_stmt 1 view .LVU28
+ 108              		.loc 2 218 27 is_stmt 0 view .LVU29
+ 109 0046 A2F15B01 		sub	r1, r2, #91
+ 110              		.loc 2 218 17 view .LVU30
+ 111 004a 5929     		cmp	r1, #89
+ 112 004c 15D9     		bls	.L14
+ 219:Lib/mymath/mymath.h ****             return sin_table[theta_cal];
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 7
+
+
+ 220:Lib/mymath/mymath.h ****       } else if (deg > 180 && deg <= 270) {  // 181 ~270 第三象限
+ 113              		.loc 2 220 14 is_stmt 1 view .LVU31
+ 114              		.loc 2 220 28 is_stmt 0 view .LVU32
+ 115 004e A2F1B501 		sub	r1, r2, #181
+ 116              		.loc 2 220 17 view .LVU33
+ 117 0052 5929     		cmp	r1, #89
+ 118 0054 17D9     		bls	.L15
+ 221:Lib/mymath/mymath.h ****             return -sin_table[theta_cal];
+ 222:Lib/mymath/mymath.h ****       } else if (deg > 270 && deg < 360) {  // 271~360 第四象限
+ 119              		.loc 2 222 14 is_stmt 1 view .LVU34
+ 120              		.loc 2 222 28 is_stmt 0 view .LVU35
+ 121 0056 A2F20F12 		subw	r2, r2, #271
+ 122              	.LVL9:
+ 123              		.loc 2 222 17 view .LVU36
+ 124 005a 582A     		cmp	r2, #88
+ 125 005c 1BD8     		bhi	.L12
+ 223:Lib/mymath/mymath.h ****             return -sin_table[theta_cal];
+ 126              		.loc 2 223 13 is_stmt 1 view .LVU37
+ 127              		.loc 2 223 30 is_stmt 0 view .LVU38
+ 128 005e 104A     		ldr	r2, .L16+4
+ 129              	.LVL10:
+ 130              		.loc 2 223 30 view .LVU39
+ 131 0060 02EB8303 		add	r3, r2, r3, lsl #2
+ 132              	.LVL11:
+ 133              		.loc 2 223 30 view .LVU40
+ 134 0064 93ED000A 		vldr.32	s0, [r3]
+ 135              		.loc 2 223 20 view .LVU41
+ 136 0068 B1EE400A 		vneg.f32	s0, s0
+ 137 006c 7047     		bx	lr
+ 138              	.LVL12:
+ 139              	.L13:
+ 217:Lib/mymath/mymath.h ****       } else if (deg > 90 && deg <= 180) {  // 91~180 第二象限
+ 140              		.loc 2 217 13 is_stmt 1 view .LVU42
+ 217:Lib/mymath/mymath.h ****       } else if (deg > 90 && deg <= 180) {  // 91~180 第二象限
+ 141              		.loc 2 217 29 is_stmt 0 view .LVU43
+ 142 006e 0C4A     		ldr	r2, .L16+4
+ 143              	.LVL13:
+ 217:Lib/mymath/mymath.h ****       } else if (deg > 90 && deg <= 180) {  // 91~180 第二象限
+ 144              		.loc 2 217 29 view .LVU44
+ 145 0070 02EB8303 		add	r3, r2, r3, lsl #2
+ 146              	.LVL14:
+ 217:Lib/mymath/mymath.h ****       } else if (deg > 90 && deg <= 180) {  // 91~180 第二象限
+ 147              		.loc 2 217 29 view .LVU45
+ 148 0074 93ED000A 		vldr.32	s0, [r3]
+ 149 0078 7047     		bx	lr
+ 150              	.LVL15:
+ 151              	.L14:
+ 219:Lib/mymath/mymath.h ****       } else if (deg > 180 && deg <= 270) {  // 181 ~270 第三象限
+ 152              		.loc 2 219 13 is_stmt 1 view .LVU46
+ 219:Lib/mymath/mymath.h ****       } else if (deg > 180 && deg <= 270) {  // 181 ~270 第三象限
+ 153              		.loc 2 219 29 is_stmt 0 view .LVU47
+ 154 007a 094A     		ldr	r2, .L16+4
+ 155              	.LVL16:
+ 219:Lib/mymath/mymath.h ****       } else if (deg > 180 && deg <= 270) {  // 181 ~270 第三象限
+ 156              		.loc 2 219 29 view .LVU48
+ 157 007c 02EB8303 		add	r3, r2, r3, lsl #2
+ 158              	.LVL17:
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 8
+
+
+ 219:Lib/mymath/mymath.h ****       } else if (deg > 180 && deg <= 270) {  // 181 ~270 第三象限
+ 159              		.loc 2 219 29 view .LVU49
+ 160 0080 93ED000A 		vldr.32	s0, [r3]
+ 161 0084 7047     		bx	lr
+ 162              	.LVL18:
+ 163              	.L15:
+ 221:Lib/mymath/mymath.h ****       } else if (deg > 270 && deg < 360) {  // 271~360 第四象限
+ 164              		.loc 2 221 13 is_stmt 1 view .LVU50
+ 221:Lib/mymath/mymath.h ****       } else if (deg > 270 && deg < 360) {  // 271~360 第四象限
+ 165              		.loc 2 221 30 is_stmt 0 view .LVU51
+ 166 0086 064A     		ldr	r2, .L16+4
+ 167              	.LVL19:
+ 221:Lib/mymath/mymath.h ****       } else if (deg > 270 && deg < 360) {  // 271~360 第四象限
+ 168              		.loc 2 221 30 view .LVU52
+ 169 0088 02EB8303 		add	r3, r2, r3, lsl #2
+ 170              	.LVL20:
+ 221:Lib/mymath/mymath.h ****       } else if (deg > 270 && deg < 360) {  // 271~360 第四象限
+ 171              		.loc 2 221 30 view .LVU53
+ 172 008c 93ED000A 		vldr.32	s0, [r3]
+ 221:Lib/mymath/mymath.h ****       } else if (deg > 270 && deg < 360) {  // 271~360 第四象限
+ 173              		.loc 2 221 20 view .LVU54
+ 174 0090 B1EE400A 		vneg.f32	s0, s0
+ 175 0094 7047     		bx	lr
+ 176              	.LVL21:
+ 177              	.L12:
+ 224:Lib/mymath/mymath.h ****       } else {
+ 225:Lib/mymath/mymath.h ****             return 0;
+ 178              		.loc 2 225 20 view .LVU55
+ 179 0096 9FED030A 		vldr.32	s0, .L16+8
+ 226:Lib/mymath/mymath.h ****       }
+ 227:Lib/mymath/mymath.h **** }
+ 180              		.loc 2 227 1 view .LVU56
+ 181 009a 7047     		bx	lr
+ 182              	.L17:
+ 183              		.align	2
+ 184              	.L16:
+ 185 009c B7600BB6 		.word	-1240768329
+ 186 00a0 00000000 		.word	sin_table
+ 187 00a4 00000000 		.word	0
+ 188              		.cfi_endproc
+ 189              	.LFE124:
+ 191              		.section	.text.PwmOut_Write,"ax",%progbits
+ 192              		.align	1
+ 193              		.syntax unified
+ 194              		.thumb
+ 195              		.thumb_func
+ 197              	PwmOut_Write:
+ 198              	.LVL22:
+ 199              	.LFB129:
+ 200              		.file 3 "Lib/pwm_out/pwm_out.h"
+   1:Lib/pwm_out/pwm_out.h **** #ifndef PWM_H_
+   2:Lib/pwm_out/pwm_out.h **** #define PWM_H_
+   3:Lib/pwm_out/pwm_out.h **** 
+   4:Lib/pwm_out/pwm_out.h **** #include "mymath.h"
+   5:Lib/pwm_out/pwm_out.h **** #include "tim.h"
+   6:Lib/pwm_out/pwm_out.h **** 
+   7:Lib/pwm_out/pwm_out.h **** typedef struct {
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 9
+
+
+   8:Lib/pwm_out/pwm_out.h ****       TIM_HandleTypeDef *htim;
+   9:Lib/pwm_out/pwm_out.h ****       uint32_t channel;
+  10:Lib/pwm_out/pwm_out.h ****       uint32_t maxValue;
+  11:Lib/pwm_out/pwm_out.h ****       int usePwmPin_t;
+  12:Lib/pwm_out/pwm_out.h **** } PwmOut;
+  13:Lib/pwm_out/pwm_out.h **** 
+  14:Lib/pwm_out/pwm_out.h **** static inline void PwmOut_Init(PwmOut *obj, TIM_HandleTypeDef *htim, uint32_t channel) {
+  15:Lib/pwm_out/pwm_out.h ****       obj->htim = htim;
+  16:Lib/pwm_out/pwm_out.h ****       obj->channel = channel;
+  17:Lib/pwm_out/pwm_out.h ****       obj->usePwmPin_t = 0;
+  18:Lib/pwm_out/pwm_out.h **** 
+  19:Lib/pwm_out/pwm_out.h ****       HAL_TIM_PWM_Start(obj->htim, obj->channel);
+  20:Lib/pwm_out/pwm_out.h ****       HAL_TIMEx_PWMN_Start(obj->htim, obj->channel);
+  21:Lib/pwm_out/pwm_out.h ****       obj->maxValue = obj->htim->Init.Period;
+  22:Lib/pwm_out/pwm_out.h **** }
+  23:Lib/pwm_out/pwm_out.h **** 
+  24:Lib/pwm_out/pwm_out.h **** static inline void PwmOut_Write(PwmOut *obj, float duty) {
+ 201              		.loc 3 24 58 is_stmt 1 view -0
+ 202              		.cfi_startproc
+ 203              		@ args = 0, pretend = 0, frame = 0
+ 204              		@ frame_needed = 0, uses_anonymous_args = 0
+ 205              		@ link register save eliminated.
+  25:Lib/pwm_out/pwm_out.h ****       int val = (int)(Constrain(duty, 0.0f, 1.0f) * obj->maxValue);
+ 206              		.loc 3 25 7 view .LVU58
+ 207              		.loc 3 25 23 is_stmt 0 view .LVU59
+ 208 0000 B5EEC00A 		vcmpe.f32	s0, #0
+ 209 0004 F1EE10FA 		vmrs	APSR_nzcv, FPSCR
+ 210 0008 09D4     		bmi	.L29
+ 211              		.loc 3 25 23 discriminator 2 view .LVU60
+ 212 000a F7EE007A 		vmov.f32	s15, #1.0e+0
+ 213 000e B4EEE70A 		vcmpe.f32	s0, s15
+ 214 0012 F1EE10FA 		vmrs	APSR_nzcv, FPSCR
+ 215 0016 04DD     		ble	.L19
+ 216              		.loc 3 25 23 view .LVU61
+ 217 0018 B0EE670A 		vmov.f32	s0, s15
+ 218              	.LVL23:
+ 219              		.loc 3 25 23 view .LVU62
+ 220 001c 01E0     		b	.L19
+ 221              	.LVL24:
+ 222              	.L29:
+ 223              		.loc 3 25 23 view .LVU63
+ 224 001e 9FED1B0A 		vldr.32	s0, .L31
+ 225              	.LVL25:
+ 226              	.L19:
+ 227              		.loc 3 25 51 discriminator 8 view .LVU64
+ 228 0022 D0ED027A 		vldr.32	s15, [r0, #8]	@ int
+ 229 0026 F8EE677A 		vcvt.f32.u32	s15, s15
+ 230 002a 27EE800A 		vmul.f32	s0, s15, s0
+ 231              		.loc 3 25 11 discriminator 8 view .LVU65
+ 232 002e BDEEC00A 		vcvt.s32.f32	s0, s0
+ 233              	.LVL26:
+  26:Lib/pwm_out/pwm_out.h ****       __HAL_TIM_SET_COMPARE(obj->htim, obj->channel, val);
+ 234              		.loc 3 26 7 is_stmt 1 discriminator 8 view .LVU66
+ 235 0032 4368     		ldr	r3, [r0, #4]
+ 236 0034 23B9     		cbnz	r3, .L21
+ 237              		.loc 3 26 7 is_stmt 0 discriminator 1 view .LVU67
+ 238 0036 0368     		ldr	r3, [r0]
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 10
+
+
+ 239 0038 1B68     		ldr	r3, [r3]
+ 240 003a 83ED0D0A 		vstr.32	s0, [r3, #52]	@ int
+ 241 003e 7047     		bx	lr
+ 242              	.L21:
+ 243              		.loc 3 26 7 discriminator 1 view .LVU68
+ 244 0040 043B     		subs	r3, r3, #4
+ 245 0042 0C2B     		cmp	r3, #12
+ 246 0044 1CD8     		bhi	.L23
+ 247 0046 DFE803F0 		tbb	[pc, r3]
+ 248              	.L25:
+ 249 004a 07       		.byte	(.L28-.L25)/2
+ 250 004b 1B       		.byte	(.L23-.L25)/2
+ 251 004c 1B       		.byte	(.L23-.L25)/2
+ 252 004d 1B       		.byte	(.L23-.L25)/2
+ 253 004e 0C       		.byte	(.L27-.L25)/2
+ 254 004f 1B       		.byte	(.L23-.L25)/2
+ 255 0050 1B       		.byte	(.L23-.L25)/2
+ 256 0051 1B       		.byte	(.L23-.L25)/2
+ 257 0052 11       		.byte	(.L26-.L25)/2
+ 258 0053 1B       		.byte	(.L23-.L25)/2
+ 259 0054 1B       		.byte	(.L23-.L25)/2
+ 260 0055 1B       		.byte	(.L23-.L25)/2
+ 261 0056 16       		.byte	(.L24-.L25)/2
+ 262 0057 00       		.p2align 1
+ 263              	.L28:
+ 264              		.loc 3 26 7 discriminator 3 view .LVU69
+ 265 0058 0368     		ldr	r3, [r0]
+ 266 005a 1B68     		ldr	r3, [r3]
+ 267 005c 83ED0E0A 		vstr.32	s0, [r3, #56]	@ int
+ 268 0060 7047     		bx	lr
+ 269              	.L27:
+ 270              		.loc 3 26 7 discriminator 6 view .LVU70
+ 271 0062 0368     		ldr	r3, [r0]
+ 272 0064 1B68     		ldr	r3, [r3]
+ 273 0066 83ED0F0A 		vstr.32	s0, [r3, #60]	@ int
+ 274 006a 7047     		bx	lr
+ 275              	.L26:
+ 276              		.loc 3 26 7 discriminator 9 view .LVU71
+ 277 006c 0368     		ldr	r3, [r0]
+ 278 006e 1B68     		ldr	r3, [r3]
+ 279 0070 83ED100A 		vstr.32	s0, [r3, #64]	@ int
+ 280 0074 7047     		bx	lr
+ 281              	.L24:
+ 282              		.loc 3 26 7 discriminator 12 view .LVU72
+ 283 0076 0368     		ldr	r3, [r0]
+ 284 0078 1B68     		ldr	r3, [r3]
+ 285 007a 83ED160A 		vstr.32	s0, [r3, #88]	@ int
+ 286 007e 7047     		bx	lr
+ 287              	.L23:
+ 288              		.loc 3 26 7 discriminator 13 view .LVU73
+ 289 0080 0368     		ldr	r3, [r0]
+ 290 0082 1B68     		ldr	r3, [r3]
+ 291 0084 83ED170A 		vstr.32	s0, [r3, #92]	@ int
+  27:Lib/pwm_out/pwm_out.h **** }
+ 292              		.loc 3 27 1 discriminator 13 view .LVU74
+ 293 0088 7047     		bx	lr
+ 294              	.L32:
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 11
+
+
+ 295 008a 00BF     		.align	2
+ 296              	.L31:
+ 297 008c 00000000 		.word	0
+ 298              		.cfi_endproc
+ 299              	.LFE129:
+ 301              		.section	.text.BLDC_WritePwm,"ax",%progbits
+ 302              		.align	1
+ 303              		.syntax unified
+ 304              		.thumb
+ 305              		.thumb_func
+ 307              	BLDC_WritePwm:
+ 308              	.LVL27:
+ 309              	.LFB139:
+   1:src/bldc/bldc.c **** #include "bldc.h"
+   2:src/bldc/bldc.c **** 
+   3:src/bldc/bldc.c **** PwmOut u_pwm;
+   4:src/bldc/bldc.c **** PwmOut v_pwm;
+   5:src/bldc/bldc.c **** PwmOut w_pwm;
+   6:src/bldc/bldc.c **** 
+   7:src/bldc/bldc.c **** Timer dt_timer;
+   8:src/bldc/bldc.c **** 
+   9:src/bldc/bldc.c **** void BLDC_Init() {
+  10:src/bldc/bldc.c ****       PwmOut_Init(&u_pwm, &htim1, TIM_CHANNEL_1);
+  11:src/bldc/bldc.c ****       PwmOut_Init(&v_pwm, &htim1, TIM_CHANNEL_2);
+  12:src/bldc/bldc.c ****       PwmOut_Init(&w_pwm, &htim1, TIM_CHANNEL_3);
+  13:src/bldc/bldc.c **** 
+  14:src/bldc/bldc.c ****       Timer_Init(&dt_timer);
+  15:src/bldc/bldc.c **** }
+  16:src/bldc/bldc.c **** 
+  17:src/bldc/bldc.c **** static inline void BLDC_WritePwm(float u, float v, float w) {
+ 310              		.loc 1 17 61 is_stmt 1 view -0
+ 311              		.cfi_startproc
+ 312              		@ args = 0, pretend = 0, frame = 0
+ 313              		@ frame_needed = 0, uses_anonymous_args = 0
+ 314              		.loc 1 17 61 is_stmt 0 view .LVU76
+ 315 0000 08B5     		push	{r3, lr}
+ 316              	.LCFI0:
+ 317              		.cfi_def_cfa_offset 8
+ 318              		.cfi_offset 3, -8
+ 319              		.cfi_offset 14, -4
+ 320 0002 2DED028B 		vpush.64	{d8}
+ 321              	.LCFI1:
+ 322              		.cfi_def_cfa_offset 16
+ 323              		.cfi_offset 80, -16
+ 324              		.cfi_offset 81, -12
+ 325 0006 F0EE608A 		vmov.f32	s17, s1
+ 326 000a B0EE418A 		vmov.f32	s16, s2
+  18:src/bldc/bldc.c ****       if (u > 0.95f) u = 0.95f;  // 最大値制限
+ 327              		.loc 1 18 7 is_stmt 1 view .LVU77
+ 328              		.loc 1 18 10 is_stmt 0 view .LVU78
+ 329 000e DFED157A 		vldr.32	s15, .L41
+ 330 0012 B4EEE70A 		vcmpe.f32	s0, s15
+ 331 0016 F1EE10FA 		vmrs	APSR_nzcv, FPSCR
+ 332 001a 01DD     		ble	.L34
+ 333              		.loc 1 18 24 view .LVU79
+ 334 001c B0EE670A 		vmov.f32	s0, s15
+ 335              	.LVL28:
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 12
+
+
+ 336              	.L34:
+  19:src/bldc/bldc.c ****       if (v > 0.95f) v = 0.95f;  // 最大値制限
+ 337              		.loc 1 19 7 is_stmt 1 view .LVU80
+ 338              		.loc 1 19 10 is_stmt 0 view .LVU81
+ 339 0020 DFED107A 		vldr.32	s15, .L41
+ 340 0024 F4EEE78A 		vcmpe.f32	s17, s15
+ 341 0028 F1EE10FA 		vmrs	APSR_nzcv, FPSCR
+ 342 002c 01DD     		ble	.L35
+ 343              		.loc 1 19 24 view .LVU82
+ 344 002e F0EE678A 		vmov.f32	s17, s15
+ 345              	.L35:
+ 346              	.LVL29:
+  20:src/bldc/bldc.c ****       if (w > 0.95f) w = 0.95f;  // 最大値制限
+ 347              		.loc 1 20 7 is_stmt 1 view .LVU83
+ 348              		.loc 1 20 10 is_stmt 0 view .LVU84
+ 349 0032 DFED0C7A 		vldr.32	s15, .L41
+ 350 0036 B4EEE78A 		vcmpe.f32	s16, s15
+ 351 003a F1EE10FA 		vmrs	APSR_nzcv, FPSCR
+ 352 003e 01DD     		ble	.L36
+ 353              		.loc 1 20 24 view .LVU85
+ 354 0040 B0EE678A 		vmov.f32	s16, s15
+ 355              	.L36:
+ 356              	.LVL30:
+  21:src/bldc/bldc.c ****       PwmOut_Write(&u_pwm, u);
+ 357              		.loc 1 21 7 is_stmt 1 view .LVU86
+ 358 0044 0848     		ldr	r0, .L41+4
+ 359 0046 FFF7FEFF 		bl	PwmOut_Write
+ 360              	.LVL31:
+  22:src/bldc/bldc.c ****       PwmOut_Write(&v_pwm, v);
+ 361              		.loc 1 22 7 view .LVU87
+ 362 004a B0EE680A 		vmov.f32	s0, s17
+ 363 004e 0748     		ldr	r0, .L41+8
+ 364 0050 FFF7FEFF 		bl	PwmOut_Write
+ 365              	.LVL32:
+  23:src/bldc/bldc.c ****       PwmOut_Write(&w_pwm, w);
+ 366              		.loc 1 23 7 view .LVU88
+ 367 0054 B0EE480A 		vmov.f32	s0, s16
+ 368 0058 0548     		ldr	r0, .L41+12
+ 369 005a FFF7FEFF 		bl	PwmOut_Write
+ 370              	.LVL33:
+  24:src/bldc/bldc.c **** }
+ 371              		.loc 1 24 1 is_stmt 0 view .LVU89
+ 372 005e BDEC028B 		vldm	sp!, {d8}
+ 373              	.LCFI2:
+ 374              		.cfi_restore 80
+ 375              		.cfi_restore 81
+ 376              		.cfi_def_cfa_offset 8
+ 377              	.LVL34:
+ 378              		.loc 1 24 1 view .LVU90
+ 379 0062 08BD     		pop	{r3, pc}
+ 380              	.L42:
+ 381              		.align	2
+ 382              	.L41:
+ 383 0064 3333733F 		.word	1064514355
+ 384 0068 00000000 		.word	u_pwm
+ 385 006c 00000000 		.word	v_pwm
+ 386 0070 00000000 		.word	w_pwm
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 13
+
+
+ 387              		.cfi_endproc
+ 388              	.LFE139:
+ 390              		.section	.text.PwmOut_Init,"ax",%progbits
+ 391              		.align	1
+ 392              		.syntax unified
+ 393              		.thumb
+ 394              		.thumb_func
+ 396              	PwmOut_Init:
+ 397              	.LVL35:
+ 398              	.LFB128:
+  14:Lib/pwm_out/pwm_out.h ****       obj->htim = htim;
+ 399              		.loc 3 14 88 is_stmt 1 view -0
+ 400              		.cfi_startproc
+ 401              		@ args = 0, pretend = 0, frame = 0
+ 402              		@ frame_needed = 0, uses_anonymous_args = 0
+  14:Lib/pwm_out/pwm_out.h ****       obj->htim = htim;
+ 403              		.loc 3 14 88 is_stmt 0 view .LVU92
+ 404 0000 10B5     		push	{r4, lr}
+ 405              	.LCFI3:
+ 406              		.cfi_def_cfa_offset 8
+ 407              		.cfi_offset 4, -8
+ 408              		.cfi_offset 14, -4
+ 409 0002 0446     		mov	r4, r0
+ 410 0004 0846     		mov	r0, r1
+ 411              	.LVL36:
+  14:Lib/pwm_out/pwm_out.h ****       obj->htim = htim;
+ 412              		.loc 3 14 88 view .LVU93
+ 413 0006 1146     		mov	r1, r2
+ 414              	.LVL37:
+  15:Lib/pwm_out/pwm_out.h ****       obj->channel = channel;
+ 415              		.loc 3 15 7 is_stmt 1 view .LVU94
+  15:Lib/pwm_out/pwm_out.h ****       obj->channel = channel;
+ 416              		.loc 3 15 17 is_stmt 0 view .LVU95
+ 417 0008 2060     		str	r0, [r4]
+  16:Lib/pwm_out/pwm_out.h ****       obj->usePwmPin_t = 0;
+ 418              		.loc 3 16 7 is_stmt 1 view .LVU96
+  16:Lib/pwm_out/pwm_out.h ****       obj->usePwmPin_t = 0;
+ 419              		.loc 3 16 20 is_stmt 0 view .LVU97
+ 420 000a 6260     		str	r2, [r4, #4]
+  17:Lib/pwm_out/pwm_out.h **** 
+ 421              		.loc 3 17 7 is_stmt 1 view .LVU98
+  17:Lib/pwm_out/pwm_out.h **** 
+ 422              		.loc 3 17 24 is_stmt 0 view .LVU99
+ 423 000c 0023     		movs	r3, #0
+ 424 000e E360     		str	r3, [r4, #12]
+  19:Lib/pwm_out/pwm_out.h ****       HAL_TIMEx_PWMN_Start(obj->htim, obj->channel);
+ 425              		.loc 3 19 7 is_stmt 1 view .LVU100
+ 426 0010 FFF7FEFF 		bl	HAL_TIM_PWM_Start
+ 427              	.LVL38:
+  20:Lib/pwm_out/pwm_out.h ****       obj->maxValue = obj->htim->Init.Period;
+ 428              		.loc 3 20 7 view .LVU101
+ 429 0014 6168     		ldr	r1, [r4, #4]
+ 430 0016 2068     		ldr	r0, [r4]
+ 431 0018 FFF7FEFF 		bl	HAL_TIMEx_PWMN_Start
+ 432              	.LVL39:
+  21:Lib/pwm_out/pwm_out.h **** }
+ 433              		.loc 3 21 7 view .LVU102
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 14
+
+
+  21:Lib/pwm_out/pwm_out.h **** }
+ 434              		.loc 3 21 26 is_stmt 0 view .LVU103
+ 435 001c 2368     		ldr	r3, [r4]
+  21:Lib/pwm_out/pwm_out.h **** }
+ 436              		.loc 3 21 38 view .LVU104
+ 437 001e DB68     		ldr	r3, [r3, #12]
+  21:Lib/pwm_out/pwm_out.h **** }
+ 438              		.loc 3 21 21 view .LVU105
+ 439 0020 A360     		str	r3, [r4, #8]
+  22:Lib/pwm_out/pwm_out.h **** 
+ 440              		.loc 3 22 1 view .LVU106
+ 441 0022 10BD     		pop	{r4, pc}
+  22:Lib/pwm_out/pwm_out.h **** 
+ 442              		.loc 3 22 1 view .LVU107
+ 443              		.cfi_endproc
+ 444              	.LFE128:
+ 446              		.section	.text.Timer_Read,"ax",%progbits
+ 447              		.align	1
+ 448              		.syntax unified
+ 449              		.thumb
+ 450              		.thumb_func
+ 452              	Timer_Read:
+ 453              	.LVL40:
+ 454              	.LFB132:
+ 455              		.file 4 "Lib/timer/timer.h"
+   1:Lib/timer/timer.h **** #ifndef TIMER_H_
+   2:Lib/timer/timer.h **** #define TIMER_H_
+   3:Lib/timer/timer.h **** 
+   4:Lib/timer/timer.h **** #include "main.h"
+   5:Lib/timer/timer.h **** 
+   6:Lib/timer/timer.h **** typedef struct {
+   7:Lib/timer/timer.h ****       uint32_t start_time;
+   8:Lib/timer/timer.h **** } Timer;
+   9:Lib/timer/timer.h **** 
+  10:Lib/timer/timer.h **** static inline void Timer_Init(Timer *timer) {
+  11:Lib/timer/timer.h ****       CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  12:Lib/timer/timer.h ****       DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+  13:Lib/timer/timer.h **** }
+  14:Lib/timer/timer.h **** 
+  15:Lib/timer/timer.h **** static inline void Timer_Reset(Timer *timer) {
+  16:Lib/timer/timer.h ****       timer->start_time = DWT->CYCCNT;
+  17:Lib/timer/timer.h **** }
+  18:Lib/timer/timer.h **** 
+  19:Lib/timer/timer.h **** static inline float Timer_Read(Timer *timer) {
+ 456              		.loc 4 19 46 is_stmt 1 view -0
+ 457              		.cfi_startproc
+ 458              		@ args = 0, pretend = 0, frame = 0
+ 459              		@ frame_needed = 0, uses_anonymous_args = 0
+ 460              		.loc 4 19 46 is_stmt 0 view .LVU109
+ 461 0000 08B5     		push	{r3, lr}
+ 462              	.LCFI4:
+ 463              		.cfi_def_cfa_offset 8
+ 464              		.cfi_offset 3, -8
+ 465              		.cfi_offset 14, -4
+ 466 0002 2DED028B 		vpush.64	{d8}
+ 467              	.LCFI5:
+ 468              		.cfi_def_cfa_offset 16
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 15
+
+
+ 469              		.cfi_offset 80, -16
+ 470              		.cfi_offset 81, -12
+  20:Lib/timer/timer.h ****       return (float)(DWT->CYCCNT - timer->start_time) / HAL_RCC_GetSysClockFreq();
+ 471              		.loc 4 20 7 is_stmt 1 view .LVU110
+ 472              		.loc 4 20 25 is_stmt 0 view .LVU111
+ 473 0006 094B     		ldr	r3, .L47
+ 474 0008 5B68     		ldr	r3, [r3, #4]
+ 475              		.loc 4 20 41 view .LVU112
+ 476 000a 0268     		ldr	r2, [r0]
+ 477              		.loc 4 20 34 view .LVU113
+ 478 000c 9B1A     		subs	r3, r3, r2
+ 479              		.loc 4 20 14 view .LVU114
+ 480 000e 07EE903A 		vmov	s15, r3	@ int
+ 481 0012 B8EE678A 		vcvt.f32.u32	s16, s15
+ 482              		.loc 4 20 57 view .LVU115
+ 483 0016 FFF7FEFF 		bl	HAL_RCC_GetSysClockFreq
+ 484              	.LVL41:
+ 485              		.loc 4 20 57 view .LVU116
+ 486 001a 00EE100A 		vmov	s0, r0	@ int
+ 487              		.loc 4 20 55 view .LVU117
+ 488 001e B8EE400A 		vcvt.f32.u32	s0, s0
+  21:Lib/timer/timer.h **** }
+ 489              		.loc 4 21 1 view .LVU118
+ 490 0022 88EE000A 		vdiv.f32	s0, s16, s0
+ 491 0026 BDEC028B 		vldm	sp!, {d8}
+ 492              	.LCFI6:
+ 493              		.cfi_restore 80
+ 494              		.cfi_restore 81
+ 495              		.cfi_def_cfa_offset 8
+ 496 002a 08BD     		pop	{r3, pc}
+ 497              	.L48:
+ 498              		.align	2
+ 499              	.L47:
+ 500 002c 001000E0 		.word	-536866816
+ 501              		.cfi_endproc
+ 502              	.LFE132:
+ 504              		.section	.text.BLDC_Init,"ax",%progbits
+ 505              		.align	1
+ 506              		.global	BLDC_Init
+ 507              		.syntax unified
+ 508              		.thumb
+ 509              		.thumb_func
+ 511              	BLDC_Init:
+ 512              	.LFB138:
+   9:src/bldc/bldc.c ****       PwmOut_Init(&u_pwm, &htim1, TIM_CHANNEL_1);
+ 513              		.loc 1 9 18 is_stmt 1 view -0
+ 514              		.cfi_startproc
+ 515              		@ args = 0, pretend = 0, frame = 0
+ 516              		@ frame_needed = 0, uses_anonymous_args = 0
+ 517 0000 10B5     		push	{r4, lr}
+ 518              	.LCFI7:
+ 519              		.cfi_def_cfa_offset 8
+ 520              		.cfi_offset 4, -8
+ 521              		.cfi_offset 14, -4
+  10:src/bldc/bldc.c ****       PwmOut_Init(&v_pwm, &htim1, TIM_CHANNEL_2);
+ 522              		.loc 1 10 7 view .LVU120
+ 523 0002 0F4C     		ldr	r4, .L51
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 16
+
+
+ 524 0004 0022     		movs	r2, #0
+ 525 0006 2146     		mov	r1, r4
+ 526 0008 0E48     		ldr	r0, .L51+4
+ 527 000a FFF7FEFF 		bl	PwmOut_Init
+ 528              	.LVL42:
+  11:src/bldc/bldc.c ****       PwmOut_Init(&w_pwm, &htim1, TIM_CHANNEL_3);
+ 529              		.loc 1 11 7 view .LVU121
+ 530 000e 0422     		movs	r2, #4
+ 531 0010 2146     		mov	r1, r4
+ 532 0012 0D48     		ldr	r0, .L51+8
+ 533 0014 FFF7FEFF 		bl	PwmOut_Init
+ 534              	.LVL43:
+  12:src/bldc/bldc.c **** 
+ 535              		.loc 1 12 7 view .LVU122
+ 536 0018 0822     		movs	r2, #8
+ 537 001a 2146     		mov	r1, r4
+ 538 001c 0B48     		ldr	r0, .L51+12
+ 539 001e FFF7FEFF 		bl	PwmOut_Init
+ 540              	.LVL44:
+  14:src/bldc/bldc.c **** }
+ 541              		.loc 1 14 7 view .LVU123
+ 542              	.LBB10:
+ 543              	.LBI10:
+  10:Lib/timer/timer.h ****       CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+ 544              		.loc 4 10 20 view .LVU124
+ 545              	.LBB11:
+  11:Lib/timer/timer.h ****       DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+ 546              		.loc 4 11 7 view .LVU125
+  11:Lib/timer/timer.h ****       DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+ 547              		.loc 4 11 16 is_stmt 0 view .LVU126
+ 548 0022 0B4A     		ldr	r2, .L51+16
+ 549 0024 D2F8FC30 		ldr	r3, [r2, #252]
+  11:Lib/timer/timer.h ****       DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+ 550              		.loc 4 11 24 view .LVU127
+ 551 0028 43F08073 		orr	r3, r3, #16777216
+ 552 002c C2F8FC30 		str	r3, [r2, #252]
+  12:Lib/timer/timer.h **** }
+ 553              		.loc 4 12 7 is_stmt 1 view .LVU128
+  12:Lib/timer/timer.h **** }
+ 554              		.loc 4 12 10 is_stmt 0 view .LVU129
+ 555 0030 A2F55D42 		sub	r2, r2, #56576
+ 556 0034 1368     		ldr	r3, [r2]
+  12:Lib/timer/timer.h **** }
+ 557              		.loc 4 12 17 view .LVU130
+ 558 0036 43F00103 		orr	r3, r3, #1
+ 559 003a 1360     		str	r3, [r2]
+ 560              	.LVL45:
+  12:Lib/timer/timer.h **** }
+ 561              		.loc 4 12 17 view .LVU131
+ 562              	.LBE11:
+ 563              	.LBE10:
+  15:src/bldc/bldc.c **** 
+ 564              		.loc 1 15 1 view .LVU132
+ 565 003c 10BD     		pop	{r4, pc}
+ 566              	.L52:
+ 567 003e 00BF     		.align	2
+ 568              	.L51:
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 17
+
+
+ 569 0040 00000000 		.word	htim1
+ 570 0044 00000000 		.word	u_pwm
+ 571 0048 00000000 		.word	v_pwm
+ 572 004c 00000000 		.word	w_pwm
+ 573 0050 00ED00E0 		.word	-536810240
+ 574              		.cfi_endproc
+ 575              	.LFE138:
+ 577              		.section	.text.BLDC_OpenLoopDrive,"ax",%progbits
+ 578              		.align	1
+ 579              		.global	BLDC_OpenLoopDrive
+ 580              		.syntax unified
+ 581              		.thumb
+ 582              		.thumb_func
+ 584              	BLDC_OpenLoopDrive:
+ 585              	.LVL46:
+ 586              	.LFB140:
+  25:src/bldc/bldc.c **** 
+  26:src/bldc/bldc.c **** void BLDC_OpenLoopDrive(float amp, float freq) {
+ 587              		.loc 1 26 48 is_stmt 1 view -0
+ 588              		.cfi_startproc
+ 589              		@ args = 0, pretend = 0, frame = 0
+ 590              		@ frame_needed = 0, uses_anonymous_args = 0
+ 591              		.loc 1 26 48 is_stmt 0 view .LVU134
+ 592 0000 10B5     		push	{r4, lr}
+ 593              	.LCFI8:
+ 594              		.cfi_def_cfa_offset 8
+ 595              		.cfi_offset 4, -8
+ 596              		.cfi_offset 14, -4
+ 597 0002 2DED048B 		vpush.64	{d8, d9}
+ 598              	.LCFI9:
+ 599              		.cfi_def_cfa_offset 24
+ 600              		.cfi_offset 80, -24
+ 601              		.cfi_offset 81, -20
+ 602              		.cfi_offset 82, -16
+ 603              		.cfi_offset 83, -12
+ 604 0006 F0EE408A 		vmov.f32	s17, s0
+ 605 000a B0EE608A 		vmov.f32	s16, s1
+  27:src/bldc/bldc.c ****       static float phase = 0.0f;
+ 606              		.loc 1 27 7 is_stmt 1 view .LVU135
+  28:src/bldc/bldc.c ****       float dt = Timer_Read(&dt_timer);
+ 607              		.loc 1 28 7 view .LVU136
+ 608              		.loc 1 28 18 is_stmt 0 view .LVU137
+ 609 000e 244C     		ldr	r4, .L58
+ 610 0010 2046     		mov	r0, r4
+ 611 0012 FFF7FEFF 		bl	Timer_Read
+ 612              	.LVL47:
+  29:src/bldc/bldc.c ****       Timer_Reset(&dt_timer);
+ 613              		.loc 1 29 7 is_stmt 1 view .LVU138
+ 614              	.LBB12:
+ 615              	.LBI12:
+  15:Lib/timer/timer.h ****       timer->start_time = DWT->CYCCNT;
+ 616              		.loc 4 15 20 view .LVU139
+ 617              	.LBB13:
+  16:Lib/timer/timer.h **** }
+ 618              		.loc 4 16 7 view .LVU140
+  16:Lib/timer/timer.h **** }
+ 619              		.loc 4 16 30 is_stmt 0 view .LVU141
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 18
+
+
+ 620 0016 234B     		ldr	r3, .L58+4
+ 621 0018 5B68     		ldr	r3, [r3, #4]
+  16:Lib/timer/timer.h **** }
+ 622              		.loc 4 16 25 view .LVU142
+ 623 001a 2360     		str	r3, [r4]
+ 624              	.LVL48:
+  16:Lib/timer/timer.h **** }
+ 625              		.loc 4 16 25 view .LVU143
+ 626              	.LBE13:
+ 627              	.LBE12:
+  30:src/bldc/bldc.c **** 
+  31:src/bldc/bldc.c ****       float delta_phase = 360.0f * freq * dt;
+ 628              		.loc 1 31 7 is_stmt 1 view .LVU144
+ 629              		.loc 1 31 34 is_stmt 0 view .LVU145
+ 630 001c 9FED227A 		vldr.32	s14, .L58+8
+ 631 0020 28EE078A 		vmul.f32	s16, s16, s14
+ 632              	.LVL49:
+ 633              		.loc 1 31 13 view .LVU146
+ 634 0024 28EE008A 		vmul.f32	s16, s16, s0
+ 635              	.LVL50:
+  32:src/bldc/bldc.c ****       phase += delta_phase;
+ 636              		.loc 1 32 7 is_stmt 1 view .LVU147
+ 637              		.loc 1 32 13 is_stmt 0 view .LVU148
+ 638 0028 204B     		ldr	r3, .L58+12
+ 639 002a D3ED007A 		vldr.32	s15, [r3]
+ 640 002e 78EE277A 		vadd.f32	s15, s16, s15
+ 641 0032 C3ED007A 		vstr.32	s15, [r3]
+  33:src/bldc/bldc.c ****       if (phase >= 360.0f) phase -= 360.0f;
+ 642              		.loc 1 33 7 is_stmt 1 view .LVU149
+ 643              		.loc 1 33 10 is_stmt 0 view .LVU150
+ 644 0036 F4EEC77A 		vcmpe.f32	s15, s14
+ 645 003a F1EE10FA 		vmrs	APSR_nzcv, FPSCR
+ 646 003e 03DB     		blt	.L54
+ 647              		.loc 1 33 28 is_stmt 1 discriminator 1 view .LVU151
+ 648              		.loc 1 33 34 is_stmt 0 discriminator 1 view .LVU152
+ 649 0040 77EEC77A 		vsub.f32	s15, s15, s14
+ 650 0044 C3ED007A 		vstr.32	s15, [r3]
+ 651              	.L54:
+  34:src/bldc/bldc.c **** 
+  35:src/bldc/bldc.c ****       // サイン波生成（0.5fでオフセット、0.5f*speedで振幅調整）
+  36:src/bldc/bldc.c ****       float u = 0.5f + 0.5f * amp * SinDeg((int)phase);
+ 652              		.loc 1 36 7 is_stmt 1 view .LVU153
+ 653              		.loc 1 36 29 is_stmt 0 view .LVU154
+ 654 0048 F6EE009A 		vmov.f32	s19, #5.0e-1
+ 655 004c 28EEA98A 		vmul.f32	s16, s17, s19
+ 656              	.LVL51:
+ 657              		.loc 1 36 37 view .LVU155
+ 658 0050 164B     		ldr	r3, .L58+12
+ 659 0052 D3ED007A 		vldr.32	s15, [r3]
+ 660 0056 FDEEE77A 		vcvt.s32.f32	s15, s15
+ 661 005a 17EE904A 		vmov	r4, s15	@ int
+ 662 005e 2046     		mov	r0, r4
+ 663 0060 FFF7FEFF 		bl	SinDeg
+ 664              	.LVL52:
+ 665              		.loc 1 36 35 view .LVU156
+ 666 0064 68EE008A 		vmul.f32	s17, s16, s0
+ 667              	.LVL53:
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 19
+
+
+ 668              		.loc 1 36 13 view .LVU157
+ 669 0068 78EEA98A 		vadd.f32	s17, s17, s19
+ 670              	.LVL54:
+  37:src/bldc/bldc.c ****       float v = 0.5f + 0.5f * amp * SinDeg((int)phase - 120);
+ 671              		.loc 1 37 7 is_stmt 1 view .LVU158
+ 672              		.loc 1 37 37 is_stmt 0 view .LVU159
+ 673 006c A4F17800 		sub	r0, r4, #120
+ 674 0070 FFF7FEFF 		bl	SinDeg
+ 675              	.LVL55:
+ 676              		.loc 1 37 35 view .LVU160
+ 677 0074 28EE009A 		vmul.f32	s18, s16, s0
+ 678              		.loc 1 37 13 view .LVU161
+ 679 0078 39EE299A 		vadd.f32	s18, s18, s19
+ 680              	.LVL56:
+  38:src/bldc/bldc.c ****       float w = 0.5f + 0.5f * amp * SinDeg((int)phase + 120);
+ 681              		.loc 1 38 7 is_stmt 1 view .LVU162
+ 682              		.loc 1 38 37 is_stmt 0 view .LVU163
+ 683 007c 04F17800 		add	r0, r4, #120
+ 684 0080 FFF7FEFF 		bl	SinDeg
+ 685              	.LVL57:
+ 686              		.loc 1 38 35 view .LVU164
+ 687 0084 28EE001A 		vmul.f32	s2, s16, s0
+ 688              	.LVL58:
+  39:src/bldc/bldc.c **** 
+  40:src/bldc/bldc.c ****       BLDC_WritePwm(u, v, w);
+ 689              		.loc 1 40 7 is_stmt 1 view .LVU165
+ 690 0088 31EE291A 		vadd.f32	s2, s2, s19
+ 691              	.LVL59:
+ 692              		.loc 1 40 7 is_stmt 0 view .LVU166
+ 693 008c F0EE490A 		vmov.f32	s1, s18
+ 694 0090 B0EE680A 		vmov.f32	s0, s17
+ 695 0094 FFF7FEFF 		bl	BLDC_WritePwm
+ 696              	.LVL60:
+  41:src/bldc/bldc.c **** }...
+ 697              		.loc 1 41 1 view .LVU167
+ 698 0098 BDEC048B 		vldm	sp!, {d8-d9}
+ 699              	.LCFI10:
+ 700              		.cfi_restore 82
+ 701              		.cfi_restore 83
+ 702              		.cfi_restore 80
+ 703              		.cfi_restore 81
+ 704              		.cfi_def_cfa_offset 8
+ 705              	.LVL61:
+ 706              		.loc 1 41 1 view .LVU168
+ 707 009c 10BD     		pop	{r4, pc}
+ 708              	.L59:
+ 709 009e 00BF     		.align	2
+ 710              	.L58:
+ 711 00a0 00000000 		.word	dt_timer
+ 712 00a4 001000E0 		.word	-536866816
+ 713 00a8 0000B443 		.word	1135869952
+ 714 00ac 00000000 		.word	phase.0
+ 715              		.cfi_endproc
+ 716              	.LFE140:
+ 718              		.section	.bss.phase.0,"aw",%nobits
+ 719              		.align	2
+ 722              	phase.0:
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 20
+
+
+ 723 0000 00000000 		.space	4
+ 724              		.global	dt_timer
+ 725              		.section	.bss.dt_timer,"aw",%nobits
+ 726              		.align	2
+ 729              	dt_timer:
+ 730 0000 00000000 		.space	4
+ 731              		.global	w_pwm
+ 732              		.section	.bss.w_pwm,"aw",%nobits
+ 733              		.align	2
+ 736              	w_pwm:
+ 737 0000 00000000 		.space	16
+ 737      00000000 
+ 737      00000000 
+ 737      00000000 
+ 738              		.global	v_pwm
+ 739              		.section	.bss.v_pwm,"aw",%nobits
+ 740              		.align	2
+ 743              	v_pwm:
+ 744 0000 00000000 		.space	16
+ 744      00000000 
+ 744      00000000 
+ 744      00000000 
+ 745              		.global	u_pwm
+ 746              		.section	.bss.u_pwm,"aw",%nobits
+ 747              		.align	2
+ 750              	u_pwm:
+ 751 0000 00000000 		.space	16
+ 751      00000000 
+ 751      00000000 
+ 751      00000000 
+ 752              		.section	.rodata.sin_table,"a"
+ 753              		.align	2
+ 756              	sin_table:
+ 757 0000 00000000 		.word	0
+ 758 0004 59F88E3C 		.word	1016002649
+ 759 0008 C6F20E3D 		.word	1024389830
+ 760 000c 3A5E563D 		.word	1029070394
+ 761 0010 7BDC8E3D 		.word	1032772731
+ 762 0014 B67EB23D 		.word	1035108022
+ 763 0018 0513D63D 		.word	1037439749
+ 764 001c A296F93D 		.word	1039767202
+ 765 0020 65830E3E 		.word	1041138533
+ 766 0024 5B30203E 		.word	1042296923
+ 767 0028 D4D0313E 		.word	1043452116
+ 768 002c 6F63433E 		.word	1044603759
+ 769 0030 CDE6543E 		.word	1045751501
+ 770 0034 9259663E 		.word	1046894994
+ 771 0038 60BA773E 		.word	1048033888
+ 772 003c EE83843E 		.word	1048871918
+ 773 0040 57208D3E 		.word	1049436247
+ 774 0044 BEB1953E 		.word	1049997758
+ 775 0048 7A379E3E 		.word	1050556282
+ 776 004c DFB0A63E 		.word	1051111647
+ 777 0050 441DAF3E 		.word	1051663684
+ 778 0054 017CB73E 		.word	1052212225
+ 779 0058 6FCCBF3E 		.word	1052757103
+ 780 005c E90DC83E 		.word	1053298153
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 21
+
+
+ 781 0060 C93FD03E 		.word	1053835209
+ 782 0064 6C61D83E 		.word	1054368108
+ 783 0068 2F72E03E 		.word	1054896687
+ 784 006c 7171E83E 		.word	1055420785
+ 785 0070 945EF03E 		.word	1055940244
+ 786 0074 F738F83E 		.word	1056454903
+ 787 0078 0000003F 		.word	1056964608
+ 788 007c 89D9033F 		.word	1057216905
+ 789 0080 CAA8073F 		.word	1057466570
+ 790 0084 776D0B3F 		.word	1057713527
+ 791 0088 44270F3F 		.word	1057957700
+ 792 008c E8D5123F 		.word	1058199016
+ 793 0090 1879163F 		.word	1058437400
+ 794 0094 8D101A3F 		.word	1058672781
+ 795 0098 FE9B1D3F 		.word	1058905086
+ 796 009c 241B213F 		.word	1059134244
+ 797 00a0 BB8D243F 		.word	1059360187
+ 798 00a4 7CF3273F 		.word	1059582844
+ 799 00a8 254C2B3F 		.word	1059802149
+ 800 00ac 72972E3F 		.word	1060018034
+ 801 00b0 22D5313F 		.word	1060230434
+ 802 00b4 F304353F 		.word	1060439283
+ 803 00b8 A726383F 		.word	1060644519
+ 804 00bc FF393B3F 		.word	1060846079
+ 805 00c0 BD3E3E3F 		.word	1061043901
+ 806 00c4 A634413F 		.word	1061237926
+ 807 00c8 7D1B443F 		.word	1061428093
+ 808 00cc 0AF3463F 		.word	1061614346
+ 809 00d0 13BB493F 		.word	1061796627
+ 810 00d4 60734C3F 		.word	1061974880
+ 811 00d8 BD1B4F3F 		.word	1062149053
+ 812 00dc F3B3513F 		.word	1062319091
+ 813 00e0 CE3B543F 		.word	1062484942
+ 814 00e4 1DB3563F 		.word	1062646557
+ 815 00e8 AE19593F 		.word	1062803886
+ 816 00ec 516F5B3F 		.word	1062956881
+ 817 00f0 D7B35D3F 		.word	1063105495
+ 818 00f4 14E75F3F 		.word	1063249684
+ 819 00f8 DA08623F 		.word	1063389402
+ 820 00fc 0119643F 		.word	1063524609
+ 821 0100 5E17663F 		.word	1063655262
+ 822 0104 CA03683F 		.word	1063781322
+ 823 0108 1DDE693F 		.word	1063902749
+ 824 010c 35A66B3F 		.word	1064019509
+ 825 0110 EC5B6D3F 		.word	1064131564
+ 826 0114 20FF6E3F 		.word	1064238880
+ 827 0118 B28F703F 		.word	1064341426
+ 828 011c 810D723F 		.word	1064439169
+ 829 0120 7178733F 		.word	1064532081
+ 830 0124 63D0743F 		.word	1064620131
+ 831 0128 3F15763F 		.word	1064703295
+ 832 012c EA46773F 		.word	1064781546
+ 833 0130 4D65783F 		.word	1064854861
+ 834 0134 5170793F 		.word	1064923217
+ 835 0138 E2677A3F 		.word	1064986594
+ 836 013c EB4B7B3F 		.word	1065044971
+ 837 0140 5C1C7C3F 		.word	1065098332
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 22
+
+
+ 838 0144 25D97C3F 		.word	1065146661
+ 839 0148 35827D3F 		.word	1065189941
+ 840 014c 81177E3F 		.word	1065228161
+ 841 0150 FD987E3F 		.word	1065261309
+ 842 0154 9E067F3F 		.word	1065289374
+ 843 0158 5C607F3F 		.word	1065312348
+ 844 015c 2FA67F3F 		.word	1065330223
+ 845 0160 14D87F3F 		.word	1065342996
+ 846 0164 05F67F3F 		.word	1065350661
+ 847 0168 0000803F 		.word	1065353216
+ 848              		.text
+ 849              	.Letext0:
+ 850              		.file 5 "/opt/ST/STM32CubeCLT_1.16.0/GNU-tools-for-STM32/arm-none-eabi/include/machine/_default_ty
+ 851              		.file 6 "/opt/ST/STM32CubeCLT_1.16.0/GNU-tools-for-STM32/arm-none-eabi/include/sys/_stdint.h"
+ 852              		.file 7 "Drivers/CMSIS/Include/core_cm4.h"
+ 853              		.file 8 "Drivers/CMSIS/Device/ST/STM32F3xx/Include/stm32f303x8.h"
+ 854              		.file 9 "Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_def.h"
+ 855              		.file 10 "Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_dma.h"
+ 856              		.file 11 "Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_tim.h"
+ 857              		.file 12 "Core/Inc/tim.h"
+ 858              		.file 13 "Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_tim_ex.h"
+ 859              		.file 14 "Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_rcc.h"
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s 			page 23
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 bldc.c
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:21     .text.SinDeg:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:26     .text.SinDeg:00000000 SinDeg
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:185    .text.SinDeg:0000009c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:756    .rodata.sin_table:00000000 sin_table
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:192    .text.PwmOut_Write:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:197    .text.PwmOut_Write:00000000 PwmOut_Write
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:249    .text.PwmOut_Write:0000004a $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:297    .text.PwmOut_Write:0000008c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:302    .text.BLDC_WritePwm:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:307    .text.BLDC_WritePwm:00000000 BLDC_WritePwm
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:383    .text.BLDC_WritePwm:00000064 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:750    .bss.u_pwm:00000000 u_pwm
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:743    .bss.v_pwm:00000000 v_pwm
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:736    .bss.w_pwm:00000000 w_pwm
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:391    .text.PwmOut_Init:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:396    .text.PwmOut_Init:00000000 PwmOut_Init
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:447    .text.Timer_Read:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:452    .text.Timer_Read:00000000 Timer_Read
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:500    .text.Timer_Read:0000002c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:505    .text.BLDC_Init:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:511    .text.BLDC_Init:00000000 BLDC_Init
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:569    .text.BLDC_Init:00000040 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:578    .text.BLDC_OpenLoopDrive:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:584    .text.BLDC_OpenLoopDrive:00000000 BLDC_OpenLoopDrive
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:711    .text.BLDC_OpenLoopDrive:000000a0 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:729    .bss.dt_timer:00000000 dt_timer
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:722    .bss.phase.0:00000000 phase.0
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:719    .bss.phase.0:00000000 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:726    .bss.dt_timer:00000000 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:733    .bss.w_pwm:00000000 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:740    .bss.v_pwm:00000000 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:747    .bss.u_pwm:00000000 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:753    .rodata.sin_table:00000000 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:262    .text.PwmOut_Write:00000057 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccZ5yWid.s:262    .text.PwmOut_Write:00000058 $t
+
+UNDEFINED SYMBOLS
+HAL_TIM_PWM_Start
+HAL_TIMEx_PWMN_Start
+HAL_RCC_GetSysClockFreq
+htim1
