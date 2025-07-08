@@ -68,7 +68,7 @@ static inline float BLDC_GetEncoder(uint16_t adc_val) {
 
       // ローパスフィルタ
       static float x_filt = 1.0f, y_filt = 0.0f;
-      const float enc_lpf = 0.3f;  // フィルタ強度
+      const float enc_lpf = 0.2f;  // フィルタ強度
 
       float x = cosf(theta);
       float y = sinf(theta);
@@ -139,6 +139,7 @@ static inline float BLDC_PIDControl(PIDController* pid, float error, double dt) 
 void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encoder_value, float target_speed) {
       double dt = Timer_Read(&dt_timer);
       Timer_Reset(&dt_timer);
+      if (dt > 0.01) return;
 
       // エンコーダ値を処理
       svc->mech_theta = BLDC_GetEncoder(encoder_value);  // エンコーダ値をラジアン(0〜2π)に変換
@@ -149,7 +150,6 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
       svc->elec_theta = fmodf(svc->elec_theta, TWO_PI);  // 0〜2πの範囲に制限
 
       svc->amp = BLDC_PIDControl(&svc->speed_pid, target_speed - svc->speed, dt);
-      // svc->amp = -0.3;
 
       // 正弦波を生成
       float u = 0.5f + 0.5f * svc->amp * Sin(svc->elec_theta);

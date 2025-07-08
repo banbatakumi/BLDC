@@ -40,13 +40,13 @@ void setup() {
 void main_app() {
       while (1) {
             // BLDC_OpenLoopDrive(0.15, 20);
-            if (Timer_Read(&timer) < 0.5) {
-                  BLDC_SensoredVectorControlDrive(&svc, adc_val[0], 100.0f);
-            } else if (Timer_Read(&timer) < 1) {
-                  BLDC_SensoredVectorControlDrive(&svc, adc_val[0], -100.0f);
-            } else {
-                  Timer_Reset(&timer);
-            }
+            // if (Timer_Read(&timer) < 0.5) {
+            //       BLDC_SensoredVectorControlDrive(&svc, adc_val[0], 50.0f);
+            // } else if (Timer_Read(&timer) < 1) {
+            //       BLDC_SensoredVectorControlDrive(&svc, adc_val[0], -50.0f);
+            // } else {
+            //       Timer_Reset(&timer);
+            // }
             // if (Timer_Read(&timer) < 1) {
             //       BLDC_SensoredVectorControlDrive(&svc, adc_val[0], Timer_Read(&timer) * 150.0f);
             // } else if (Timer_Read(&timer) < 2) {
@@ -54,7 +54,7 @@ void main_app() {
             // } else {
             //       Timer_Reset(&timer);
             // }
-            // BLDC_SensoredVectorControlDrive(&svc, adc_val[0], 10);
+            BLDC_SensoredVectorControlDrive(&svc, adc_val[0], 50);
 
             // 制御周期の一定化
             // while (Timer_Read(&control_timer) <= CONTROL_PERIOD);
