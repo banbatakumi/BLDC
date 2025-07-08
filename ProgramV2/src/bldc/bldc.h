@@ -24,6 +24,7 @@ typedef struct {
       float amp;                // 電圧振幅
       float mech_theta;         // 機械角度 [rad]
       float elec_theta;         // 電気角度 [rad]
+      float speed;              // 速度 [rad/s]
       uint8_t pole_pairs;       // 極対数
       PIDController speed_pid;  // 速度制御用PID
 } SensoredVectorControl;
@@ -32,12 +33,6 @@ void BLDC_Init(SensoredVectorControl* svc);
 
 void BLDC_OpenLoopDrive(float amp, float freq);
 
-static inline float BLDC_AdcToRadians(uint16_t adc_value);
-
-static inline void BLDC_WritePwm(float u, float v, float w);
-
-void BLDC_VectorControlInit(SensoredVectorControl* svc, uint8_t pole_pairs);
 void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encoder_value, float target_speed);
-// static inline float BLDC_PIDControl(PIDController* pid, float error, float dt);
 
 #endif  // BLDC_H_

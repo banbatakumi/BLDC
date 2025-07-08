@@ -47,7 +47,7 @@ void main_app() {
             // } else {
             //       Timer_Reset(&timer);
             // }
-            BLDC_SensoredVectorControlDrive(&svc, adc_val[0], 0.25f);
+            BLDC_SensoredVectorControlDrive(&svc, adc_val[0], 25.0f);
 
             // 制御周期の一定化
             // while (Timer_Read(&control_timer) <= CONTROL_PERIOD);
