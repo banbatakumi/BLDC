@@ -1,0 +1,6 @@
+{
+      "files.associations": {
+            "pwm_out.h": "c",
+            "config.h": "c"
+      }
+}
