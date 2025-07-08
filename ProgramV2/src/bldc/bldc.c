@@ -15,9 +15,11 @@ void BLDC_Init() {
 }
 
 static inline void BLDC_WritePwm(float u, float v, float w) {
-      if (u > 0.95f) u = 0.95f;  // 最大値制限
-      if (v > 0.95f) v = 0.95f;  // 最大値制限
-      if (w > 0.95f) w = 0.95f;  // 最大値制限
+      // デューティ比の制限
+      if (u > MAX_DUTY) u = MAX_DUTY;
+      if (v > MAX_DUTY) v = MAX_DUTY;
+      if (w > MAX_DUTY) w = MAX_DUTY;
+
       PwmOut_Write(&u_pwm, u);
       PwmOut_Write(&v_pwm, v);
       PwmOut_Write(&w_pwm, w);
@@ -32,7 +34,6 @@ void BLDC_OpenLoopDrive(float amp, float freq) {
       phase += delta_phase;
       if (phase >= 360.0f) phase -= 360.0f;
 
-      // サイン波生成（0.5fでオフセット、0.5f*speedで振幅調整）
       float u = 0.5f + 0.5f * amp * SinDeg((int)phase);
       float v = 0.5f + 0.5f * amp * SinDeg((int)phase - 120);
       float w = 0.5f + 0.5f * amp * SinDeg((int)phase + 120);

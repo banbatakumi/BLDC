@@ -1,4 +1,4 @@
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 1
 
 
    1              		.cpu cortex-m4
@@ -58,7 +58,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
   28:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   * @{
   29:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   */
   30:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c **** 
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 2
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 2
 
 
   31:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c **** /** @defgroup PWR PWR
@@ -118,7 +118,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
   38 0008 1A61     		str	r2, [r3, #16]
   76:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   __HAL_RCC_PWR_RELEASE_RESET();
   39              		.loc 1 76 3 view .LVU2
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 3
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 3
 
 
   40 000a 1A69     		ldr	r2, [r3, #16]
@@ -178,7 +178,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
   84              		.thumb
   85              		.thumb_func
   87              	HAL_PWR_DisableBkUpAccess:
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 4
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 4
 
 
   88              	.LFB125:
@@ -238,7 +238,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  116:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****     *** WakeUp pin configuration ***
  117:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****     ================================
  118:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****     [..]
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 5
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 5
 
 
  119:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****       (+) WakeUp pin is used to wakeup the system from Standby mode. This pin is
@@ -298,7 +298,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  173:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****       (+) Entry:
  174:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****           The Stop mode is entered using the HAL_PWR_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPEN
  175:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****              function with:
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 6
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 6
 
 
  176:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****           (++) Main regulator ON or
@@ -358,7 +358,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  230:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c **** @endverbatim
  231:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   * @{
  232:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   */
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 7
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 7
 
 
  233:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c **** 
@@ -418,7 +418,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  149              		.cfi_startproc
  150              		@ args = 0, pretend = 0, frame = 0
  151              		@ frame_needed = 0, uses_anonymous_args = 0
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 8
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 8
 
 
  152              		@ link register save eliminated.
@@ -478,7 +478,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  283:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   /* Check the parameters */
  284:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   assert_param(IS_PWR_SLEEP_ENTRY(SLEEPEntry));
  183              		.loc 1 284 3 view .LVU19
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 9
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 9
 
 
  285:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c **** 
@@ -538,7 +538,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  216              	@ 296 "Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c" 1
  217 0016 30BF     		wfi
  218              	@ 0 "" 2
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 10
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 10
 
 
  219              		.thumb
@@ -598,7 +598,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  334:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   /* Select the regulator state in STOP mode ---------------------------------*/
  335:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   tmpreg = PWR->CR;
  247              		.loc 1 335 3 view .LVU35
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 11
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 11
 
 
  248              		.loc 1 335 10 is_stmt 0 view .LVU36
@@ -658,7 +658,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  279 001a 40BF     		sev
  280              	@ 0 "" 2
  359:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****     __WFE();
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 12
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 12
 
 
  281              		.loc 1 359 5 view .LVU49
@@ -718,7 +718,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  369:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   * @note  In Standby mode, all I/O pins are high impedance except for:
  370:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   *          - Reset pad (still available), 
  371:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   *          - RTC alternate function pins if configured for tamper, time-stamp, RTC
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 13
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 13
 
 
  372:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c ****   *            Alarm out, or RTC clock calibration out, 
@@ -778,7 +778,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  363              		.section	.text.HAL_PWR_EnableSleepOnExit,"ax",%progbits
  364              		.align	1
  365              		.global	HAL_PWR_EnableSleepOnExit
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 14
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 14
 
 
  366              		.syntax unified
@@ -838,7 +838,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  414:Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c **** {
  400              		.loc 1 414 1 is_stmt 1 view -0
  401              		.cfi_startproc
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 15
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 15
 
 
  402              		@ args = 0, pretend = 0, frame = 0
@@ -898,7 +898,7 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  441              		.align	2
  442              	.L38:
  443 000c 00ED00E0 		.word	-536810240
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 16
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 16
 
 
  444              		.cfi_endproc
@@ -948,46 +948,46 @@ ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 1
  478              		.file 3 "/opt/ST/STM32CubeCLT_1.16.0/GNU-tools-for-STM32/arm-none-eabi/include/sys/_stdint.h"
  479              		.file 4 "Drivers/CMSIS/Include/core_cm4.h"
  480              		.file 5 "Drivers/CMSIS/Device/ST/STM32F3xx/Include/stm32f303x8.h"
-ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s 			page 17
+ARM GAS  /var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s 			page 17
 
 
 DEFINED SYMBOLS
                             *ABS*:00000000 stm32f3xx_hal_pwr.c
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:21     .text.HAL_PWR_DeInit:00000000 $t
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:27     .text.HAL_PWR_DeInit:00000000 HAL_PWR_DeInit
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:48     .text.HAL_PWR_DeInit:00000014 $d
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:53     .text.HAL_PWR_EnableBkUpAccess:00000000 $t
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:59     .text.HAL_PWR_EnableBkUpAccess:00000000 HAL_PWR_EnableBkUpAccess
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:76     .text.HAL_PWR_EnableBkUpAccess:0000000c $d
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:81     .text.HAL_PWR_DisableBkUpAccess:00000000 $t
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:87     .text.HAL_PWR_DisableBkUpAccess:00000000 HAL_PWR_DisableBkUpAccess
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:104    .text.HAL_PWR_DisableBkUpAccess:0000000c $d
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:109    .text.HAL_PWR_EnableWakeUpPin:00000000 $t
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:115    .text.HAL_PWR_EnableWakeUpPin:00000000 HAL_PWR_EnableWakeUpPin
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:134    .text.HAL_PWR_EnableWakeUpPin:0000000c $d
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:139    .text.HAL_PWR_DisableWakeUpPin:00000000 $t
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:145    .text.HAL_PWR_DisableWakeUpPin:00000000 HAL_PWR_DisableWakeUpPin
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:164    .text.HAL_PWR_DisableWakeUpPin:0000000c $d
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:169    .text.HAL_PWR_EnterSLEEPMode:00000000 $t
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:175    .text.HAL_PWR_EnterSLEEPMode:00000000 HAL_PWR_EnterSLEEPMode
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:225    .text.HAL_PWR_EnterSLEEPMode:0000001c $d
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:230    .text.HAL_PWR_EnterSTOPMode:00000000 $t
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:236    .text.HAL_PWR_EnterSTOPMode:00000000 HAL_PWR_EnterSTOPMode
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:313    .text.HAL_PWR_EnterSTOPMode:00000030 $d
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:319    .text.HAL_PWR_EnterSTANDBYMode:00000000 $t
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:325    .text.HAL_PWR_EnterSTANDBYMode:00000000 HAL_PWR_EnterSTANDBYMode
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:358    .text.HAL_PWR_EnterSTANDBYMode:00000018 $d
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:364    .text.HAL_PWR_EnableSleepOnExit:00000000 $t
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:370    .text.HAL_PWR_EnableSleepOnExit:00000000 HAL_PWR_EnableSleepOnExit
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:387    .text.HAL_PWR_EnableSleepOnExit:0000000c $d
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:392    .text.HAL_PWR_DisableSleepOnExit:00000000 $t
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:398    .text.HAL_PWR_DisableSleepOnExit:00000000 HAL_PWR_DisableSleepOnExit
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:415    .text.HAL_PWR_DisableSleepOnExit:0000000c $d
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:420    .text.HAL_PWR_EnableSEVOnPend:00000000 $t
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:426    .text.HAL_PWR_EnableSEVOnPend:00000000 HAL_PWR_EnableSEVOnPend
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:443    .text.HAL_PWR_EnableSEVOnPend:0000000c $d
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:448    .text.HAL_PWR_DisableSEVOnPend:00000000 $t
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:454    .text.HAL_PWR_DisableSEVOnPend:00000000 HAL_PWR_DisableSEVOnPend
-/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccsPnygc.s:471    .text.HAL_PWR_DisableSEVOnPend:0000000c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:21     .text.HAL_PWR_DeInit:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:27     .text.HAL_PWR_DeInit:00000000 HAL_PWR_DeInit
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:48     .text.HAL_PWR_DeInit:00000014 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:53     .text.HAL_PWR_EnableBkUpAccess:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:59     .text.HAL_PWR_EnableBkUpAccess:00000000 HAL_PWR_EnableBkUpAccess
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:76     .text.HAL_PWR_EnableBkUpAccess:0000000c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:81     .text.HAL_PWR_DisableBkUpAccess:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:87     .text.HAL_PWR_DisableBkUpAccess:00000000 HAL_PWR_DisableBkUpAccess
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:104    .text.HAL_PWR_DisableBkUpAccess:0000000c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:109    .text.HAL_PWR_EnableWakeUpPin:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:115    .text.HAL_PWR_EnableWakeUpPin:00000000 HAL_PWR_EnableWakeUpPin
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:134    .text.HAL_PWR_EnableWakeUpPin:0000000c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:139    .text.HAL_PWR_DisableWakeUpPin:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:145    .text.HAL_PWR_DisableWakeUpPin:00000000 HAL_PWR_DisableWakeUpPin
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:164    .text.HAL_PWR_DisableWakeUpPin:0000000c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:169    .text.HAL_PWR_EnterSLEEPMode:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:175    .text.HAL_PWR_EnterSLEEPMode:00000000 HAL_PWR_EnterSLEEPMode
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:225    .text.HAL_PWR_EnterSLEEPMode:0000001c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:230    .text.HAL_PWR_EnterSTOPMode:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:236    .text.HAL_PWR_EnterSTOPMode:00000000 HAL_PWR_EnterSTOPMode
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:313    .text.HAL_PWR_EnterSTOPMode:00000030 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:319    .text.HAL_PWR_EnterSTANDBYMode:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:325    .text.HAL_PWR_EnterSTANDBYMode:00000000 HAL_PWR_EnterSTANDBYMode
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:358    .text.HAL_PWR_EnterSTANDBYMode:00000018 $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:364    .text.HAL_PWR_EnableSleepOnExit:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:370    .text.HAL_PWR_EnableSleepOnExit:00000000 HAL_PWR_EnableSleepOnExit
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:387    .text.HAL_PWR_EnableSleepOnExit:0000000c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:392    .text.HAL_PWR_DisableSleepOnExit:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:398    .text.HAL_PWR_DisableSleepOnExit:00000000 HAL_PWR_DisableSleepOnExit
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:415    .text.HAL_PWR_DisableSleepOnExit:0000000c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:420    .text.HAL_PWR_EnableSEVOnPend:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:426    .text.HAL_PWR_EnableSEVOnPend:00000000 HAL_PWR_EnableSEVOnPend
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:443    .text.HAL_PWR_EnableSEVOnPend:0000000c $d
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:448    .text.HAL_PWR_DisableSEVOnPend:00000000 $t
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:454    .text.HAL_PWR_DisableSEVOnPend:00000000 HAL_PWR_DisableSEVOnPend
+/var/folders/5c/srt4fy4j1pd641bjfx75k5000000gn/T//ccfzaXxn.s:471    .text.HAL_PWR_DisableSEVOnPend:0000000c $d
 
 NO UNDEFINED SYMBOLS

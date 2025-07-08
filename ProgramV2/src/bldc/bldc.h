@@ -6,10 +6,10 @@
 #include "pwm_out.h"
 #include "timer.h"
 
+#define MAX_DUTY 0.99f  // 最大デューティ比
+
 void BLDC_Init();
 
 void BLDC_OpenLoopDrive(float amp, float freq);
-
-static inline void BLDC_WritePwm(float u, float v, float w);
 
 #endif  // BLDC_H_

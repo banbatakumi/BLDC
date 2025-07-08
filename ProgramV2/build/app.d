@@ -1,4 +1,4 @@
-build/app.o: src/app/app.c src/app/app.h src/bldc/bldc.h Core/Inc/main.h \
+build/app.o: src/app/app.c src/app/app.h Core/Inc/adc.h Core/Inc/main.h \
  Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal.h \
  Core/Inc/stm32f3xx_hal_conf.h \
  Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_rcc.h \
@@ -27,11 +27,11 @@ build/app.o: src/app/app.c src/app/app.h src/bldc/bldc.h Core/Inc/main.h \
  Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_tim.h \
  Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_tim_ex.h \
  Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_uart.h \
- Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_uart_ex.h \
- Lib/mymath/mymath.h Lib/pwm_out/pwm_out.h Core/Inc/tim.h Core/Inc/main.h \
- Lib/timer/timer.h Lib/DigitalInOut/digitalinout.h
+ Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_uart_ex.h src/bldc/bldc.h \
+ Core/Inc/main.h Lib/mymath/mymath.h Lib/pwm_out/pwm_out.h Core/Inc/tim.h \
+ Lib/timer/timer.h Lib/digitalinout/digitalinout.h
 src/app/app.h:
-src/bldc/bldc.h:
+Core/Inc/adc.h:
 Core/Inc/main.h:
 Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal.h:
 Core/Inc/stm32f3xx_hal_conf.h:
@@ -64,9 +64,10 @@ Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_tim.h:
 Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_tim_ex.h:
 Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_uart.h:
 Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal_uart_ex.h:
+src/bldc/bldc.h:
+Core/Inc/main.h:
 Lib/mymath/mymath.h:
 Lib/pwm_out/pwm_out.h:
 Core/Inc/tim.h:
-Core/Inc/main.h:
 Lib/timer/timer.h:
-Lib/DigitalInOut/digitalinout.h:
+Lib/digitalinout/digitalinout.h:

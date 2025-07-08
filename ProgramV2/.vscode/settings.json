@@ -1,0 +1,5 @@
+{
+      "files.associations": {
+            "pwm_out.h": "c"
+      }
+}
