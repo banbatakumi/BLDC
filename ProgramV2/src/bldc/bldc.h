@@ -9,7 +9,7 @@
 
 #define MAX_DUTY 0.99f    // 最大デューティ比
 #define MAX_ADC_VAL 4095  // ADCの最大値
-#define lpf 0.9
+#define lpf 0.3
 
 // 構造体
 typedef struct {

@@ -19,8 +19,8 @@ void BLDC_Init(SensoredVectorControl* svc) {
       svc->elec_theta = 0.0f;
 
       // PIDコントローラの初期化
-      svc->speed_pid.kp = 0.0001f;  // 比例ゲイン
-      svc->speed_pid.ki = 0.2f;     // 積分ゲイン
+      svc->speed_pid.kp = 0.0005f;  // 比例ゲイン
+      svc->speed_pid.ki = 0.1f;     // 積分ゲイン
       svc->speed_pid.kd = 0;        // 微分ゲイン
       svc->speed_pid.integral = 0.0f;
       svc->speed_pid.prev_error = 0.0f;
@@ -59,17 +59,27 @@ void BLDC_OpenLoopDrive(float amp, float freq) {
 */
 
 static inline float BLDC_GetEncoder(uint16_t adc_val) {
-      // エンコーダー値の実際の最大値を求める
       static uint16_t max_adc_val = 4000;
       if (adc_val > max_adc_val) max_adc_val = adc_val;
 
-      // エンコーダー値を最大値に合わせて補正
       uint16_t correction_adc_val = adc_val * ((float)MAX_ADC_VAL / max_adc_val);
-
-      // ADCの最大値4095を2πで割る
       const double conversion_factor = TWO_PI / MAX_ADC_VAL;
+      float theta = (float)correction_adc_val * conversion_factor;
 
-      return (float)correction_adc_val * conversion_factor;
+      // ローパスフィルタ
+      static float x_filt = 1.0f, y_filt = 0.0f;
+      const float enc_lpf = 0.3f;  // フィルタ強度
+
+      float x = cosf(theta);
+      float y = sinf(theta);
+
+      x_filt = x * (1.0f - enc_lpf) + x_filt * enc_lpf;
+      y_filt = y * (1.0f - enc_lpf) + y_filt * enc_lpf;
+
+      float theta_filt = atan2f(y_filt, x_filt);
+      if (theta_filt < 0) theta_filt += TWO_PI;  // 0〜2πに正規化
+
+      return theta_filt;
 }
 
 static inline float BLDC_GetSpeed(float theta, double dt) {
@@ -93,7 +103,7 @@ static inline float BLDC_GetSpeed(float theta, double dt) {
       pre_delta_theta = delta_theta;
 
       float speed = delta_theta / dt;
-      speed = speed * lpf + pre_speed * (1.0f - lpf);  // ローパスフィルタを適用
+      speed = speed * (1.0f - lpf) + pre_speed * lpf;  // ローパスフィルタを適用
       pre_speed = speed;
       prev_theta = theta;
 
