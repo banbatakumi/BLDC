@@ -4,9 +4,12 @@ PwmOut LED1;
 PwmOut LED2;
 PwmOut LED3;
 PwmOut LED4;
+Timer control_timer;
 Timer timer;
 
 uint16_t adc_val[3];  // ADCの値を格納する配列
+
+SensoredVectorControl svc;
 
 void setup() {
       printf("Hello World\n");
@@ -25,11 +28,29 @@ void setup() {
       PwmOut_Init(&LED3, &htim3, TIM_CHANNEL_1);
       PwmOut_Init(&LED4, &htim3, TIM_CHANNEL_2);
 
-      BLDC_Init();
+      BLDC_Init(&svc);
+
+      Timer_Init(&control_timer);
+      Timer_Reset(&control_timer);
+
+      Timer_Init(&timer);
+      Timer_Reset(&timer);
 }
 
 void main_app() {
       while (1) {
-            BLDC_OpenLoopDrive(0.15, 20);
+            // BLDC_OpenLoopDrive(0.15, 20);
+            // if (Timer_Read(&timer) < 1) {
+            //       BLDC_SensoredVectorControlDrive(&svc, adc_val[0], 0.15f);
+            // } else if (Timer_Read(&timer) < 2) {
+            //       BLDC_SensoredVectorControlDrive(&svc, adc_val[0], -0.15f);
+            // } else {
+            //       Timer_Reset(&timer);
+            // }
+            BLDC_SensoredVectorControlDrive(&svc, adc_val[0], 0.25f);
+
+            // 制御周期の一定化
+            // while (Timer_Read(&control_timer) <= CONTROL_PERIOD);
+            // Timer_Reset(&control_timer);
       }
 }

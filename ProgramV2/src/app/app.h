@@ -3,12 +3,13 @@
 
 #include "adc.h"
 #include "bldc.h"
+#include "config.h"
 #include "digitalinout.h"
+#include "main.h"
 #include "pwm_out.h"
 #include "timer.h"
-// #include "main.h"
 
 void setup();
 void main_app();
 
-#endif  // APP_H_åå
+#endif  // APP_H_
