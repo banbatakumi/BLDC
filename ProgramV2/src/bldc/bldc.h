@@ -10,8 +10,8 @@
 #define MAX_DUTY 0.99f    // 最大デューティ比
 #define MAX_ADC_VAL 4095  // ADCの最大値
 #define lpf 0.3
-#define K_ADV 0.003f  // [rad] 進角
-#define K_FF 0.001f   // フィードフォワードゲイン
+#define K_ADV 0.002f  // 進角ゲイン
+#define K_FF 0.002f   // フィードフォワードゲイン
 // 構造体
 typedef struct {
       float kp;            // 比例ゲイン

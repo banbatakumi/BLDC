@@ -39,7 +39,7 @@ void setup() {
 
 void main_app() {
       while (1) {
-            // BLDC_OpenLoopDrive(0.15, 20);
+            // BLDC_OpenLoopDrive(0.2, 50);
             // if (Timer_Read(&timer) < 0.5) {
             //       BLDC_PositionControl(&svc, 2.0f);  // 目標速度を50.0 rad/sに設定
             // } else if (Timer_Read(&timer) < 1) {
@@ -48,17 +48,18 @@ void main_app() {
             //       Timer_Reset(&timer);
             // }
             // if (Timer_Read(&timer) < 1) {
-            //       BLDC_SensoredVectorControlDrive(&svc, adc_val[0], Timer_Read(&timer) * 150.0f);
+            //       BLDC_SpeedControl(&svc, 50.0f);  // 目標速度を0.0 rad/sに設定
             // } else if (Timer_Read(&timer) < 2) {
-            //       BLDC_SensoredVectorControlDrive(&svc, adc_val[0], (2 - Timer_Read(&timer)) * 150.0f);
+            //       BLDC_SpeedControl(&svc, -50.0f);  // 目標速度を0.0 rad/sに設定
             // } else {
             //       Timer_Reset(&timer);
             // }
-            BLDC_PositionControl(&svc, 0);
+            // BLDC_PositionControl(&svc, 0.0f);
+            BLDC_SpeedControl(&svc, -50.0f);  // 目標速度を0.0 rad/sに設定
             BLDC_SensoredVectorControlDrive(&svc, adc_val[0]);
 
             // 制御周期の一定化
-            // while (Timer_Read(&control_timer) <= CONTROL_PERIOD);
-            // Timer_Reset(&control_timer);
+            while (Timer_Read(&control_timer) <= CONTROL_PERIOD);
+            Timer_Reset(&control_timer);
       }
 }

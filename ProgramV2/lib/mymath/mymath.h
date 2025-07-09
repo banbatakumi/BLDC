@@ -13,7 +13,7 @@
 #define Radians(deg) ((deg) * DEG_TO_RAD)
 #define Degrees(rad) ((rad) * RAD_TO_DEG)
 
-#define SIN0 0
+#define SIN0 0.0f
 #define SIN1 0.0174524064372835
 #define SIN2 0.034899496702501
 #define SIN3 0.0523359562429438
@@ -43,7 +43,7 @@
 #define SIN27 0.453990499739547
 #define SIN28 0.469471562785891
 #define SIN29 0.484809620246337
-#define SIN30 0.5
+#define SIN30 0.5f
 #define SIN31 0.515038074910054
 #define SIN32 0.529919264233205
 #define SIN33 0.544639035015027
@@ -103,7 +103,7 @@
 #define SIN87 0.998629534754574
 #define SIN88 0.999390827019096
 #define SIN89 0.999847695156391
-#define SIN90 1
+#define SIN90 1.0f
 
 static const float sin_table[91] = {
     SIN0,
@@ -202,6 +202,12 @@ static inline int NormalizeDegrees(int deg) {
       while (deg < 0) deg += 360;
       while (deg >= 360) deg -= 360;
       return deg;
+}
+
+static inline float NormalizeRadians(float rad) {
+      while (rad < 0) rad += TWO_PI;
+      while (rad >= TWO_PI) rad -= TWO_PI;
+      return rad;
 }
 
 static inline float SinDeg(int deg) {
