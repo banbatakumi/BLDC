@@ -9,25 +9,25 @@
 
 #define MAX_DUTY 0.99f    // 最大デューティ比
 #define MAX_ADC_VAL 4095  // ADCの最大値
-#define lpf 0.3
-#define K_ADV 0.002f  // 進角ゲイン
-#define K_FF 0.002f   // フィードフォワードゲイン
+#define lpf 0.2
+#define K_ADV 0.005f  // 進角ゲイン
+#define K_FF 0.001f   // フィードフォワードゲイン
 // 構造体
 typedef struct {
-      float kp;            // 比例ゲイン
-      float ki;            // 積分ゲイン
-      float kd;            // 微分ゲイン
-      float integral;      // 積分項
-      float prev_error;    // 前回の誤差
-      float output_limit;  // 出力制限
+      double kp;            // 比例ゲイン
+      double ki;            // 積分ゲイン
+      double kd;            // 微分ゲイン
+      double integral;      // 積分項
+      double prev_error;    // 前回の誤差
+      double output_limit;  // 出力制限
 } PIDController;
 
 typedef struct {
       double dt;                   // 制御周期 [s]
-      float amp;                   // 電圧振幅
-      float mech_theta;            // 機械角度 [rad]
-      float elec_theta;            // 電気角度 [rad]
-      float speed;                 // 速度 [rad/s]
+      double amp;                  // 電圧振幅
+      double mech_theta;           // 機械角度 [rad]
+      double elec_theta;           // 電気角度 [rad]
+      double speed;                // 速度 [rad/s]
       uint8_t pole_pairs;          // 極対数
       PIDController speed_pid;     // 速度制御用PID
       PIDController position_pid;  // 位置制御用PID
@@ -35,11 +35,11 @@ typedef struct {
 
 void BLDC_Init(SensoredVectorControl* svc);
 
-void BLDC_OpenLoopDrive(float amp, float freq);
+void BLDC_OpenLoopDrive(double amp, double freq);
 
 void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encoder_value);
 
-void BLDC_SpeedControl(SensoredVectorControl* svc, float target_speed);
-void BLDC_PositionControl(SensoredVectorControl* svc, float target_position);
+void BLDC_SpeedControl(SensoredVectorControl* svc, double target_speed);
+void BLDC_PositionControl(SensoredVectorControl* svc, double target_position);
 
 #endif  // BLDC_H_

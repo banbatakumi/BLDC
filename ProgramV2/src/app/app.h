@@ -7,6 +7,8 @@
 #include "digitalinout.h"
 #include "main.h"
 #include "pwm_out.h"
+#include "serial.h"
+#include "stdbool.h"
 #include "timer.h"
 
 void setup();

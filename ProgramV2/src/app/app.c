@@ -11,6 +11,8 @@ uint16_t adc_val[3];  // ADCの値を格納する配列
 
 SensoredVectorControl svc;
 
+Serial pc;
+
 void setup() {
       printf("Hello World\n");
       printf("SystemCoreClock = %ld\n", SystemCoreClock);
@@ -35,6 +37,9 @@ void setup() {
 
       Timer_Init(&timer);
       Timer_Reset(&timer);
+
+      // Serialの初期化
+      Serial_Init(&pc, &huart1, 256, true);
 }
 
 void main_app() {
@@ -55,11 +60,16 @@ void main_app() {
             //       Timer_Reset(&timer);
             // }
             // BLDC_PositionControl(&svc, 0.0f);
-            BLDC_SpeedControl(&svc, -50.0f);  // 目標速度を0.0 rad/sに設定
+            static uint8_t speed = 0.0f;
+            if (Serial_Available(&pc)) {
+                  speed = Serial_Read(&pc);
+            }
+            BLDC_SpeedControl(&svc, 50);  // 目標速度を0.0 rad/sに設定
+
             BLDC_SensoredVectorControlDrive(&svc, adc_val[0]);
 
             // 制御周期の一定化
-            while (Timer_Read(&control_timer) <= CONTROL_PERIOD);
-            Timer_Reset(&control_timer);
+            // while (Timer_Read(&control_timer) <= CONTROL_PERIOD);
+            // Timer_Reset(&control_timer);
       }
 }
