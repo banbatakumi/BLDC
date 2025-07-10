@@ -5,6 +5,7 @@ PwmOut v_pwm;
 PwmOut w_pwm;
 
 Timer dt_timer;
+Timer encoder_offset_timer;
 
 void BLDC_Init(SensoredVectorControl* svc) {
       PwmOut_Init(&u_pwm, &htim1, TIM_CHANNEL_1);
@@ -19,19 +20,58 @@ void BLDC_Init(SensoredVectorControl* svc) {
       svc->elec_theta = 0;
 
       // PIDコントローラの初期化
-      svc->speed_pid.kp = 0.0001;  // 比例ゲイン
-      svc->speed_pid.ki = 0.1;     // 積分ゲイン
-      svc->speed_pid.kd = 0;       // 微分ゲイン
+      svc->speed_pid.kp = 0.001;  // 比例ゲイン
+      svc->speed_pid.ki = 0.1;    // 積分ゲイン
+      svc->speed_pid.kd = 0;      // 微分ゲイン
       svc->speed_pid.integral = 0;
       svc->speed_pid.prev_error = 0;
       svc->speed_pid.output_limit = 0.5;
 
-      svc->position_pid.kp = 0.2;  // 比例ゲイン
-      svc->position_pid.ki = 0.5;  // 積分ゲイン
+      svc->position_pid.kp = 0.6;  // 比例ゲイン
+      svc->position_pid.ki = 0.2;  // 積分ゲイン
       svc->position_pid.kd = 0;    // 微分ゲイン
       svc->position_pid.integral = 0;
       svc->position_pid.prev_error = 0;
       svc->position_pid.output_limit = 0.5;
+}
+
+static inline double BLDC_GetEncoder(uint16_t adc_val, double encoder_zero_theta) {
+      static uint16_t max_adc_val = 4023;
+      // if (adc_val > max_adc_val) max_adc_val = adc_val;
+
+      uint16_t correction_adc_val = adc_val * ((double)MAX_ADC_VAL / max_adc_val);
+      double theta = (double)correction_adc_val * (TWO_PI / MAX_ADC_VAL);
+      theta = NormalizeRadians(theta - encoder_zero_theta);  // 0〜2πの範囲に正規化
+
+      // ローパスフィルタ
+      return theta;
+}
+
+bool BLDC_SetEncoderZero(SensoredVectorControl* svc, uint16_t encoder_value) {
+      static bool is_first = true;
+      if (is_first) {
+            Timer_Init(&encoder_offset_timer);
+            Timer_Reset(&encoder_offset_timer);
+            is_first = false;
+      }
+      static uint16_t cnt = 0;
+      static double theta_sum = 0;
+      if (Timer_Read(&encoder_offset_timer) < 1) {
+            BLDC_OpenLoopDrive(0.3, 0);
+            cnt = 0;
+            theta_sum = 0;
+      } else if (cnt < 100) {
+            theta_sum += BLDC_GetEncoder(encoder_value, 0);
+            HAL_Delay(1);
+            cnt++;
+      } else {
+            svc->encoder_zero_theta = theta_sum * 0.01f;  // エンコーダゼロ点を
+            BLDC_OpenLoopDrive(0, 0);
+            printf("encoder_zero_theta: %.2f\n", svc->encoder_zero_theta);
+            is_first = true;
+            return true;
+      }
+      return false;
 }
 
 static inline void BLDC_WritePwm(double u, double v, double w) {
@@ -50,39 +90,21 @@ void BLDC_OpenLoopDrive(double amp, double freq) {
       double dt = Timer_Read(&dt_timer);
       Timer_Reset(&dt_timer);
 
-      double delta_phase = 360 * freq * dt;
+      double delta_phase = TWO_PI * freq * dt;
       phase += delta_phase;
-      if (phase >= 360) phase -= 360;
+      if (phase >= TWO_PI) phase -= TWO_PI;
+      if (phase < 0) phase += TWO_PI;
+      phase = HALF_PI;
 
-      double u = 0.5 + 0.5 * amp * SinDeg((int)phase);
-      double v = 0.5 + 0.5 * amp * SinDeg((int)phase - 120);
-      double w = 0.5 + 0.5 * amp * SinDeg((int)phase + 120);
-
+      double u = 0.5 + 0.5 * amp * Sin(phase);
+      double v = 0.5 + 0.5 * amp * Sin(phase + (TWO_PI / 3.0));
+      double w = 0.5 + 0.5 * amp * Sin(phase - (TWO_PI / 3.0));
       BLDC_WritePwm(u, v, w);
 }
 
 /*
 ベクトル制御
 */
-
-static inline double BLDC_GetEncoder(uint16_t adc_val) {
-      static uint16_t max_adc_val = 4000;
-      if (adc_val > max_adc_val) max_adc_val = adc_val;
-
-      uint16_t correction_adc_val = adc_val * ((double)MAX_ADC_VAL / max_adc_val);
-      double theta = (double)correction_adc_val * (TWO_PI / MAX_ADC_VAL);
-
-      // ローパスフィルタ
-      static double x_filt = 1.0f, y_filt = 0.0f;
-      const double enc_lpf = 0.25f;
-      double x = cosf(theta);
-      double y = sinf(theta);
-      x_filt = x_filt * (1.0f - enc_lpf) + x * enc_lpf;
-      y_filt = y_filt * (1.0f - enc_lpf) + y * enc_lpf;
-      double theta_filt = atan2f(y_filt, x_filt);
-      if (theta_filt < 0) theta_filt += TWO_PI;
-      return theta_filt;
-}
 
 static inline double BLDC_GetSpeed(double theta, double dt) {
       static double pre_speed = 0;
@@ -132,8 +154,8 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
       Timer_Reset(&dt_timer);
 
       // エンコーダ値を処理
-      svc->mech_theta = BLDC_GetEncoder(encoder_value);      // エンコーダ値をラジアン(0〜2π)に変換
-      svc->speed = BLDC_GetSpeed(svc->mech_theta, svc->dt);  // 速度を計算
+      svc->mech_theta = BLDC_GetEncoder(encoder_value, svc->encoder_zero_theta);  // エンコーダ値をラジアン(0〜2π)に変換
+      svc->speed = BLDC_GetSpeed(svc->mech_theta, svc->dt);                       // 速度を計算
 
       // 電気角度を計算
       svc->elec_theta = svc->mech_theta * svc->pole_pairs + svc->speed * K_ADV;  // 電気角度を計算
@@ -141,21 +163,12 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
       // printf("elec_theta: %.2f, speed: %.2f, amp: %.2f\n", svc->elec_theta, svc->speed, svc->amp);
 
       // 正弦波を生成
-      double u = 0.5 + 0.5 * Abs(svc->amp) * Sin(svc->elec_theta);
-      double v = 0.5 + 0.5 * Abs(svc->amp) * Sin(svc->elec_theta + (TWO_PI / 3.0));
-      double w = 0.5 + 0.5 * Abs(svc->amp) * Sin(svc->elec_theta - (TWO_PI / 3.0));
-      // printf("u: %.2f, v: %.2f, w: %.2f\n", u, v, w);
-      // printf(">U:%f\n", u);
-      // printf(">W:%f\n", w);
-      // printf(">V:%f\n", v);
-      // printf(">ELEC:%f\n", svc->elec_theta);
-      // printf(">MECH:%f\n", svc->mech_theta);
-      if (svc->amp > 0) {
-            BLDC_WritePwm(u, v, w);
-      } else {
-            BLDC_WritePwm(w, u, v);
-      }
-      // printf(">Speed:%f\n", svc->speed);
+      double u = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta);
+      double v = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta + (TWO_PI / 3.0));
+      double w = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta - (TWO_PI / 3.0));
+      BLDC_WritePwm(u, v, w);
+      // printf("mech_theta: %.2f, elec_theta: %.2f, speed: %.2f, amp: %.2f\n",
+      //        svc->mech_theta, svc->elec_theta, svc->speed, svc->amp);
 }
 
 void BLDC_SpeedControl(SensoredVectorControl* svc, double target_speed) {

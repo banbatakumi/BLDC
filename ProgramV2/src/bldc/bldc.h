@@ -1,6 +1,9 @@
 #ifndef BLDC_H_
 #define BLDC_H_
 
+#include <math.h>
+#include <stdbool.h>
+
 #include "config.h"
 #include "main.h"
 #include "mymath.h"
@@ -25,6 +28,7 @@ typedef struct {
 typedef struct {
       double dt;                   // 制御周期 [s]
       double amp;                  // 電圧振幅
+      double encoder_zero_theta;   // エンコーダゼロ点
       double mech_theta;           // 機械角度 [rad]
       double elec_theta;           // 電気角度 [rad]
       double speed;                // 速度 [rad/s]
@@ -34,6 +38,8 @@ typedef struct {
 } SensoredVectorControl;
 
 void BLDC_Init(SensoredVectorControl* svc);
+
+bool BLDC_SetEncoderZero(SensoredVectorControl* svc, uint16_t encoder_value);
 
 void BLDC_OpenLoopDrive(double amp, double freq);
 
