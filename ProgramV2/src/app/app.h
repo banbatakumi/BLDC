@@ -11,7 +11,7 @@
 #include "stdbool.h"
 #include "timer.h"
 
-void setup();
-void main_app();
+void Setup();
+void MainApp();
 
 #endif  // APP_H_
