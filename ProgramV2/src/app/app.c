@@ -67,7 +67,12 @@ void MainApp() {
       while (1) {
             if (temp > TEMP_LIMIT) {
                   printf("Overheat! Temperature: %.2f°C\n", temp);
-                  BLDC_OpenLoopDrive(0, 0);  // モーター停止
+                  BLDC_OpenLoopDrive(0, 0);  // モーターフリー状態
+                  HAL_Delay(1000);
+            } else if (supply_volt > SUPPLY_VOLTAGE_MAX_LIMIT || supply_volt < SUPPLY_VOLTAGE_MIN_LIMIT) {
+                  printf("Supply voltage out of range: %.2fV\n", supply_volt);
+                  BLDC_OpenLoopDrive(0, 0);  // モーターフリー状態
+                  HAL_Delay(1000);
             } else {
                   static uint8_t speed = 0;
                   if (Serial_Available(&pc)) {
