@@ -16,27 +16,33 @@ void BLDC_Init(SensoredVectorControl* svc) {
 
       svc->pole_pairs = POLE_PAIRS;
 
+      svc->max_encoder_val = 4031;
+      svc->encoder_offset_theta = 1.746833;
+
       // PIDコントローラの初期化
       svc->speed_pid.kp = 0.001;  // 比例ゲイン
       svc->speed_pid.ki = 0.1;    // 積分ゲイン
       svc->speed_pid.kd = 0;      // 微分ゲイン
-      svc->speed_pid.output_limit = 0.9;
+      svc->speed_pid.output_limit = 0.95;
 
-      svc->position_pid.kp = 0.3;  // 比例ゲイン
-      svc->position_pid.ki = 0.3;  // 積分ゲイン
+      svc->position_pid.kp = 0.1;  // 比例ゲイン
+      svc->position_pid.ki = 0.1;  // 積分ゲイン
       svc->position_pid.kd = 0;    // 微分ゲイン
-      svc->position_pid.output_limit = 0.9;
+      svc->position_pid.output_limit = 0.95;
 }
 
-static inline double BLDC_GetEncoder(uint16_t adc_val, double encoder_offset_theta) {
-      static uint16_t max_adc_val = 4000;
-      if (adc_val > max_adc_val) max_adc_val = adc_val;
-
-      uint16_t correction_adc_val = adc_val * ((double)MAX_ADC_VAL / max_adc_val);
+static inline double BLDC_GetEncoder(SensoredVectorControl* svc, uint16_t encoder_val, double encoder_offset_theta) {
+      uint16_t correction_adc_val = encoder_val * ((double)MAX_ADC_VAL / svc->max_encoder_val);
       double theta = (double)correction_adc_val * (TWO_PI / MAX_ADC_VAL);
       theta = NormalizeRadians(theta - encoder_offset_theta);  // 0〜2πの範囲に正規化
 
       return theta;
+}
+
+static inline double BLDC_GetMaxEncoderVal(uint16_t encoder_val) {
+      static uint16_t max_val = 4000;
+      if (encoder_val > max_val) max_val = encoder_val;
+      return max_val;
 }
 
 bool BLDC_SetEncoder(SensoredVectorControl* svc, uint16_t encoder_value) {
@@ -48,20 +54,21 @@ bool BLDC_SetEncoder(SensoredVectorControl* svc, uint16_t encoder_value) {
       }
       static uint16_t cnt = 0;
       static double theta_sum = 0;
-      if (Timer_Read(&encoder_offset_timer) < 1) {
+      if (Timer_Read(&encoder_offset_timer) < 2) {
+            svc->max_encoder_val = BLDC_GetMaxEncoderVal(encoder_value);
             BLDC_OpenLoopDrive(0.3, 30);
-      } else if (Timer_Read(&encoder_offset_timer) < 2) {
+      } else if (Timer_Read(&encoder_offset_timer) < 3) {
             BLDC_OpenLoopDrive(0.3, 0);
             cnt = 0;
             theta_sum = 0;
       } else if (cnt < 500) {
-            theta_sum += BLDC_GetEncoder(encoder_value, 0);
+            theta_sum += BLDC_GetEncoder(svc, encoder_value, 0);
             HAL_Delay(1);
             cnt++;
       } else {
             svc->encoder_offset_theta = theta_sum * 0.002f;  // エンコーダゼロ点を
             BLDC_OpenLoopDrive(0, 0);
-            printf("encoder_offset_theta: %.2f\n", svc->encoder_offset_theta);
+            printf("encoder_offset_theta: %.6f, max_encoder_val: %d\n", svc->encoder_offset_theta, svc->max_encoder_val);
             is_first = true;
             return true;
       }
@@ -148,8 +155,8 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
       if (svc->dt > 0.01) return;
 
       // エンコーダ値を処理
-      svc->mech_theta = BLDC_GetEncoder(encoder_value, svc->encoder_offset_theta);  // エンコーダ値をラジアン(0〜2π)に変換
-      svc->speed = BLDC_GetSpeed(svc->mech_theta, svc->dt);                         // 速度を計算
+      svc->mech_theta = BLDC_GetEncoder(svc, encoder_value, svc->encoder_offset_theta);  // エンコーダ値をラジアン(0〜2π)に変換
+      svc->speed = BLDC_GetSpeed(svc->mech_theta, svc->dt);                              // 速度を計算
 
       // 電気角度を計算
       svc->elec_theta = svc->mech_theta * svc->pole_pairs + svc->speed * K_ADV;  // 電気角度を計算

@@ -29,12 +29,13 @@ typedef struct {
       double dt;                    // 制御周期 [s]
       double amp;                   // 電圧振幅
       double encoder_offset_theta;  // エンコーダオフセット値
-      double mech_theta;            // 機械角度 [rad]
-      double elec_theta;            // 電気角度 [rad]
-      double speed;                 // 速度 [rad/s]
-      uint8_t pole_pairs;           // 極対数
-      PIDController speed_pid;      // 速度制御用PID
-      PIDController position_pid;   // 位置制御用PID
+      uint16_t max_encoder_val;
+      double mech_theta;           // 機械角度 [rad]
+      double elec_theta;           // 電気角度 [rad]
+      double speed;                // 速度 [rad/s]
+      uint8_t pole_pairs;          // 極対数
+      PIDController speed_pid;     // 速度制御用PID
+      PIDController position_pid;  // 位置制御用PID
 } SensoredVectorControl;
 
 void BLDC_Init(SensoredVectorControl* svc);
