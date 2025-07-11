@@ -32,7 +32,7 @@ void setup() {
       PwmOut_Init(&LED4, &htim3, TIM_CHANNEL_2);
 
       BLDC_Init(&svc);
-      while (BLDC_SetEncoderZero(&svc, adc_val[0]) == false);
+      while (BLDC_SetEncoder(&svc, adc_val[0]) == false);
 
       Timer_Init(&control_timer);
       Timer_Reset(&control_timer);
@@ -47,17 +47,17 @@ void setup() {
 void main_app() {
       while (1) {
             // BLDC_OpenLoopDrive(0.1, 0);
-            if (Timer_Read(&timer) < 0.3) {
-                  BLDC_PositionControl(&svc, 2);  // 目標速度を50.0 rad/sに設定
-            } else if (Timer_Read(&timer) < 1) {
-                  BLDC_PositionControl(&svc, 0);  // 目標速度を50.0 rad/sに設定
-            } else {
-                  Timer_Reset(&timer);
-            }
+            // if (Timer_Read(&timer) < 0.3) {
+            //       BLDC_PositionControl(&svc, 2);  // 目標速度を50.0 rad/sに設定
+            // } else if (Timer_Read(&timer) < 1) {
+            //       BLDC_PositionControl(&svc, 0);  // 目標速度を50.0 rad/sに設定
+            // } else {
+            //       Timer_Reset(&timer);
+            // }
             // if (Timer_Read(&timer) < 1) {
-            //       BLDC_SpeedControl(&svc, 50.0f);  // 目標速度を0.0 rad/sに設定
+            //       BLDC_SpeedControl(&svc, 10.0f);  // 目標速度を0.0 rad/sに設定
             // } else if (Timer_Read(&timer) < 2) {
-            //       BLDC_SpeedControl(&svc, -50.0f);  // 目標速度を0.0 rad/sに設定
+            //       BLDC_SpeedControl(&svc, -10.0f);  // 目標速度を0.0 rad/sに設定
             // } else {
             //       Timer_Reset(&timer);
             // }
@@ -66,12 +66,12 @@ void main_app() {
             if (Serial_Available(&pc)) {
                   speed = Serial_Read(&pc);
             }
-            // BLDC_SpeedControl(&svc, speed);  // 目標速度を0.0 rad/sに設定
+            BLDC_SpeedControl(&svc, 10);  // 目標速度を0.0 rad/sに設定
 
             BLDC_SensoredVectorControlDrive(&svc, adc_val[0]);
 
             // 制御周期の一定化
-            // while (Timer_Read(&control_timer) <= CONTROL_PERIOD);
-            // Timer_Reset(&control_timer);
+            while (Timer_Read(&control_timer) <= CONTROL_PERIOD);
+            Timer_Reset(&control_timer);
       }
 }
