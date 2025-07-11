@@ -12,11 +12,16 @@ SensoredVectorControl svc;
 
 Serial pc;
 
+LPF supply_volt_lpf;
+LPF temp_lpf;
+
 uint16_t adc_val[3];  // ADCの値を格納する配列
 
 uint16_t encoder_val, supply_volt_val, temp_val;
-float supply_volt;
-float temp;
+double supply_volt;
+double temp;
+
+bool sw_state;
 
 void Setup() {
       printf("Hello World\n");
@@ -45,6 +50,10 @@ void Setup() {
       // Serialの初期化
       Serial_Init(&pc, &huart1, 256, true);
 
+      // ローパスフィルタの初期化
+      LPF_Init(&supply_volt_lpf, 0.9, 12);  // 電圧
+      LPF_Init(&temp_lpf, 0.9, 30);         // 温度
+
       Timer_Init(&control_timer);
       Timer_Reset(&control_timer);
 }
@@ -56,15 +65,21 @@ void GetSensors() {
 
       // 電源電圧の変換(分圧で1/10にしている)
       supply_volt = supply_volt_val * (3.3f / 4095.0f) * 10.0f;
+      supply_volt = LPF_Update(&supply_volt_lpf, supply_volt);  // ローパスフィルタを適用
 
       // MCP9700T/HTT温度センサの変換
       float temp_voltage = temp_val * (3.3f / 4095.0f);  // ADC値 → 電圧変換
 
       temp = (temp_voltage - 0.5) / 0.01f;  // 電圧 → 温度変換
+      temp = LPF_Update(&temp_lpf, temp);   // ローパスフィルタを適用
+
+      // スイッチ
+      sw_state = DigitalIn_Read(&SW);
 }
 
 void MainApp() {
       while (1) {
+            GetSensors();
             if (temp > TEMP_LIMIT) {
                   printf("Overheat! Temperature: %.2f°C\n", temp);
                   BLDC_OpenLoopDrive(0, 0);  // モーターフリー状態
@@ -78,10 +93,11 @@ void MainApp() {
                   if (Serial_Available(&pc)) {
                         speed = Serial_Read(&pc);
                   }
-                  BLDC_SpeedControl(&svc, 50);  // 速度制御
-                  // BLDC_PositionControl(&svc, speed);  // 位置制御
 
-                  BLDC_SensoredVectorControlDrive(&svc, encoder_val);
+                  BLDC_SpeedControl(&svc, 50);  // 速度制御
+                  // BLDC_PositionControl(&svc, 0);  // 位置制御
+
+                  BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
 
                   // 制御周期の一定化
                   while (Timer_Read(&control_timer) <= CONTROL_PERIOD);

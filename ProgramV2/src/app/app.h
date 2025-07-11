@@ -5,6 +5,7 @@
 #include "bldc.h"
 #include "config.h"
 #include "digitalinout.h"
+#include "lpf.h"
 #include "main.h"
 #include "pwm_out.h"
 #include "serial.h"
