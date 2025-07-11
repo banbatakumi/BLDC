@@ -5,7 +5,6 @@ PwmOut LED2;
 PwmOut LED3;
 PwmOut LED4;
 Timer control_timer;
-Timer timer;
 
 uint16_t adc_val[3];  // ADCの値を格納する配列
 
@@ -36,9 +35,6 @@ void setup() {
 
       Timer_Init(&control_timer);
       Timer_Reset(&control_timer);
-
-      Timer_Init(&timer);
-      Timer_Reset(&timer);
 
       // Serialの初期化
       Serial_Init(&pc, &huart1, 256, true);

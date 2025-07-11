@@ -4,25 +4,24 @@
 #include <math.h>
 #include <stdbool.h>
 
-#include "config.h"
 #include "main.h"
 #include "mymath.h"
 #include "pwm_out.h"
 #include "timer.h"
 
 #define MAX_DUTY 0.99f    // 最大デューティ比
-#define MAX_ADC_VAL 4095  // ADCの最大値
-#define lpf 0.5
-#define K_ADV 0.01f  // 進角ゲイン
-#define K_FF 0.001f  // フィードフォワードゲイン
+#define MAX_ADC_VAL 4095  // ADCの最大値(12bit)
+#define SPEED_LPF 0.5     // 速度のローパスフィルタ係数
+#define K_ADV 0.01f       // 進角ゲイン
+#define K_FF 0.001f       // 速度制御フィードフォワードゲイン
 // 構造体
 typedef struct {
-      double kp;            // 比例ゲイン
-      double ki;            // 積分ゲイン
-      double kd;            // 微分ゲイン
-      double integral;      // 積分項
-      double prev_error;    // 前回の誤差
-      double output_limit;  // 出力制限
+      double kp;
+      double ki;
+      double kd;
+      double integral;
+      double prev_error;
+      double output_limit;
 } PIDController;
 
 typedef struct {
@@ -33,7 +32,7 @@ typedef struct {
       double mech_theta;           // 機械角度 [rad]
       double elec_theta;           // 電気角度 [rad]
       double speed;                // 速度 [rad/s]
-      uint8_t pole_pairs;          // 極対数
+      uint8_t pole_pairs;          // 極対数 (磁石の数/2)
       PIDController speed_pid;     // 速度制御用PID
       PIDController position_pid;  // 位置制御用PID
 } SensoredVectorControl;
