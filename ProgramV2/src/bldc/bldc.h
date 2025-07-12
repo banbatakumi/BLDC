@@ -12,6 +12,7 @@
 #define MAX_DUTY 0.99f    // 最大デューティ比
 #define MAX_ADC_VAL 4095  // ADCの最大値(12bit)
 #define SPEED_LPF 0.5     // 速度のローパスフィルタ係数
+#define K_ENC_LPF 0.005   // エンコーダのローパスフィルタ係数ゲイン
 #define K_ADV 0.01f       // 進角ゲイン
 #define K_FF 0.02f        // 速度制御フィードフォワードゲイン
 // 構造体

@@ -19,28 +19,41 @@ void BLDC_Init(SensoredVectorControl* svc) {
 
       // エンコーダー固有パラメーター
       // app.cでBLDC_SetEncoder()を呼び出してエンコーダーのオフセット値を取得する
-      svc->max_encoder_val = 4088;
-      svc->encoder_offset_theta = 1.267215;
+      svc->max_encoder_val = 4029;
+      svc->encoder_offset_theta = 0.331529;
 
       // PIDコントローラ
       // 速度制御
       svc->speed_pid.kp = 0.005;
       svc->speed_pid.ki = 0.5;
       svc->speed_pid.kd = 0;
-      svc->speed_pid.output_limit = 5;
+      svc->speed_pid.output_limit = 3;
 
       // 位置制御
       svc->position_pid.kp = 5;
       svc->position_pid.ki = 2.5;
       svc->position_pid.kd = 0;
-      svc->position_pid.output_limit = 5;
+      svc->position_pid.output_limit = 3;
 }
 
 static inline double BLDC_GetEncoder(SensoredVectorControl* svc, uint16_t encoder_val, double encoder_offset_theta) {
       uint16_t correction_adc_val = encoder_val * ((double)MAX_ADC_VAL / svc->max_encoder_val);
       double theta = (double)correction_adc_val * (TWO_PI / MAX_ADC_VAL);  // 0〜2πの範囲に変換
       theta = NormalizeRadians(theta - encoder_offset_theta);              // オフセット値を引いて正規化
-      return theta;
+
+      // ローパスフィルタ
+      static float x_filt = 1.0f, y_filt = 0.0f;
+      float enc_lpf = Constrain((100 - Abs(svc->speed)) * K_ENC_LPF, 0, 0.5);  // フィルタ強度
+
+      float x = Cos(theta);
+      float y = Sin(theta);
+
+      x_filt = x * (1.0f - enc_lpf) + x_filt * enc_lpf;
+      y_filt = y * (1.0f - enc_lpf) + y_filt * enc_lpf;
+
+      float theta_filt = atan2(y_filt, x_filt);
+
+      return theta_filt;
 }
 
 static inline double BLDC_GetMaxEncoderVal(uint16_t encoder_val) {
