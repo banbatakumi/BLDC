@@ -122,8 +122,8 @@ void MainApp() {
                         speed = Serial_Read(&pc);
                   }
 
-                  BLDC_SpeedControl(&svc, 50);  // 速度制御
-                  // BLDC_PositionControl(&svc, speed);  // 位置制御
+                  BLDC_SpeedControl(&svc, 25);  // 速度制御
+                  // BLDC_PositionControl(&svc, 0);  // 位置制御
 
                   BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
 

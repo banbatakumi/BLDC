@@ -1,6 +1,8 @@
 #ifndef APP_H_
 #define APP_H_
 
+#include <stdio.h>
+
 #include "adc.h"
 #include "bldc.h"
 #include "config.h"

@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "main.h"
 #include "mymath.h"

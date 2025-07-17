@@ -19,15 +19,15 @@ void BLDC_Init(SensoredVectorControl* svc) {
 
       // エンコーダー固有パラメーター
       // app.cでBLDC_SetEncoder()を呼び出してエンコーダーのオフセット値を取得する
-      svc->max_encoder_val = 4029;
-      svc->encoder_offset_theta = 0.331529;
+      svc->max_encoder_val = 4032;
+      svc->encoder_offset_theta = -1.127315;
 
       // PIDコントローラ
       // 速度制御
-      svc->speed_pid.kp = 0.005;
+      svc->speed_pid.kp = 0.01;
       svc->speed_pid.ki = 0.5;
       svc->speed_pid.kd = 0;
-      svc->speed_pid.output_limit = 1;
+      svc->speed_pid.output_limit = 2.5;
 
       // 位置制御
       svc->position_pid.kp = 5;
@@ -188,7 +188,7 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
       double v = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta + (TWO_PI / 3.0));
       double w = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta - (TWO_PI / 3.0));
 
-      BLDC_WritePwm(u, v, w);
+      BLDC_WritePwm(u, w, v);
 }
 
 void BLDC_SpeedControl(SensoredVectorControl* svc, double target_speed) {
