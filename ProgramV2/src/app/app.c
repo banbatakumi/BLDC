@@ -1,14 +1,17 @@
 #include "app.h"
 
+#define ADC2VOLT 0.0008058608059
+
 PwmOut LED1;
 PwmOut LED2;
 PwmOut LED3;
 PwmOut LED4;
 DigitalIn SW;
 
-Timer control_timer;
-
 SensoredVectorControl svc;
+
+Timer serial_send_timer;
+Timer serial_recv_timer;
 
 Serial pc;
 Serial uart2;
@@ -25,6 +28,8 @@ double temp;
 bool sw_state;
 
 bool is_overheat;
+
+bool enable = false;
 
 void Setup() {
       printf("Hello World\n");
@@ -59,17 +64,18 @@ void Setup() {
       PwmOut_Write(&LED2, 0);
 
       // Serialの初期化
-      Serial_Init(&pc, &huart1, 256, true);
-      Serial_Init(&uart2, &huart2, 1024, true);
+      Serial_Init(&pc, &huart1, 256);
+      Serial_Init(&uart2, &huart2, 256);
 
       // ローパスフィルタの初期化
       LPF_Init(&supply_volt_lpf, 0.9, 12);  // 電圧
-      LPF_Init(&temp_lpf, 0.9, 30);         // 温度
-
-      Timer_Init(&control_timer);
-      Timer_Reset(&control_timer);
+      LPF_Init(&temp_lpf, 0.99, 30);        // 温度
 
       PwmOut_Write(&LED3, 0);
+      Timer_Init(&serial_send_timer);  // シリアル送信タイマーを100msに設定
+      Timer_Reset(&serial_send_timer);
+      Timer_Init(&serial_recv_timer);  // シリアル受信タイマーを100msに設定
+      Timer_Reset(&serial_recv_timer);
 }
 
 void GetSensors() {
@@ -78,23 +84,29 @@ void GetSensors() {
       temp_val = adc_val[2];         // 温度の値
 
       // 電源電圧の変換(分圧で1/10にしている)
-      supply_volt = supply_volt_val * (3.3f / 4095.0f) * 10.0f;
+      supply_volt = supply_volt_val * ADC2VOLT * 10.0f;
       supply_volt = LPF_Update(&supply_volt_lpf, supply_volt);  // ローパスフィルタを適用
 
       // MCP9700T/HTT温度センサの変換
-      float temp_voltage = temp_val * (3.3f / 4095.0f);  // ADC値 → 電圧変換
+      float temp_voltage = temp_val * ADC2VOLT;  // ADC値 → 電圧変換
 
-      temp = (temp_voltage - 0.5) / 0.01f;  // 電圧 → 温度変換
-      temp = LPF_Update(&temp_lpf, temp);   // ローパスフィルタを適用
+      temp = (temp_voltage - 0.5) * 100;   // 電圧 → 温度変換
+      temp = LPF_Update(&temp_lpf, temp);  // ローパスフィルタを適用
 
       // スイッチ
       sw_state = DigitalIn_Read(&SW);
+}
+
+void TimerInterrupt() {
+      if (enable == false) return;
+      BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
 }
 
 void MainApp() {
       while (1) {
             GetSensors();
             if (temp > TEMP_LIMIT || is_overheat == true) {
+                  enable = false;
                   printf("Overheat! Temperature: %.2f°C\n", temp);
                   is_overheat = true;
                   if (is_overheat == true && temp < (TEMP_LIMIT - 5)) {
@@ -111,6 +123,7 @@ void MainApp() {
                   }
                   BLDC_OpenLoopDrive(0, 0);  // モーターフリー状態
             } else if (supply_volt > SUPPLY_VOLTAGE_MAX_LIMIT || supply_volt < SUPPLY_VOLTAGE_MIN_LIMIT) {
+                  enable = false;
                   printf("Supply voltage out of range: %.2fV\n", supply_volt);
                   BLDC_OpenLoopDrive(0, 0);  // モーターフリー状態
                   PwmOut_Write(&LED1, 0);
@@ -121,28 +134,33 @@ void MainApp() {
                   PwmOut_Write(&LED4, 0);
                   HAL_Delay(250);
             } else {
-                  float target_rad = 0;
+                  enable = true;
+                  static float target_rad = 0;
                   if (Serial_Available(&uart2)) {
                         target_rad = Serial_Read(&uart2) * (TWO_PI / 255.0f);  // 0〜255の値を0〜2πのラジアンに変換
+                        // target_rad = Serial_Read(&uart2);  // シリアルから目標ラジアンを読み取る
+                        Timer_Reset(&serial_recv_timer);  // シリアル受信タイマーをリセット
+                        PwmOut_Write(&LED3, 1);
+                  } else if (Timer_Read(&serial_recv_timer) > 1) {  // 100msごとにシリアル受信
+                        PwmOut_Write(&LED3, 0);
+                        Serial_Reset(&uart2);             // シリアルバッファをリセット
+                        Timer_Reset(&serial_recv_timer);  // シリアル受信タイマーをリセット
                   }
-                  // printf("Target rad: %.6f, Supply volt: %.2fV, Temp: %.2f°C\n", target_rad, supply_volt, temp);
-                  // uint8_t rad = (svc.mech_theta + svc.encoder_offset_theta) * (255.0f / TWO_PI);  // ラジアンを0〜255の値に変換
-                  // Serial_Write(&uart2, (uint8_t *)&rad, 1);                                       // シリアルに送信
 
-                  // BLDC_SpeedControl(&svc, 50);  // 速度制御
+                  // if (Timer_Read(&serial_send_timer) > 0.01) {                                          // 100msごとにシリアル送信
+                  //       uint8_t rad = (svc.mech_theta + svc.encoder_offset_theta) * (255.0f / TWO_PI);  // ラジアンを0〜255の値に変換
+                  //       Serial_Write(&uart2, (uint8_t *)&rad, 1);                                       // シリアルに送信
+                  //       Timer_Reset(&serial_send_timer);
+                  // }
+
+                  // BLDC_SpeedControl(&svc, (int)((target_rad - 127)));  // 速度制御
                   // BLDC_PositionControl(&svc, svc.mech_theta + svc.encoder_offset_theta);  // 位置制御
-                  BLDC_PositionControl(&svc, target_rad);  // 速度制御
-
-                  BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
+                  BLDC_PositionControl(&svc, target_rad);  // 位置制御
 
                   // 状態の表示
                   PwmOut_Write(&LED1, Abs(svc.amp) * 5);
                   PwmOut_Write(&LED2, Abs(svc.amp) * 5 - 1);
-                  PwmOut_Write(&LED3, Abs(svc.amp) * 5 - 2);
-
-                  // 制御周期の一定化
-                  // while (Timer_Read(&control_timer) <= CONTROL_PERIOD);
-                  // Timer_Reset(&control_timer);
+                  // PwmOut_Write(&LED3, Abs(svc.amp) * 5 - 2);
             }
       }
 }

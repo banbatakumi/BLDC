@@ -7,6 +7,8 @@ PwmOut w_pwm;
 Timer dt_timer;
 Timer encoder_offset_timer;
 
+float debug_dt;
+
 void BLDC_Init(SensoredVectorControl* svc) {
       PwmOut_Init(&u_pwm, &htim1, TIM_CHANNEL_1);
       PwmOut_Init(&v_pwm, &htim1, TIM_CHANNEL_2);
@@ -19,28 +21,28 @@ void BLDC_Init(SensoredVectorControl* svc) {
 
       // エンコーダー固有パラメーター
       // app.cでBLDC_SetEncoder()を呼び出してエンコーダーのオフセット値を取得する
-      svc->max_encoder_val = 4030;
-      svc->encoder_offset_theta = 3.513643;
+      svc->max_encoder_val = 4028;
+      svc->encoder_offset_theta = 3.560686;
       // svc->encoder_offset_theta = 0.856002;
 
       // PIDコントローラ
       // 速度制御
-      svc->speed_pid.kp = 0.01;
-      svc->speed_pid.ki = 0.5;
+      svc->speed_pid.kp = 0.02;
+      svc->speed_pid.ki = 0.4;
       svc->speed_pid.kd = 0;
-      svc->speed_pid.output_limit = 4;
+      svc->speed_pid.output_limit = 3.5;
 
       // 位置制御
-      svc->position_pid.kp = 0.5;
-      svc->position_pid.ki = 0;
+      svc->position_pid.kp = 5;
+      svc->position_pid.ki = 5;
       svc->position_pid.kd = 0;
-      svc->position_pid.output_limit = 4;
+      svc->position_pid.output_limit = 3.5;
 }
 
 static inline double BLDC_GetEncoder(SensoredVectorControl* svc, uint16_t encoder_val, double encoder_offset_theta) {
       uint16_t correction_adc_val = encoder_val * ((double)MAX_ADC_VAL / svc->max_encoder_val);
-      double theta = (double)correction_adc_val * (TWO_PI / MAX_ADC_VAL);  // 0〜2πの範囲に変換
-      theta = NormalizeRadians(theta - encoder_offset_theta);              // オフセット値を引いて正規化
+      double theta = (double)correction_adc_val * ADC2RADIAN;  // 0〜2πの範囲に変換
+      theta = NormalizeRadians(theta - encoder_offset_theta);  // オフセット値を引いて正規化
 
       // ローパスフィルタ
       static float x_filt = 1.0f, y_filt = 0.0f;
@@ -171,6 +173,7 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
       svc->dt = Timer_Read(&dt_timer);
       Timer_Reset(&dt_timer);
       if (svc->dt > 0.01) return;  // 制御周期が大きすぎる場合は無視
+      debug_dt = svc->dt;
 
       // エンコーダ値を処理
       svc->mech_theta = BLDC_GetEncoder(svc, encoder_value, svc->encoder_offset_theta);  // ラジアン(0〜2π)に変換

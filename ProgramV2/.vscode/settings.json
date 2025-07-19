@@ -1,6 +1,8 @@
 {
       "files.associations": {
             "pwm_out.h": "c",
-            "config.h": "c"
+            "config.h": "c",
+            "stdio.h": "c",
+            "timer.h": "c"
       }
 }

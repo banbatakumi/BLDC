@@ -6,31 +6,32 @@
 
 #include "usart.h"
 
+static uint16_t debug_top, debug_btm;  // デバッグ用の受信バッファインデックス
+
 typedef struct {
       UART_HandleTypeDef *huart;
       uint8_t *rxBuf;
       uint16_t rxTop;
       uint16_t rxBtm;
       uint16_t rxBufSize;
-      bool useDMA;
 } Serial;
 
 // インスタンス生成
-static inline void Serial_Init(Serial *self, UART_HandleTypeDef *huart, uint16_t rxBufSize, bool dma) {
+static inline void Serial_Init(Serial *self, UART_HandleTypeDef *huart, uint16_t rxBufSize) {
       self->huart = huart;
       self->rxBuf = (uint8_t *)malloc(rxBufSize);
+      memset(self->rxBuf, 0, rxBufSize);  // バッファを0でクリア
       self->rxTop = 0;
       self->rxBtm = 0;
       self->rxBufSize = rxBufSize;
-      self->useDMA = dma;
-      if (dma) {
-            HAL_UART_Receive_DMA(huart, self->rxBuf, rxBufSize);
-      }
+      HAL_UART_Receive_DMA(huart, self->rxBuf, rxBufSize);
 }
 
 // データ受信可否
 static inline bool Serial_Available(Serial *self) {
       uint16_t rxTop = self->rxBufSize - self->huart->hdmarx->Instance->CNDTR;
+      debug_top = rxTop;
+      debug_btm = self->rxBtm;
       return rxTop != self->rxBtm;
 }
 
@@ -67,8 +68,11 @@ static inline void Serial_Write(Serial *self, const uint8_t *data, uint16_t len)
 }
 
 static inline void Serial_Reset(Serial *self) {
-      uint16_t rxTop = self->rxBufSize - self->huart->hdmarx->Instance->CNDTR;
-      self->rxBtm = rxTop;
+      HAL_UART_AbortReceive(self->huart);                               // UART受信を完全に停止
+      HAL_UART_DMAStop(self->huart);                                    // DMA停止
+      memset(self->rxBuf, 0, self->rxBufSize);                          // バッファクリア（必要なら）
+      HAL_UART_Receive_DMA(self->huart, self->rxBuf, self->rxBufSize);  // DMA再開
+      self->rxBtm = 0;
 }
 
 #endif
