@@ -40,6 +40,17 @@ static inline uint8_t Serial_Read(Serial *self) {
       if (rxTop == self->rxBtm) {
             return 0;
       }
+      // オーバーフロー対策: バッファが追い越された場合は古いデータを捨てる
+      if (((rxTop + self->rxBufSize - self->rxBtm) % self->rxBufSize) == 0) {
+            // すべて読み切った状態
+            return 0;
+      }
+      // 受信可能データ数
+      uint16_t available = (rxTop + self->rxBufSize - self->rxBtm) % self->rxBufSize;
+      if (available > self->rxBufSize - 1) {
+            // オーバーフロー: rxBtmを最新位置に合わせる
+            self->rxBtm = (rxTop + self->rxBufSize - 1) % self->rxBufSize;
+      }
       uint8_t data = self->rxBuf[self->rxBtm];
       self->rxBtm = (self->rxBtm + 1) % self->rxBufSize;
       return data;
@@ -53,6 +64,11 @@ static inline void Serial_WriteByte(Serial *self, uint8_t data) {
 // 複数バイト送信
 static inline void Serial_Write(Serial *self, const uint8_t *data, uint16_t len) {
       HAL_UART_Transmit(self->huart, (uint8_t *)data, len, 100);
+}
+
+static inline void Serial_Reset(Serial *self) {
+      uint16_t rxTop = self->rxBufSize - self->huart->hdmarx->Instance->CNDTR;
+      self->rxBtm = rxTop;
 }
 
 #endif

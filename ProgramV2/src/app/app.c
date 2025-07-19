@@ -11,6 +11,7 @@ Timer control_timer;
 SensoredVectorControl svc;
 
 Serial pc;
+Serial uart2;
 
 LPF supply_volt_lpf;
 LPF temp_lpf;
@@ -51,12 +52,15 @@ void Setup() {
 
       // BLDCの初期化
       BLDC_Init(&svc);
-      // while (BLDC_SetEncoder(&svc, adc_val[0]) == false);
+      if (DigitalIn_Read(&SW)) {
+            while (BLDC_SetEncoder(&svc, adc_val[0]) == false);
+      }
       HAL_Delay(100);
       PwmOut_Write(&LED2, 0);
 
       // Serialの初期化
       Serial_Init(&pc, &huart1, 256, true);
+      Serial_Init(&uart2, &huart2, 1024, true);
 
       // ローパスフィルタの初期化
       LPF_Init(&supply_volt_lpf, 0.9, 12);  // 電圧
@@ -117,13 +121,17 @@ void MainApp() {
                   PwmOut_Write(&LED4, 0);
                   HAL_Delay(250);
             } else {
-                  static uint8_t speed = 0;
-                  if (Serial_Available(&pc)) {
-                        speed = Serial_Read(&pc);
+                  float target_rad = 0;
+                  if (Serial_Available(&uart2)) {
+                        target_rad = Serial_Read(&uart2) * (TWO_PI / 255.0f);  // 0〜255の値を0〜2πのラジアンに変換
                   }
+                  // printf("Target rad: %.6f, Supply volt: %.2fV, Temp: %.2f°C\n", target_rad, supply_volt, temp);
+                  // uint8_t rad = (svc.mech_theta + svc.encoder_offset_theta) * (255.0f / TWO_PI);  // ラジアンを0〜255の値に変換
+                  // Serial_Write(&uart2, (uint8_t *)&rad, 1);                                       // シリアルに送信
 
-                  BLDC_SpeedControl(&svc, 25);  // 速度制御
-                  // BLDC_PositionControl(&svc, 0);  // 位置制御
+                  // BLDC_SpeedControl(&svc, 50);  // 速度制御
+                  // BLDC_PositionControl(&svc, svc.mech_theta + svc.encoder_offset_theta);  // 位置制御
+                  BLDC_PositionControl(&svc, target_rad);  // 速度制御
 
                   BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
 

@@ -19,21 +19,22 @@ void BLDC_Init(SensoredVectorControl* svc) {
 
       // エンコーダー固有パラメーター
       // app.cでBLDC_SetEncoder()を呼び出してエンコーダーのオフセット値を取得する
-      svc->max_encoder_val = 4032;
-      svc->encoder_offset_theta = -1.127315;
+      svc->max_encoder_val = 4030;
+      svc->encoder_offset_theta = 3.513643;
+      // svc->encoder_offset_theta = 0.856002;
 
       // PIDコントローラ
       // 速度制御
       svc->speed_pid.kp = 0.01;
       svc->speed_pid.ki = 0.5;
       svc->speed_pid.kd = 0;
-      svc->speed_pid.output_limit = 2.5;
+      svc->speed_pid.output_limit = 4;
 
       // 位置制御
-      svc->position_pid.kp = 5;
-      svc->position_pid.ki = 2.5;
+      svc->position_pid.kp = 0.5;
+      svc->position_pid.ki = 0;
       svc->position_pid.kd = 0;
-      svc->position_pid.output_limit = 2.5;
+      svc->position_pid.output_limit = 4;
 }
 
 static inline double BLDC_GetEncoder(SensoredVectorControl* svc, uint16_t encoder_val, double encoder_offset_theta) {
@@ -51,7 +52,7 @@ static inline double BLDC_GetEncoder(SensoredVectorControl* svc, uint16_t encode
       x_filt = x * (1.0f - enc_lpf) + x_filt * enc_lpf;
       y_filt = y * (1.0f - enc_lpf) + y_filt * enc_lpf;
 
-      float theta_filt = atan2(y_filt, x_filt);
+      float theta_filt = NormalizeRadians(atan2(y_filt, x_filt));
 
       return theta_filt;
 }
@@ -207,6 +208,6 @@ void BLDC_PositionControl(SensoredVectorControl* svc, double target_position) {
       while (error > PI) error -= TWO_PI;
       while (error < -PI) error += TWO_PI;
       svc->amp_volt = -BLDC_PIDControl(&svc->position_pid, error, svc->dt);
-      svc->position_pid.kd = 0.1;
-      if (Abs(error) < 0.15) svc->position_pid.kd = 0;
+      // svc->position_pid.kd = 0.1;
+      // if (Abs(error) < 0.15) svc->position_pid.kd = 0;
 }
