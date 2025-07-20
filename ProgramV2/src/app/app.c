@@ -137,14 +137,14 @@ void MainApp() {
                   enable = true;
                   static float target_rad = 0;
                   if (Serial_Available(&uart2)) {
-                        target_rad = Serial_Read(&uart2) * (TWO_PI / 255.0f);  // 0〜255の値を0〜2πのラジアンに変換
-                        // target_rad = Serial_Read(&uart2);  // シリアルから目標ラジアンを読み取る
-                        Timer_Reset(&serial_recv_timer);  // シリアル受信タイマーをリセット
+                        // target_rad = Serial_Read(&uart2) * (TWO_PI / 255.0f);  // 0〜255の値を0〜2πのラジアンに変換
+                        target_rad = Serial_Read(&uart2);
+                        Timer_Reset(&serial_recv_timer);
                         PwmOut_Write(&LED3, 1);
                   } else if (Timer_Read(&serial_recv_timer) > 1) {  // 100msごとにシリアル受信
                         PwmOut_Write(&LED3, 0);
-                        Serial_Reset(&uart2);             // シリアルバッファをリセット
-                        Timer_Reset(&serial_recv_timer);  // シリアル受信タイマーをリセット
+                        Serial_Reset(&uart2);
+                        Timer_Reset(&serial_recv_timer);
                   }
 
                   // if (Timer_Read(&serial_send_timer) > 0.01) {                                          // 100msごとにシリアル送信
@@ -153,14 +153,13 @@ void MainApp() {
                   //       Timer_Reset(&serial_send_timer);
                   // }
 
-                  // BLDC_SpeedControl(&svc, (int)((target_rad - 127)));  // 速度制御
+                  BLDC_SpeedControl(&svc, (int)((target_rad - 127) * 0.5));  // 速度制御
                   // BLDC_PositionControl(&svc, svc.mech_theta + svc.encoder_offset_theta);  // 位置制御
-                  BLDC_PositionControl(&svc, target_rad);  // 位置制御
+                  // BLDC_PositionControl(&svc, target_rad);                                 // 位置制御
 
                   // 状態の表示
                   PwmOut_Write(&LED1, Abs(svc.amp) * 5);
                   PwmOut_Write(&LED2, Abs(svc.amp) * 5 - 1);
-                  // PwmOut_Write(&LED3, Abs(svc.amp) * 5 - 2);
             }
       }
 }

@@ -30,13 +30,13 @@ void BLDC_Init(SensoredVectorControl* svc) {
       svc->speed_pid.kp = 0.02;
       svc->speed_pid.ki = 0.4;
       svc->speed_pid.kd = 0;
-      svc->speed_pid.output_limit = 3.5;
+      svc->speed_pid.output_limit = 3;
 
       // 位置制御
       svc->position_pid.kp = 5;
       svc->position_pid.ki = 5;
       svc->position_pid.kd = 0;
-      svc->position_pid.output_limit = 3.5;
+      svc->position_pid.output_limit = 3;
 }
 
 static inline double BLDC_GetEncoder(SensoredVectorControl* svc, uint16_t encoder_val, double encoder_offset_theta) {

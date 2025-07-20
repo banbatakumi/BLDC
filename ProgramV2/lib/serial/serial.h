@@ -6,8 +6,6 @@
 
 #include "usart.h"
 
-static uint16_t debug_top, debug_btm;  // デバッグ用の受信バッファインデックス
-
 typedef struct {
       UART_HandleTypeDef *huart;
       uint8_t *rxBuf;
@@ -20,7 +18,7 @@ typedef struct {
 static inline void Serial_Init(Serial *self, UART_HandleTypeDef *huart, uint16_t rxBufSize) {
       self->huart = huart;
       self->rxBuf = (uint8_t *)malloc(rxBufSize);
-      memset(self->rxBuf, 0, rxBufSize);  // バッファを0でクリア
+      memset(self->rxBuf, 0, rxBufSize);
       self->rxTop = 0;
       self->rxBtm = 0;
       self->rxBufSize = rxBufSize;
@@ -30,8 +28,6 @@ static inline void Serial_Init(Serial *self, UART_HandleTypeDef *huart, uint16_t
 // データ受信可否
 static inline bool Serial_Available(Serial *self) {
       uint16_t rxTop = self->rxBufSize - self->huart->hdmarx->Instance->CNDTR;
-      debug_top = rxTop;
-      debug_btm = self->rxBtm;
       return rxTop != self->rxBtm;
 }
 
@@ -41,15 +37,11 @@ static inline uint8_t Serial_Read(Serial *self) {
       if (rxTop == self->rxBtm) {
             return 0;
       }
-      // オーバーフロー対策: バッファが追い越された場合は古いデータを捨てる
       if (((rxTop + self->rxBufSize - self->rxBtm) % self->rxBufSize) == 0) {
-            // すべて読み切った状態
             return 0;
       }
-      // 受信可能データ数
       uint16_t available = (rxTop + self->rxBufSize - self->rxBtm) % self->rxBufSize;
       if (available > self->rxBufSize - 1) {
-            // オーバーフロー: rxBtmを最新位置に合わせる
             self->rxBtm = (rxTop + self->rxBufSize - 1) % self->rxBufSize;
       }
       uint8_t data = self->rxBuf[self->rxBtm];
@@ -68,10 +60,10 @@ static inline void Serial_Write(Serial *self, const uint8_t *data, uint16_t len)
 }
 
 static inline void Serial_Reset(Serial *self) {
-      HAL_UART_AbortReceive(self->huart);                               // UART受信を完全に停止
-      HAL_UART_DMAStop(self->huart);                                    // DMA停止
-      memset(self->rxBuf, 0, self->rxBufSize);                          // バッファクリア（必要なら）
-      HAL_UART_Receive_DMA(self->huart, self->rxBuf, self->rxBufSize);  // DMA再開
+      HAL_UART_AbortReceive(self->huart);
+      HAL_UART_DMAStop(self->huart);
+      memset(self->rxBuf, 0, self->rxBufSize);
+      HAL_UART_Receive_DMA(self->huart, self->rxBuf, self->rxBufSize);
       self->rxBtm = 0;
 }
 
