@@ -21,8 +21,8 @@ void BLDC_Init(SensoredVectorControl* svc) {
 
       // エンコーダー固有パラメーター
       // app.cでBLDC_SetEncoder()を呼び出してエンコーダーのオフセット値を取得する
-      svc->max_encoder_val = 4028;
-      svc->encoder_offset_theta = 3.560686;
+      svc->max_encoder_val = 4035;
+      svc->encoder_offset_theta = 0.812658;
       // svc->encoder_offset_theta = 0.856002;
 
       // PIDコントローラ
@@ -46,17 +46,18 @@ static inline double BLDC_GetEncoder(SensoredVectorControl* svc, uint16_t encode
 
       // ローパスフィルタ
       static float x_filt = 1.0f, y_filt = 0.0f;
-      float enc_lpf = Constrain((100 - Abs(svc->speed)) * K_ENC_LPF, 0, 0.5);  // フィルタ強度
+      float enc_lpf = Constrain((100 - Abs(svc->speed)) * K_ENC_LPF, 0, 0.6);  // フィルタ強度
 
-      float x = Cos(theta);
-      float y = Sin(theta);
+      if (Abs(svc->speed) <= 100) {
+            float x = Cos(theta);
+            float y = Sin(theta);
 
-      x_filt = x * (1.0f - enc_lpf) + x_filt * enc_lpf;
-      y_filt = y * (1.0f - enc_lpf) + y_filt * enc_lpf;
-
-      float theta_filt = NormalizeRadians(atan2(y_filt, x_filt));
-
-      return theta_filt;
+            x_filt = x * (1 - enc_lpf) + x_filt * enc_lpf;
+            y_filt = y * (1 - enc_lpf) + y_filt * enc_lpf;
+            return NormalizeRadians(Atan2(y_filt, x_filt));
+      } else {
+            return theta;
+      }
 }
 
 static inline double BLDC_GetMaxEncoderVal(uint16_t encoder_val) {
@@ -74,11 +75,11 @@ bool BLDC_SetEncoder(SensoredVectorControl* svc, uint16_t encoder_value) {
       }
       static uint16_t cnt = 0;
       static double theta_sum = 0;
-      if (Timer_Read(&encoder_offset_timer) < 2) {
+      if (Timer_Read(&encoder_offset_timer) < 3) {
             // エンコーダー出力の最大値を取得する
             svc->max_encoder_val = BLDC_GetMaxEncoderVal(encoder_value);
             BLDC_OpenLoopDrive(0.3, 30);
-      } else if (Timer_Read(&encoder_offset_timer) < 3) {
+      } else if (Timer_Read(&encoder_offset_timer) < 4) {
             // 電気角度を0にオフセットする
             BLDC_OpenLoopDrive(0.3, 0);
             cnt = 0;
@@ -119,8 +120,8 @@ void BLDC_OpenLoopDrive(double amp, double freq) {
       phase = NormalizeRadians(phase);
 
       double u = 0.5 + 0.5 * amp * Sin(phase);
-      double v = 0.5 + 0.5 * amp * Sin(phase + (TWO_PI / 3.0));
-      double w = 0.5 + 0.5 * amp * Sin(phase - (TWO_PI / 3.0));
+      double v = 0.5 + 0.5 * amp * Sin(phase + TWO_THIRDS_PI);
+      double w = 0.5 + 0.5 * amp * Sin(phase - TWO_THIRDS_PI);
 
       BLDC_WritePwm(u, v, w);
 }
@@ -189,8 +190,8 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
 
       // 正弦波を生成
       double u = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta);
-      double v = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta + (TWO_PI / 3.0));
-      double w = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta - (TWO_PI / 3.0));
+      double v = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta + TWO_THIRDS_PI);
+      double w = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta - TWO_THIRDS_PI);
 
       BLDC_WritePwm(u, w, v);
 }
@@ -211,6 +212,4 @@ void BLDC_PositionControl(SensoredVectorControl* svc, double target_position) {
       while (error > PI) error -= TWO_PI;
       while (error < -PI) error += TWO_PI;
       svc->amp_volt = -BLDC_PIDControl(&svc->position_pid, error, svc->dt);
-      // svc->position_pid.kd = 0.1;
-      // if (Abs(error) < 0.15) svc->position_pid.kd = 0;
 }

@@ -72,9 +72,10 @@ void Setup() {
       LPF_Init(&temp_lpf, 0.99, 30);        // 温度
 
       PwmOut_Write(&LED3, 0);
-      Timer_Init(&serial_send_timer);  // シリアル送信タイマーを100msに設定
+
+      Timer_Init(&serial_send_timer);
       Timer_Reset(&serial_send_timer);
-      Timer_Init(&serial_recv_timer);  // シリアル受信タイマーを100msに設定
+      Timer_Init(&serial_recv_timer);
       Timer_Reset(&serial_recv_timer);
 }
 
@@ -153,7 +154,7 @@ void MainApp() {
                   //       Timer_Reset(&serial_send_timer);
                   // }
 
-                  BLDC_SpeedControl(&svc, (int)((target_rad - 127) * 0.5));  // 速度制御
+                  BLDC_SpeedControl(&svc, (int)((target_rad - 127)));  // 速度制御
                   // BLDC_PositionControl(&svc, svc.mech_theta + svc.encoder_offset_theta);  // 位置制御
                   // BLDC_PositionControl(&svc, target_rad);                                 // 位置制御
 
