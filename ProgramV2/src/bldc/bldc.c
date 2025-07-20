@@ -23,22 +23,22 @@ void BLDC_Init(SensoredVectorControl* svc) {
       // エンコーダー固有パラメーター
       // app.cでBLDC_SetEncoder()を呼び出してエンコーダーのオフセット値を取得する
       svc->max_encoder_val = 4015;
-      svc->encoder_offset_theta = 4.456953;
+      svc->encoder_offset_theta = 4.457257;
       // svc->encoder_offset_theta = 0.856002;
       svc->adc_correction_factor = (double)MAX_ADC_VAL / svc->max_encoder_val;
 
       // PIDコントローラ
       // 速度制御
       svc->speed_pid.kp = 0.01;
-      svc->speed_pid.ki = 0.2;
+      svc->speed_pid.ki = 0.5;
       svc->speed_pid.kd = 0;
-      svc->speed_pid.output_limit = 3;
+      svc->speed_pid.output_limit = 4;
 
       // 位置制御
       svc->position_pid.kp = 3;
       svc->position_pid.ki = 3;
       svc->position_pid.kd = 0;
-      svc->position_pid.output_limit = 3;
+      svc->position_pid.output_limit = 4;
 }
 
 static inline double BLDC_GetEncoder(SensoredVectorControl* svc, uint16_t encoder_val, double encoder_offset_theta) {
@@ -90,13 +90,21 @@ void BLDC_SetEncoder(SensoredVectorControl* svc, uint16_t* encoder_val) {
 }
 
 static inline void BLDC_WritePwm(double u, double v, double w) {
-      u = Constrain(u, 0, MAX_DUTY);
-      v = Constrain(v, 0, MAX_DUTY);
-      w = Constrain(w, 0, MAX_DUTY);
+      u = Constrain(u, MIN_DUTY, MAX_DUTY);
+      v = Constrain(v, MIN_DUTY, MAX_DUTY);
+      w = Constrain(w, MIN_DUTY, MAX_DUTY);
 
       PwmOut_Write(&u_pwm, u);
       PwmOut_Write(&v_pwm, v);
       PwmOut_Write(&w_pwm, w);
+}
+
+void BLDC_Stop(bool brake) {
+      if (brake) {
+            BLDC_WritePwm(0, 0, 0);
+      } else {
+            BLDC_WritePwm(0.5, 0.5, 0.5);
+      }
 }
 
 void BLDC_OpenLoopDrive(double amp, double freq) {
@@ -180,6 +188,10 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
 
       svc->amp = svc->amp_volt / supply_volt;
       if (svc->amp > 1.0f) svc->amp = 1.0f;
+
+      // static double prev_amp = 0;
+      // svc->amp = svc->amp * (1 - 0.5) + prev_amp * 0.5;  // ローパスフィルタ
+      // prev_amp = svc->amp;
 
       // 正弦波を生成
       double u = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta);
