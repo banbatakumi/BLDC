@@ -58,7 +58,7 @@ void Setup() {
       // BLDCの初期化
       BLDC_Init(&svc);
       if (DigitalIn_Read(&SW)) {
-            while (BLDC_SetEncoder(&svc, adc_val[0]) == false);
+            BLDC_SetEncoder(&svc, &adc_val[0]);
       }
       HAL_Delay(100);
       PwmOut_Write(&LED2, 0);
@@ -97,10 +97,14 @@ void GetSensors() {
       // スイッチ
       sw_state = DigitalIn_Read(&SW);
 }
+static volatile float target_rad = 0;
 
 void TimerInterrupt() {
       if (enable == false) return;
       BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
+      // BLDC_SpeedControl(&svc, (int)((target_rad - 127)));  // 速度制御
+      // BLDC_PositionControl(&svc, svc.mech_theta + svc.encoder_offset_theta);  // 位置制御
+      BLDC_PositionControl(&svc, target_rad);  // 位置制御
 }
 
 void MainApp() {
@@ -136,10 +140,9 @@ void MainApp() {
                   HAL_Delay(250);
             } else {
                   enable = true;
-                  static float target_rad = 0;
                   if (Serial_Available(&uart2)) {
-                        // target_rad = Serial_Read(&uart2) * (TWO_PI / 255.0f);  // 0〜255の値を0〜2πのラジアンに変換
-                        target_rad = Serial_Read(&uart2);
+                        target_rad = Serial_Read(&uart2) * (TWO_PI / 255.0f);  // 0〜255の値を0〜2πのラジアンに変換
+                        // target_rad = Serial_Read(&uart2);
                         Timer_Reset(&serial_recv_timer);
                         PwmOut_Write(&LED3, 1);
                   } else if (Timer_Read(&serial_recv_timer) > 1) {  // 100msごとにシリアル受信
@@ -148,15 +151,11 @@ void MainApp() {
                         Timer_Reset(&serial_recv_timer);
                   }
 
-                  // if (Timer_Read(&serial_send_timer) > 0.01) {                                          // 100msごとにシリアル送信
+                  // if (Timer_Read(&serial_send_timer) > 0.001) {                                         // 100msごとにシリアル送信
                   //       uint8_t rad = (svc.mech_theta + svc.encoder_offset_theta) * (255.0f / TWO_PI);  // ラジアンを0〜255の値に変換
                   //       Serial_Write(&uart2, (uint8_t *)&rad, 1);                                       // シリアルに送信
                   //       Timer_Reset(&serial_send_timer);
                   // }
-
-                  BLDC_SpeedControl(&svc, (int)((target_rad - 127)));  // 速度制御
-                  // BLDC_PositionControl(&svc, svc.mech_theta + svc.encoder_offset_theta);  // 位置制御
-                  // BLDC_PositionControl(&svc, target_rad);                                 // 位置制御
 
                   // 状態の表示
                   PwmOut_Write(&LED1, Abs(svc.amp) * 5);
