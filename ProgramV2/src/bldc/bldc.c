@@ -34,7 +34,7 @@ void BLDC_Init(SensoredVectorControl* svc) {
 
       // 位置制御
       svc->position_pid.kp = 5;
-      svc->position_pid.ki = 5;
+      svc->position_pid.ki = 3;
       svc->position_pid.kd = 0;
       svc->position_pid.output_limit = 3;
 }
@@ -198,6 +198,18 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
 
 void BLDC_SpeedControl(SensoredVectorControl* svc, double target_speed) {
       if (svc->dt > 0.01) return;
+      // 最大速度制限
+      if (target_speed > MAX_SPEED) target_speed = MAX_SPEED;
+      if (target_speed < -MAX_SPEED) target_speed = -MAX_SPEED;
+
+      // 最大加速度制限
+      static double prev_target_speed = 0;
+      double accel = (target_speed - prev_target_speed) / svc->dt;
+      if (accel > MAX_ACCEL) accel = MAX_ACCEL;
+      if (accel < -MAX_ACCEL) accel = -MAX_ACCEL;
+      target_speed = prev_target_speed + accel * svc->dt;
+      prev_target_speed = target_speed;
+
       double ff_term = K_FF * target_speed;
       svc->amp_volt = -(BLDC_PIDControl(&svc->speed_pid, target_speed - svc->speed, svc->dt) + ff_term);
 }
