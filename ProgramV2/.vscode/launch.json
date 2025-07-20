@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "debug",
+      "type": "cortex-debug",
+      "request": "attach",
+      "servertype": "openocd",
+      "executable": "./build/ProgramV2.elf",
+      "cwd": "${workspaceRoot}",
+      "device": "STM32F303K8",
+      "configFiles": [
+        "interface/stlink-v2-1.cfg",
+        "target/stm32f3x.cfg"
+      ],
+      "liveWatch": {
+        "enabled": true,
+        "samplesPerSecond": 6
+      }
+    }
+  ]
+}

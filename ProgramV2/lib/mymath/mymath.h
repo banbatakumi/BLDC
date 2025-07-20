@@ -5,6 +5,7 @@
 #define HALF_PI 1.5707963267948966192313216916398
 #define TWO_PI 6.283185307179586476925286766559
 #define FOUR_PI 12.566370614359172953850573533118
+#define TWO_THIRDS_PI 2.0943951023931954923084289221863
 #define DEG_TO_RAD 0.017453292519943295769236907684886
 #define RAD_TO_DEG 57.295779513082320876798154814105
 
@@ -243,6 +244,34 @@ static inline float Sin(float rad) {
 
 static inline float Cos(float rad) {
       return CosDeg(Degrees(rad));
+}
+
+static inline float Atan2(float y, float x) {
+      if (x == 0) {
+            if (y > 0) return HALF_PI;
+            if (y < 0) return -HALF_PI;
+            return 0;
+      }
+
+      float abs_y = Abs(y) + 1e-10f;  // 0除算防止
+      float angle;
+
+      if (Abs(x) >= abs_y) {
+            float r = (y / x);
+            angle = r / (1.0f + 0.28f * r * r);  // 近似式
+            if (x < 0.0f) {
+                  if (y >= 0)
+                        angle += PI;
+                  else
+                        angle -= PI;
+            }
+      } else {
+            float r = (x / y);
+            angle = HALF_PI - r / (1.0f + 0.28f * r * r);
+            if (y < 0) angle -= PI;
+      }
+
+      return angle;
 }
 
 #endif  // MYMATH_H_

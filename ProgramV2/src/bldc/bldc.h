@@ -3,47 +3,53 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <stdio.h>
 
-#include "config.h"
 #include "main.h"
 #include "mymath.h"
 #include "pwm_out.h"
 #include "timer.h"
 
-#define MAX_DUTY 0.99f    // 最大デューティ比
-#define MAX_ADC_VAL 4095  // ADCの最大値
-#define lpf 0.2
-#define K_ADV 0.005f  // 進角ゲイン
-#define K_FF 0.001f   // フィードフォワードゲイン
+#define MAX_DUTY 0.99f                    // 最大デューティ比
+#define MAX_ADC_VAL 4095                  // ADCの最大値(12bit)
+#define SPEED_LPF 0.7                     // 速度のローパスフィルタ係数
+#define K_ENC_LPF 0.007                   // エンコーダのローパスフィルタ係数ゲイン
+#define K_ADV 0.01f                       // 進角ゲイン
+#define K_FF 0.02f                        // 速度制御フィードフォワードゲイン
+#define ADC2RADIAN 0.0015339807878856412  // ADC値をラジアンに変換する係数(2π/4096)
+#define MAX_SPEED 100.0f                  // 最大速度 [rad/s]
+#define MAX_ACCEL 2000.0f                 // 最大加速度 [rad/s^2]
 // 構造体
 typedef struct {
-      double kp;            // 比例ゲイン
-      double ki;            // 積分ゲイン
-      double kd;            // 微分ゲイン
-      double integral;      // 積分項
-      double prev_error;    // 前回の誤差
-      double output_limit;  // 出力制限
+      double kp;
+      double ki;
+      double kd;
+      double integral;
+      double prev_error;
+      double output_limit;
 } PIDController;
 
 typedef struct {
-      double dt;                   // 制御周期 [s]
-      double amp;                  // 電圧振幅
-      double encoder_zero_theta;   // エンコーダゼロ点
+      double dt;                    // 制御周期 [s]
+      double amp;                   // 電圧振幅 [0 to 1]
+      double amp_volt;              // 電圧振幅 [v]
+      double encoder_offset_theta;  // エンコーダオフセット値
+      uint16_t max_encoder_val;
       double mech_theta;           // 機械角度 [rad]
       double elec_theta;           // 電気角度 [rad]
       double speed;                // 速度 [rad/s]
-      uint8_t pole_pairs;          // 極対数
+      uint8_t pole_pairs;          // 極対数 (磁石の数/2)
       PIDController speed_pid;     // 速度制御用PID
       PIDController position_pid;  // 位置制御用PID
 } SensoredVectorControl;
 
 void BLDC_Init(SensoredVectorControl* svc);
 
-bool BLDC_SetEncoderZero(SensoredVectorControl* svc, uint16_t encoder_value);
+bool BLDC_SetEncoder(SensoredVectorControl* svc, uint16_t encoder_value);
 
 void BLDC_OpenLoopDrive(double amp, double freq);
 
-void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encoder_value);
+void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encoder_value, double supply_volt);
 
 void BLDC_SpeedControl(SensoredVectorControl* svc, double target_speed);
 void BLDC_PositionControl(SensoredVectorControl* svc, double target_position);

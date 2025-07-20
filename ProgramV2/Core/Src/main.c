@@ -64,6 +64,12 @@ int _write(int file, char *ptr, int len) {
       return len;
 }
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+      if (htim == &htim6) {
+            TimerInterrupt();
+      }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -102,14 +108,16 @@ int main(void)
   MX_ADC2_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
+      HAL_TIM_Base_Start_IT(&htim6);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-      setup();
-      main_app();
+      Setup();
+      MainApp();
       while (1) {
     /* USER CODE END WHILE */
 
