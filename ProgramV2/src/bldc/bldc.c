@@ -30,7 +30,7 @@ void BLDC_Init(SensoredVectorControl* svc) {
       // PIDコントローラ
       // 速度制御
       svc->speed_pid.kp = 0.01;
-      svc->speed_pid.ki = 0.5;
+      svc->speed_pid.ki = 1;
       svc->speed_pid.kd = 0;
       svc->speed_pid.output_limit = 4;
 
@@ -48,9 +48,9 @@ static inline double BLDC_GetEncoder(SensoredVectorControl* svc, uint16_t encode
 
       // ローパスフィルタ
       static float x_filt = 1.0f, y_filt = 0.0f;
-      float enc_lpf = Constrain((100 - Abs(svc->speed)) * K_ENC_LPF, 0, 0.6);  // フィルタ強度
+      float enc_lpf = Constrain((70 - Abs(svc->speed)) * K_ENC_LPF, 0, 0.6);  // フィルタ強度
 
-      if (Abs(svc->speed) <= 100) {
+      if (Abs(svc->speed) <= 70) {
             float x = Cos(theta);
             float y = Sin(theta);
 
@@ -127,10 +127,12 @@ void BLDC_OpenLoopDrive(double amp, double freq) {
 
 static inline double BLDC_GetSpeed(double theta, double dt) {
       static double pre_speed = 0;
-      static double prev_theta = 0;
+      static double pre_theta = 0;
       static double pre_delta_theta = 0;
 
-      double delta_theta = theta - prev_theta;
+      if (pre_theta == theta) return pre_speed;
+
+      double delta_theta = theta - pre_theta;
 
       // 0と2πの境目を跨いだ場合の補正
       if (delta_theta > PI) delta_theta -= TWO_PI;
@@ -143,7 +145,7 @@ static inline double BLDC_GetSpeed(double theta, double dt) {
       double speed = delta_theta / dt;
       speed = speed * (1 - SPEED_LPF) + pre_speed * SPEED_LPF;
       pre_speed = speed;
-      prev_theta = theta;
+      pre_theta = theta;
 
       return speed;
 }
@@ -187,11 +189,11 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
       svc->elec_theta = NormalizeRadians(svc->elec_theta);
 
       svc->amp = svc->amp_volt / supply_volt;
-      if (svc->amp > 1.0f) svc->amp = 1.0f;
+      svc->amp = Constrain(svc->amp, -1, 1);
 
-      // static double prev_amp = 0;
-      // svc->amp = svc->amp * (1 - 0.5) + prev_amp * 0.5;  // ローパスフィルタ
-      // prev_amp = svc->amp;
+      static double prev_amp = 0;
+      svc->amp = svc->amp * (1 - 0.5) + prev_amp * 0.5;  // ローパスフィルタ
+      prev_amp = svc->amp;
 
       // 正弦波を生成
       double u = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta);

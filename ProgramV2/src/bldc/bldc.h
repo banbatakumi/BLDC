@@ -14,11 +14,11 @@
 #define MIN_DUTY 0.01f                    // 最小デューティ比
 #define MAX_ADC_VAL 4095                  // ADCの最大値(12bit)
 #define SPEED_LPF 0.7                     // 速度のローパスフィルタ係数
-#define K_ENC_LPF 0.007                   // エンコーダのローパスフィルタ係数ゲイン
+#define K_ENC_LPF 0.008                   // エンコーダのローパスフィルタ係数ゲイン
 #define K_ADV 0.01f                       // 進角ゲイン
 #define K_FF 0.01f                        // 速度制御フィードフォワードゲイン
 #define ADC2RADIAN 0.0015339807878856412  // ADC値をラジアンに変換する係数(2π/4096)
-#define MAX_SPEED 60.0f                   // 最大速度 [rad/s]
+#define MAX_SPEED 150.0f                  // 最大速度 [rad/s]
 #define MAX_ACCEL 2500.0f                 // 最大加速度 [rad/s^2]
 // 構造体
 typedef struct {

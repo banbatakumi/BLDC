@@ -102,7 +102,7 @@ static volatile float target_rad = 0;
 void TimerInterrupt() {
       if (enable == false) return;
       BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
-      BLDC_SpeedControl(&svc, (int)((target_rad - 127) * 0.5));  // 速度制御
+      BLDC_SpeedControl(&svc, (int)((target_rad - 127) * 1.2));  // 速度制御
       // BLDC_PositionControl(&svc, svc.mech_theta + svc.encoder_offset_theta);  // 位置制御
       // BLDC_PositionControl(&svc, target_rad);  // 位置制御
 }
