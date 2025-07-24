@@ -52,12 +52,12 @@ static inline uint8_t Serial_Read(Serial *self) {
 
 // 1バイト送信
 static inline void Serial_WriteByte(Serial *self, uint8_t data) {
-      HAL_UART_Transmit(self->huart, &data, 1, 100);
+      HAL_UART_Transmit_DMA(self->huart, &data, 1);
 }
 
 // 複数バイト送信
 static inline void Serial_Write(Serial *self, const uint8_t *data, uint16_t len) {
-      HAL_UART_Transmit(self->huart, (uint8_t *)data, len, 100);
+      HAL_UART_Transmit_DMA(self->huart, (uint8_t *)data, len);
 }
 
 static inline void Serial_Reset(Serial *self) {
