@@ -210,13 +210,13 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
             u = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta);
             v = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta - TWO_THIRDS_PI);
             w = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta + TWO_THIRDS_PI);
+            BLDC_WritePwm(u, v, w);
       } else if (svc->encoder_rotation_dir == 2) {
             u = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta);
             v = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta + TWO_THIRDS_PI);
             w = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta - TWO_THIRDS_PI);
+            BLDC_WritePwm(u, v, w);
       }
-
-      BLDC_WritePwm(u, v, w);
 }
 
 void BLDC_SpeedControl(SensoredVectorControl* svc, double target_speed) {
