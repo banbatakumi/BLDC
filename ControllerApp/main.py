@@ -77,22 +77,23 @@ class MotorControllerApp:
             return
 
         try:
-            if self.current_mode == 0xFF or self.current_mode == 0xFD:
+            value = 0
+            if self.current_mode == 0xFE:
+                # 位置：float → int16で *1000
+                position = float(val)
+                value = int(position * 1000)
+                self.value_label.config(text=f"現在値: {position:.3f} rad")
+            else:
+                # 速度/トルク：整数 -150〜150
                 value = int(float(val))
-                byte_value = (value + 256) % 256  # 符号付き変換
-                self.serial_port.write(bytes([self.current_mode, byte_value]))
                 self.value_label.config(text=f"現在値: {value}")
-                print(f"送信: [{hex(self.current_mode)}, {value}]")
 
-            elif self.current_mode == 0xFE:
-                position = float(val)  # ラジアン
-                # 1000倍して整数にエンコード（例：3.141 → 3141）
-                scaled = int(position * 1000)
-                high = (scaled >> 8) & 0xFF
-                low = scaled & 0xFF
-                self.serial_port.write(bytes([self.current_mode, high, low]))
-                self.value_label.config(text=f"現在値: {position:.2f} rad")
-                print(f"送信: [{hex(self.current_mode)}, {high}, {low}]")
+            # int16を2バイトに分割
+            high = (value >> 8) & 0xFF
+            low = value & 0xFF
+            self.serial_port.write(bytes([self.current_mode, high, low]))
+
+            print(f"送信: [{hex(self.current_mode)}, {high}, {low}]")
 
         except Exception as e:
             print(f"送信エラー: {e}")
