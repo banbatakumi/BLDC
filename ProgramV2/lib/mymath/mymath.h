@@ -211,6 +211,13 @@ static inline float NormalizeRadians(float rad) {
       return rad;
 }
 
+static inline float GapRadians(float rad1, float rad2) {
+      float gap = rad1 - rad2;
+      if (gap > PI) gap -= TWO_PI;
+      if (gap < -PI) gap += TWO_PI;
+      return gap;
+}
+
 static inline float SinDeg(int deg) {
       deg = NormalizeDegrees(deg);
       int theta_cal = deg % 90;

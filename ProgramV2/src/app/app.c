@@ -30,6 +30,9 @@ bool sw_state;
 bool is_overheat;
 
 bool enable = false;
+bool done_setup = false;
+
+int16_t target_speed, real_speed;
 
 void Setup() {
       printf("Hello World\n");
@@ -52,7 +55,6 @@ void Setup() {
             while (!(adc_val[i] > 0));  // ADCの値が代入されるまで待つ
       }
       printf("ADC_DMA start\n");
-      HAL_Delay(100);
       PwmOut_Write(&LED1, 0);
 
       // BLDCの初期化
@@ -60,7 +62,6 @@ void Setup() {
       if (DigitalIn_Read(&SW)) {
             BLDC_SetEncoder(&svc, &adc_val[0]);
       }
-      HAL_Delay(100);
       PwmOut_Write(&LED2, 0);
 
       // Serialの初期化
@@ -77,6 +78,8 @@ void Setup() {
       Timer_Reset(&serial_send_timer);
       Timer_Init(&serial_recv_timer);
       Timer_Reset(&serial_recv_timer);
+
+      done_setup = true;
 }
 
 void GetSensors() {
@@ -100,11 +103,14 @@ void GetSensors() {
 static volatile float target_rad = 0;
 
 void TimerInterrupt() {
-      if (enable == false) return;
-      BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
-      BLDC_SpeedControl(&svc, (int)((target_rad - 127) * 1.2));  // 速度制御
-      // BLDC_PositionControl(&svc, svc.mech_theta + svc.encoder_offset_theta);  // 位置制御
-      // BLDC_PositionControl(&svc, target_rad);  // 位置制御
+      if (enable == true) {
+            BLDC_SpeedControl(&svc, target_rad - 127);  // 速度制御
+            // BLDC_PositionControl(&svc, svc.mech_theta + svc.encoder_offset_theta);  // 位置制御
+            // BLDC_PositionControl(&svc, target_rad);  // 位置制御
+            BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
+      } else {
+            if (done_setup == true) BLDC_Stop(false);  // モーターストップ
+      }
 }
 
 void MainApp() {
@@ -139,23 +145,26 @@ void MainApp() {
                   PwmOut_Write(&LED4, 0);
                   HAL_Delay(250);
             } else {
-                  enable = true;
                   if (Serial_Available(&uart2)) {
+                        enable = true;
                         // target_rad = Serial_Read(&uart2) * (TWO_PI / 255.0f);  // 0〜255の値を0〜2πのラジアンに変換
                         target_rad = Serial_Read(&uart2);
                         Timer_Reset(&serial_recv_timer);
                         PwmOut_Write(&LED3, 1);
                   } else if (Timer_Read(&serial_recv_timer) > 0.5) {  // 100msごとにシリアル受信
+                        enable = false;
                         PwmOut_Write(&LED3, 0);
                         Serial_Reset(&uart2);
                         Timer_Reset(&serial_recv_timer);
                   }
 
-                  // if (Timer_Read(&serial_send_timer) > 0.001) {                                         // 100msごとにシリアル送信
+                  // if (Timer_Read(&serial_send_timer) > 0.01) {                                          // 100msごとにシリアル送信
                   //       uint8_t rad = (svc.mech_theta + svc.encoder_offset_theta) * (255.0f / TWO_PI);  // ラジアンを0〜255の値に変換
-                  //       Serial_Write(&uart2, (uint8_t *)&rad, 1);                                       // シリアルに送信
+                  //       Serial_Write(&uart2, (uint8_t *)&rad, 1);  // シリアルに送信
                   //       Timer_Reset(&serial_send_timer);
                   // }
+                  target_speed = (target_rad - 127);
+                  real_speed = svc.speed;
 
                   // 状態の表示
                   PwmOut_Write(&LED1, Abs(svc.amp) * 5);
