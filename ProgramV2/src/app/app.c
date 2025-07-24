@@ -58,10 +58,7 @@ void Setup() {
       PwmOut_Write(&LED1, 0);
 
       // BLDCの初期化
-      BLDC_Init(&svc);
-      if (DigitalIn_Read(&SW)) {
-            BLDC_SetEncoder(&svc, &adc_val[0]);
-      }
+      BLDC_Init(&svc, DigitalIn_Read(&SW), &adc_val[0]);
       PwmOut_Write(&LED2, 0);
 
       // Serialの初期化
@@ -104,7 +101,7 @@ static volatile float target_rad = 0;
 
 void TimerInterrupt() {
       if (enable == true) {
-            BLDC_SpeedControl(&svc, target_rad - 127);  // 速度制御
+            BLDC_SpeedControl(&svc, 20);  // 速度制御
             // BLDC_PositionControl(&svc, svc.mech_theta + svc.encoder_offset_theta);  // 位置制御
             // BLDC_PositionControl(&svc, target_rad);  // 位置制御
             BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
@@ -145,6 +142,7 @@ void MainApp() {
                   PwmOut_Write(&LED4, 0);
                   HAL_Delay(250);
             } else {
+                  enable = true;
                   if (Serial_Available(&uart2)) {
                         enable = true;
                         // target_rad = Serial_Read(&uart2) * (TWO_PI / 255.0f);  // 0〜255の値を0〜2πのラジアンに変換

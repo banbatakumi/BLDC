@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "flash.h"
 #include "main.h"
 #include "mymath.h"
 #include "pwm_out.h"
@@ -22,6 +23,13 @@
 #define MAX_ACCEL 10000.0f                // 最大加速度 [rad/s^2]
 
 #define MAX_DELTA_THETA 0.3f  // 最大角度変化量 [rad]
+
+typedef struct {
+      uint32_t encoder_rotation_dir;  // 回転方向
+      uint32_t max_encoder_val;       // エンコーダーの最大値
+      float encoder_offset_theta;     // エンコーダーのオフセット値
+} BLDCFlashData;
+
 // 構造体
 typedef struct {
       double kp;
@@ -33,10 +41,11 @@ typedef struct {
 } PIDController;
 
 typedef struct {
-      double dt;                    // 制御周期 [s]
-      double amp;                   // 電圧振幅 [0 to 1]
-      double amp_volt;              // 電圧振幅 [v]
-      double encoder_offset_theta;  // エンコーダオフセット値
+      double dt;                     // 制御周期 [s]
+      double amp;                    // 電圧振幅 [0 to 1]
+      double amp_volt;               // 電圧振幅 [v]
+      uint8_t encoder_rotation_dir;  // エンコーダーの回転方向
+      double encoder_offset_theta;   // エンコーダオフセット値
       uint16_t max_encoder_val;
       double adc_correction_factor;
       double mech_theta;           // 機械角度 [rad]
@@ -47,9 +56,7 @@ typedef struct {
       PIDController position_pid;  // 位置制御用PID
 } SensoredVectorControl;
 
-void BLDC_Init(SensoredVectorControl* svc);
-
-void BLDC_SetEncoder(SensoredVectorControl* svc, uint16_t* encoder_val);
+void BLDC_Init(SensoredVectorControl* svc, bool do_set_encoder, uint16_t* encoder_val);
 
 void BLDC_Stop(bool brake);
 
