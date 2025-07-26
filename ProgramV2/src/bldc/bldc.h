@@ -20,7 +20,7 @@
 #define K_FF 0.01f                        // 速度制御フィードフォワードゲイン
 #define ADC2RADIAN 0.0015339807878856412  // ADC値をラジアンに変換する係数(2π/4096)
 #define MAX_SPEED 100.0f                  // 最大速度 [rad/s]
-#define MAX_ACCEL 10000.0f                // 最大加速度 [rad/s^2]
+#define MAX_ACCEL 1000.0f                 // 最大加速度 [rad/s^2]
 
 #define MAX_DELTA_THETA 0.3f  // 最大角度変化量 [rad]
 

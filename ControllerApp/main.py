@@ -91,9 +91,9 @@ class MotorControllerApp:
             # int16を2バイトに分割
             high = (value >> 8) & 0xFF
             low = value & 0xFF
-            self.serial_port.write(bytes([self.current_mode, high, low]))
+            self.serial_port.write(bytes([self.current_mode, high, low, 0xAA]))
 
-            print(f"送信: [{hex(self.current_mode)}, {high}, {low}]")
+            print(f"送信: [{hex(self.current_mode)}, {high}, {low}, 0xAA]")
 
         except Exception as e:
             print(f"送信エラー: {e}")

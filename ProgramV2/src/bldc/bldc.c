@@ -87,22 +87,20 @@ static inline void BLDC_SetEncoder(SensoredVectorControl* svc, uint16_t* encoder
       for (uint16_t i = 0; i < 3000; i++) {
             svc->max_encoder_val = BLDC_GetMaxEncoderVal(*encoder_val);
             speed_sum += BLDC_GetSpeed(BLDC_GetEncoder(svc, *encoder_val, 0), 0.001);
-            BLDC_OpenLoopDrive(0.1, 10);
+            BLDC_OpenLoopDrive(0.1, 15);
             HAL_Delay(1);
       }
       svc->encoder_rotation_dir = speed_sum > 0 ? 1 : 2;
       svc->adc_correction_factor = (double)MAX_ADC_VAL / svc->max_encoder_val;
 
       // 電気角度を0にオフセットする
-      for (uint16_t i = 0; i < 500; i++) {
-            BLDC_OpenLoopDrive(i * 0.0008, 0);
-            HAL_Delay(1);
-      }
-      for (uint16_t i = 0; i < 500; i++) {
+      BLDC_OpenLoopDrive(0.3, 0);
+      HAL_Delay(250);
+      for (uint16_t i = 0; i < 250; i++) {
             theta_sum += BLDC_GetEncoder(svc, *encoder_val, 0);
             HAL_Delay(1);
       }
-      svc->encoder_offset_theta = theta_sum * 0.002f;
+      svc->encoder_offset_theta = theta_sum * 0.004f;
       printf("(Measure)encoder_rotation_dir: %d, max_encoder_val: %d, encoder_offset_theta: %.6f\n", svc->encoder_rotation_dir, svc->max_encoder_val, svc->encoder_offset_theta);
 
       BLDCFlashData write_data = {svc->encoder_rotation_dir, svc->max_encoder_val, (float)svc->encoder_offset_theta};
@@ -149,15 +147,15 @@ void BLDC_Init(SensoredVectorControl* svc, bool do_set_encoder, uint16_t* encode
       // PIDコントローラ
       // 速度制御
       svc->speed_pid.kp = 0.02;
-      svc->speed_pid.ki = 5;
+      // svc->speed_pid.ki = 5;
       svc->speed_pid.kd = 0;
-      svc->speed_pid.output_limit = 3;
+      svc->speed_pid.output_limit = 3.5;
 
       // 位置制御
       svc->position_pid.kp = 5;
       svc->position_pid.ki = 5;
       svc->position_pid.kd = 0.025;
-      svc->position_pid.output_limit = 2;
+      svc->position_pid.output_limit = 3.5;
 }
 
 void BLDC_Stop(bool brake) {
@@ -201,7 +199,7 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
       svc->elec_theta += Constrain(svc->speed * K_ADV, -1.5, 1.5);  // 進角を加算(これがあると高速回転時に安定する)
       svc->elec_theta = NormalizeRadians(svc->elec_theta);
 
-      svc->amp = svc->amp * 0.25 + (svc->amp_volt / supply_volt) * 0.75;  // ローパスフィルタ
+      svc->amp = svc->amp * 0.2 + (svc->amp_volt / supply_volt) * 0.8;  // ローパスフィルタ
       svc->amp = Constrain(svc->amp, -1, 1);
 
       // 正弦波を生成
@@ -213,8 +211,8 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
             BLDC_WritePwm(u, v, w);
       } else if (svc->encoder_rotation_dir == 2) {
             u = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta);
-            v = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta + TWO_THIRDS_PI);
-            w = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta - TWO_THIRDS_PI);
+            v = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta - TWO_THIRDS_PI);
+            w = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta + TWO_THIRDS_PI);
             BLDC_WritePwm(u, v, w);
       }
 }
@@ -240,12 +238,12 @@ void BLDC_SpeedControl(SensoredVectorControl* svc, double target_speed) {
       svc->amp_volt = -(BLDC_PIDControl(&svc->speed_pid, target_speed - svc->speed, dt) + ff_term);
 
       // 低速時は積分ゲインを上げて回転を安定させる
-      if (Abs(svc->speed) < 5) {
-            svc->speed_pid.ki = (5 - Abs(svc->speed)) * 2 + 0.2;
-            svc->speed_pid.kp = Abs(svc->speed) * 0.002;
+      if (Abs(svc->speed) < 10) {
+            svc->speed_pid.ki = (10 - Abs(svc->speed)) + 0.2;
+            svc->speed_pid.kp = 0.025 * Abs(svc->speed) * 0.1;
       } else {
             svc->speed_pid.ki = 0.2;
-            svc->speed_pid.kp = 0.01;
+            svc->speed_pid.kp = 0.025;
       }
 }
 

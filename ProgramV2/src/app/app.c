@@ -112,6 +112,7 @@ void TimerInterrupt() {
             } else if (mode == 3) {
                   // トルク制御の実装は省略
             }
+            // BLDC_PositionControl(&svc, svc.mech_theta + svc.encoder_offset_theta);  // 位置制御を追加
             BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
       } else {
             if (done_setup == true) BLDC_Stop(false);  // モーターストップ
@@ -150,19 +151,26 @@ void MainApp() {
                   PwmOut_Write(&LED4, 0);
                   HAL_Delay(250);
             } else {
-                  const static uint8_t SPEED_HEADER = 0xFF;
-                  const static uint8_t POSITION_HEADER = 0xFE;
-                  const static uint8_t TORQUE_HEADER = 0xFD;
+                  // enable = true;
+                  const static uint8_t HEADER = 0xFF;
+                  const static uint8_t SPEED_HEADER = 0xFE;
+                  const static uint8_t POSITION_HEADER = 0xFD;
+                  const static uint8_t TORQUE_HEADER = 0xFC;
                   const static uint8_t FOOTER = 0xAA;
                   const uint8_t data_size = 2;
                   static uint8_t recv_data[2];
                   static uint8_t index = 0;
-                  uint8_t recv_byte = Serial_Read(&pc);
+                  uint8_t recv_byte = Serial_Read(&uart2);
 
-                  if (Serial_Available(&pc)) {
+                  if (Serial_Available(&uart2)) {
                         enable = true;
-                        PwmOut_Write(&LED3, 1);
                         if (index == 0) {
+                              if (recv_byte == HEADER) {
+                                    index++;
+                              } else {
+                                    index = 0;
+                              }
+                        } else if (index == 1) {
                               if (recv_byte == SPEED_HEADER) {
                                     mode = 1;  // 速度制御モード
                                     index++;
@@ -175,48 +183,37 @@ void MainApp() {
                               } else {
                                     index = 0;
                               }
-                        } else if (index == (data_size + 1)) {
+                        } else if (index == (data_size + 2)) {
                               if (recv_byte == FOOTER) {
+                                    PwmOut_Write(&LED3, 1);
                                     if (mode == 1) {
                                           target_speed = (recv_data[0] << 8) | recv_data[1];  // 速度制御
-                                          printf("Target Speed: %d\n", target_speed);
+                                          target_speed *= 0.5;
                                     } else if (mode == 2) {
                                           target_position = ((recv_data[0] << 8) | recv_data[1]) * 0.001;  // 位置制御
-                                          printf("Target Position: %.2f rad\n", target_position);
                                     } else if (mode == 3) {
                                           target_torque = (recv_data[0] << 8) | recv_data[1];  // トルク制御
-                                          printf("Target Torque: %d\n", target_torque);
                                     }
                               }
                               index = 0;
                         } else {
-                              recv_data[index - 1] = recv_byte;
+                              recv_data[index - 2] = recv_byte;
                               index++;
                         }
                         Timer_Reset(&serial_recv_timer);
-                  } else if (Timer_Read(&serial_recv_timer) > 0.5) {  // 100msごとにシリアル受信
+                  } else if (Timer_Read(&serial_recv_timer) > 1) {  // 100msごとにシリアル受信
                         enable = false;
                         PwmOut_Write(&LED3, 0);
                         Serial_Reset(&uart2);
                         Timer_Reset(&serial_recv_timer);
                   }
 
-                  // if (Serial_Available(&uart2)) {
-                  //       enable = true;
-                  //       // target_rad = Serial_Read(&uart2) * (TWO_PI / 255.0f);  // 0〜255の値を0〜2πのラジアンに変換
-                  //       target_rad = Serial_Read(&uart2);
-                  //       Timer_Reset(&serial_recv_timer);
-                  //       PwmOut_Write(&LED3, 1);
-                  // } else if (Timer_Read(&serial_recv_timer) > 0.5) {  // 100msごとにシリアル受信
-                  //       enable = false;
-                  //       PwmOut_Write(&LED3, 0);
-                  //       Serial_Reset(&uart2);
-                  //       Timer_Reset(&serial_recv_timer);
-                  // }
-
-                  // if (Timer_Read(&serial_send_timer) > 0.01) {                                          // 100msごとにシリアル送信
-                  //       uint8_t rad = (svc.mech_theta + svc.encoder_offset_theta) * (255.0f / TWO_PI);  // ラジアンを0〜255の値に変換
-                  //       Serial_Write(&uart2, (uint8_t *)&rad, 1);  // シリアルに送信
+                  // if (Timer_Read(&serial_send_timer) > 0.01) {  // 100msごとにシリアル送信
+                  //       int16_t rad = NormalizeRadians(svc.mech_theta + svc.encoder_offset_theta) * 50 - 150;
+                  //       uint8_t rad_high = (rad >> 8) & 0xFF;
+                  //       uint8_t rad_low = rad & 0xFF;
+                  //       uint8_t data[5] = {0xFF, 0xFE, rad_high, rad_low, 0xAA};  // フッターとラジアン値を送信
+                  //       Serial_Write(&uart2, &data, sizeof(data));                // シリアル送信
                   //       Timer_Reset(&serial_send_timer);
                   // }
 
