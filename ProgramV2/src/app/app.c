@@ -32,8 +32,7 @@ bool is_overheat;
 bool enable = false;
 bool done_setup = false;
 
-int16_t target_speed, target_torque;
-float target_position;
+float target_speed, target_torque, target_position;
 
 uint8_t mode = 0;  // 制御モード(0: 停止, 1: 速度制御, 2: 位置制御)
 
@@ -112,7 +111,6 @@ void TimerInterrupt() {
             } else if (mode == 3) {
                   // トルク制御の実装は省略
             }
-            // BLDC_PositionControl(&svc, svc.mech_theta + svc.encoder_offset_theta);  // 位置制御を追加
             BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
       } else {
             if (done_setup == true) BLDC_Stop(false);  // モーターストップ
@@ -151,7 +149,6 @@ void MainApp() {
                   PwmOut_Write(&LED4, 0);
                   HAL_Delay(250);
             } else {
-                  // enable = true;
                   const static uint8_t HEADER = 0xFF;
                   const static uint8_t SPEED_HEADER = 0xFE;
                   const static uint8_t POSITION_HEADER = 0xFD;
@@ -187,10 +184,9 @@ void MainApp() {
                               if (recv_byte == FOOTER) {
                                     PwmOut_Write(&LED3, 1);
                                     if (mode == 1) {
-                                          target_speed = (recv_data[0] << 8) | recv_data[1];  // 速度制御
-                                          target_speed *= 0.5;
+                                          target_speed = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.01;  // 速度制御
                                     } else if (mode == 2) {
-                                          target_position = ((recv_data[0] << 8) | recv_data[1]) * 0.001;  // 位置制御
+                                          target_position = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.001;  // 位置制御
                                     } else if (mode == 3) {
                                           target_torque = (recv_data[0] << 8) | recv_data[1];  // トルク制御
                                     }
@@ -207,9 +203,12 @@ void MainApp() {
                         Serial_Reset(&uart2);
                         Timer_Reset(&serial_recv_timer);
                   }
+                  // printf("mech_theta: %.6f, elec_theta: %.6f, speed: %.2f\n",
+                  //        svc.mech_theta, svc.elec_theta, svc.speed);
 
                   // if (Timer_Read(&serial_send_timer) > 0.01) {  // 100msごとにシリアル送信
-                  //       int16_t rad = NormalizeRadians(svc.mech_theta + svc.encoder_offset_theta) * 50 - 150;
+                  //       int16_t rad = (NormalizeRadians(svc.mech_theta + svc.encoder_offset_theta) - PI) * 10000;
+                  //       rad = 1000;
                   //       uint8_t rad_high = (rad >> 8) & 0xFF;
                   //       uint8_t rad_low = rad & 0xFF;
                   //       uint8_t data[5] = {0xFF, 0xFE, rad_high, rad_low, 0xAA};  // フッターとラジアン値を送信

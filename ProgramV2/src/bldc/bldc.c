@@ -5,7 +5,8 @@ PwmOut v_pwm;
 PwmOut w_pwm;
 
 Timer dt_timer;
-Timer vector_dt_timer;
+
+Timer speed_dt_timer;
 
 static inline double BLDC_GetEncoder(SensoredVectorControl* svc, uint16_t encoder_val, double encoder_offset_theta) {
       uint16_t correction_adc_val = encoder_val * svc->adc_correction_factor;
@@ -39,7 +40,10 @@ static inline double BLDC_GetSpeed(double theta, double dt) {
       static double pre_theta = 0;
       static double pre_delta_theta = 0;
 
-      if (pre_theta == theta) return pre_speed;
+      if (pre_theta == theta) {
+            pre_theta = theta + pre_delta_theta;
+            return pre_speed;
+      }
 
       double delta_theta = theta - pre_theta;
 
@@ -81,31 +85,43 @@ static inline double BLDC_PIDControl(PIDController* pid, double error, double dt
 }
 
 static inline void BLDC_SetEncoder(SensoredVectorControl* svc, uint16_t* encoder_val) {
-      double theta_sum = 0;
-      float speed_sum = 0;
       // エンコーダー出力の最大値を取得する
+      float phase = 0;
       for (uint16_t i = 0; i < 3000; i++) {
+            phase += 0.2;
             svc->max_encoder_val = BLDC_GetMaxEncoderVal(*encoder_val);
-            speed_sum += BLDC_GetSpeed(BLDC_GetEncoder(svc, *encoder_val, 0), 0.001);
-            BLDC_OpenLoopDrive(0.1, 15);
+            BLDC_OpenLoopDrive(0.1, phase);
             HAL_Delay(1);
       }
-      svc->encoder_rotation_dir = speed_sum > 0 ? 1 : 2;
       svc->adc_correction_factor = (double)MAX_ADC_VAL / svc->max_encoder_val;
 
       // 電気角度を0にオフセットする
-      BLDC_OpenLoopDrive(0.3, 0);
-      HAL_Delay(250);
-      for (uint16_t i = 0; i < 250; i++) {
-            theta_sum += BLDC_GetEncoder(svc, *encoder_val, 0);
-            HAL_Delay(1);
-      }
-      svc->encoder_offset_theta = theta_sum * 0.004f;
-      printf("(Measure)encoder_rotation_dir: %d, max_encoder_val: %d, encoder_offset_theta: %.6f\n", svc->encoder_rotation_dir, svc->max_encoder_val, svc->encoder_offset_theta);
+      double offset_sum = 0;
+      for (uint8_t i = 0; i < svc->pole_pairs; i++) {
+            double theta_sum = 0;
+            BLDC_OpenLoopDrive(0.2, 0);
+            HAL_Delay(200);
+            BLDC_OpenLoopDrive(0.4, 0);
+            HAL_Delay(100);
+            for (uint16_t i = 0; i < 200; i++) {
+                  theta_sum += BLDC_GetEncoder(svc, *encoder_val, 0);
+                  HAL_Delay(1);
+            }
+            offset_sum += theta_sum * 0.005f;
 
-      BLDCFlashData write_data = {svc->encoder_rotation_dir, svc->max_encoder_val, (float)svc->encoder_offset_theta};
+            phase = 0;
+            for (uint16_t i = 0; i < (TWO_PI * 10); i++) {
+                  phase += 0.1;
+                  BLDC_OpenLoopDrive(0.1, phase);
+                  HAL_Delay(1);
+            }
+      }
+      svc->encoder_offset_theta = offset_sum / svc->pole_pairs;
+
+      printf("(Measure)max_encoder_val: %d, encoder_offset_theta: %.6f\n", svc->max_encoder_val, svc->encoder_offset_theta);
+
+      BLDCFlashData write_data = {svc->max_encoder_val, (float)svc->encoder_offset_theta};
       Flash_WriteData(FLASH_USER_START_ADDR, &write_data, sizeof(write_data));
-      BLDC_OpenLoopDrive(0, 0);
 }
 
 static inline void BLDC_WritePwm(double u, double v, double w) {
@@ -125,7 +141,7 @@ void BLDC_Init(SensoredVectorControl* svc, bool do_set_encoder, uint16_t* encode
       PwmOut_Init(&w_pwm, &htim1, TIM_CHANNEL_3);
 
       Timer_Init(&dt_timer);
-      Timer_Init(&vector_dt_timer);
+      Timer_Init(&speed_dt_timer);
 
       // BLDCの固有パラメーター
       svc->pole_pairs = 7;  // 極対数 (磁石の数/2)
@@ -138,24 +154,23 @@ void BLDC_Init(SensoredVectorControl* svc, bool do_set_encoder, uint16_t* encode
       // フラッシュから読み込み
       BLDCFlashData read_data;
       Flash_ReadData(FLASH_USER_START_ADDR, &read_data, sizeof(read_data));
-      printf("(From Flash)encoder_rotation_dir: %ld, max_encoder_val: %ld, encoder_offset_theta: %.6f\n", read_data.encoder_rotation_dir, read_data.max_encoder_val, read_data.encoder_offset_theta);
-      svc->encoder_rotation_dir = read_data.encoder_rotation_dir;  // エンコーダーの回転方向
+      printf("(From Flash)max_encoder_val: %ld, encoder_offset_theta: %.6f\n", read_data.max_encoder_val, read_data.encoder_offset_theta);
       svc->max_encoder_val = read_data.max_encoder_val;            // エンコーダーの最大値
       svc->encoder_offset_theta = read_data.encoder_offset_theta;  // エンコーダーのオフセット値
       svc->adc_correction_factor = (double)MAX_ADC_VAL / svc->max_encoder_val;
 
       // PIDコントローラ
       // 速度制御
-      svc->speed_pid.kp = 0.02;
-      // svc->speed_pid.ki = 5;
+      svc->speed_pid.kp = 0.1;
+      svc->speed_pid.ki = 0.5;
       svc->speed_pid.kd = 0;
-      svc->speed_pid.output_limit = 3.5;
+      svc->speed_pid.output_limit = 4;
 
       // 位置制御
-      svc->position_pid.kp = 5;
+      svc->position_pid.kp = 10;
       svc->position_pid.ki = 5;
-      svc->position_pid.kd = 0.025;
-      svc->position_pid.output_limit = 3.5;
+      svc->position_pid.kd = 0.01;
+      svc->position_pid.output_limit = 4;
 }
 
 void BLDC_Stop(bool brake) {
@@ -166,97 +181,77 @@ void BLDC_Stop(bool brake) {
       }
 }
 
-void BLDC_OpenLoopDrive(double amp, double freq) {
-      // 制御周期の取得
-      double dt = Timer_Read(&dt_timer);
-      Timer_Reset(&dt_timer);
-
-      static double phase = 0;
-      if (freq == 0) phase = HALF_PI;
-      double delta_phase = TWO_PI * freq * dt;
-      phase += delta_phase;
+void BLDC_OpenLoopDrive(double amp, double phase) {
       phase = NormalizeRadians(phase);
 
-      double u = 0.5 + 0.5 * amp * Sin(phase);
-      double v = 0.5 + 0.5 * amp * Sin(phase + TWO_THIRDS_PI);
-      double w = 0.5 + 0.5 * amp * Sin(phase - TWO_THIRDS_PI);
+      double u = 0.5 + 0.5 * amp * Cos(phase);
+      double v = 0.5 + 0.5 * amp * Cos(phase - TWO_THIRDS_PI);
+      double w = 0.5 + 0.5 * amp * Cos(phase + TWO_THIRDS_PI);
 
       BLDC_WritePwm(u, v, w);
 }
 
 void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encoder_value, double supply_volt) {
       // 制御周期の取得
-      svc->dt = Timer_Read(&vector_dt_timer);
-      Timer_Reset(&vector_dt_timer);
+      svc->dt = Timer_Read(&dt_timer);
+      Timer_Reset(&dt_timer);
       if (svc->dt > 0.001) return;  // 制御周期が大きすぎる場合は無視
 
       // エンコーダ値を処理
       svc->mech_theta = BLDC_GetEncoder(svc, encoder_value, svc->encoder_offset_theta);  // ラジアン(0〜2π)に変換
-      svc->speed = BLDC_GetSpeed(svc->mech_theta, svc->dt);                              // 角速度を計算
+      if (Timer_Read(&speed_dt_timer) > 0.01) {                                          // 10msごとに速度を計算
+            svc->speed = BLDC_GetSpeed(svc->mech_theta, Timer_Read(&speed_dt_timer));    // 角速度を計算
+            Timer_Reset(&speed_dt_timer);
+      }
 
       // 電気角度を計算
       svc->elec_theta = svc->mech_theta * svc->pole_pairs;
       svc->elec_theta += Constrain(svc->speed * K_ADV, -1.5, 1.5);  // 進角を加算(これがあると高速回転時に安定する)
       svc->elec_theta = NormalizeRadians(svc->elec_theta);
 
-      svc->amp = svc->amp * 0.2 + (svc->amp_volt / supply_volt) * 0.8;  // ローパスフィルタ
+      svc->amp = svc->amp * 0.3 + (svc->amp_volt / supply_volt) * 0.7;  // ローパスフィルタ
       svc->amp = Constrain(svc->amp, -1, 1);
 
       // 正弦波を生成
       double u, v, w;
-      if (svc->encoder_rotation_dir == 1) {
-            u = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta);
-            v = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta - TWO_THIRDS_PI);
-            w = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta + TWO_THIRDS_PI);
-            BLDC_WritePwm(u, v, w);
-      } else if (svc->encoder_rotation_dir == 2) {
-            u = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta);
-            v = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta - TWO_THIRDS_PI);
-            w = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta + TWO_THIRDS_PI);
-            BLDC_WritePwm(u, v, w);
-      }
+      u = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta);
+      v = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta - TWO_THIRDS_PI);
+      w = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta + TWO_THIRDS_PI);
+      BLDC_WritePwm(u, v, w);
 }
 
 void BLDC_SpeedControl(SensoredVectorControl* svc, double target_speed) {
-      double dt = Timer_Read(&dt_timer);
-      Timer_Reset(&dt_timer);
-      if (dt > 0.001) return;
-
       // 最大速度制限
       if (target_speed > MAX_SPEED) target_speed = MAX_SPEED;
       if (target_speed < -MAX_SPEED) target_speed = -MAX_SPEED;
 
       // 最大加速度制限
       static double prev_target_speed = 0;
-      double accel = (target_speed - prev_target_speed) / dt;
+      double accel = (target_speed - prev_target_speed) / svc->dt;
       if (accel > MAX_ACCEL) accel = MAX_ACCEL;
       if (accel < -MAX_ACCEL) accel = -MAX_ACCEL;
-      target_speed = prev_target_speed + accel * dt;
+      target_speed = prev_target_speed + accel * svc->dt;
       prev_target_speed = target_speed;
 
       double ff_term = K_FF * target_speed;
-      svc->amp_volt = -(BLDC_PIDControl(&svc->speed_pid, target_speed - svc->speed, dt) + ff_term);
+      svc->amp_volt = -(BLDC_PIDControl(&svc->speed_pid, target_speed - svc->speed, svc->dt) + ff_term);
 
-      // 低速時は積分ゲインを上げて回転を安定させる
-      if (Abs(svc->speed) < 10) {
-            svc->speed_pid.ki = (10 - Abs(svc->speed)) + 0.2;
-            svc->speed_pid.kp = 0.025 * Abs(svc->speed) * 0.1;
-      } else {
-            svc->speed_pid.ki = 0.2;
-            svc->speed_pid.kp = 0.025;
-      }
+      // // 低速時は積分ゲインを上げて回転を安定させる
+      // if (Abs(target_speed) < 5) {
+      //       svc->speed_pid.ki = (5 - Abs(target_speed)) * 0.2 + 0.5;
+      //       // svc->speed_pid.kp = 0.025 * Abs(target_speed) * 0.2;
+      // } else {
+      //       svc->speed_pid.ki = 0.5;
+      //       svc->speed_pid.kp = 0.025;
+      // }
 }
 
 void BLDC_PositionControl(SensoredVectorControl* svc, double target_position) {
-      double dt = Timer_Read(&dt_timer);
-      Timer_Reset(&dt_timer);
-      if (dt > 0.001) return;
-
       // 位置制御のためのPID計算
       double error = target_position - (svc->mech_theta + svc->encoder_offset_theta);  // 目標位置と現在位置の誤差
 
       // 0と2πのまたぎ対策
       while (error > PI) error -= TWO_PI;
       while (error < -PI) error += TWO_PI;
-      svc->amp_volt = -BLDC_PIDControl(&svc->position_pid, error, dt);
+      svc->amp_volt = -BLDC_PIDControl(&svc->position_pid, error, svc->dt);
 }
