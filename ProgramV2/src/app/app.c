@@ -34,7 +34,7 @@ bool done_setup = false;
 
 float target_speed, target_torque, target_position;
 
-uint8_t mode = 0;  // 制御モード(0: 停止, 1: 速度制御, 2: 位置制御)
+uint8_t mode = 0;  // 制御モード(0: 停止, 1: 速度制御, 2: 位置制御, 3: トルク制御)
 
 void Setup() {
   printf("Hello World\n");
@@ -101,20 +101,24 @@ void GetSensors() {
 }
 
 void TimerInterrupt() {
-  if (enable == true) {
-    if (mode == 0) {
-      BLDC_Stop(false);  // モーターストップ
-    } else if (mode == 1) {
-      BLDC_SpeedControl(&svc, target_speed);  // 速度制御
-    } else if (mode == 2) {
-      BLDC_PositionControl(&svc, target_position);  // 位置制御
-    } else if (mode == 3) {
-      BLDC_TorqueControl(&svc, target_torque);  // トルク制御
-    }
-    BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
-  } else {
-    if (done_setup == true) BLDC_Stop(false);  // モーターストップ
-  }
+  // if (enable == true) {
+  //   if (mode == 0) {
+  //     BLDC_Stop(false);  // モーターストップ
+  //   } else if (mode == 1) {
+  //     BLDC_SpeedControl(&svc, target_speed);  // 速度制御
+  //   } else if (mode == 2) {
+  //     BLDC_PositionControl(&svc, target_position);  // 位置制御
+  //   } else if (mode == 3) {
+  //     BLDC_TorqueControl(&svc, target_torque);  // トルク制御
+  //   }
+  //   BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
+  // } else {
+  //   if (done_setup == true) BLDC_Stop(false);  // モーターストップ
+  // }
+  // BLDC_TorqueControl(&svc, -1);  // トルク制御
+  BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
+  BLDC_SpeedControl(&svc, 10);  // 速度制御
+  // BLDC_PositionControl(&svc, 0);  // 位置制御
 }
 
 void MainApp() {
@@ -206,15 +210,15 @@ void MainApp() {
       // printf("mech_theta: %.6f, elec_theta: %.6f, speed: %.2f\n",
       //        svc.mech_theta, svc.elec_theta, svc.speed);
 
-      if (Timer_Read(&serial_send_timer) > 0.01) {  // 100msごとにシリアル送信
-        int16_t rad = (NormalizeRadians(svc.mech_theta + svc.encoder_offset_theta) - PI) * 10000;
-        rad = 1000;
-        uint8_t rad_high = (rad >> 8) & 0xFF;
-        uint8_t rad_low = rad & 0xFF;
-        uint8_t data[5] = {0xFF, 0xFE, rad_high, rad_low, 0xAA};  // フッターとラジアン値を送信
-        Serial_Write(&uart2, data, sizeof(data));                 // シリアル送信
-        Timer_Reset(&serial_send_timer);
-      }
+      // if (Timer_Read(&serial_send_timer) > 0.01) {  // 100msごとにシリアル送信
+      //   int16_t rad = (NormalizeRadians(svc.mech_theta + svc.encoder_offset_theta) - PI) * 10000;
+      //   rad = 1000;
+      //   uint8_t rad_high = (rad >> 8) & 0xFF;
+      //   uint8_t rad_low = rad & 0xFF;
+      //   uint8_t data[5] = {0xFF, 0xFE, rad_high, rad_low, 0xAA};  // フッターとラジアン値を送信
+      //   Serial_Write(&uart2, data, sizeof(data));                 // シリアル送信
+      //   Timer_Reset(&serial_send_timer);
+      // }
 
       // 状態の表示
       PwmOut_Write(&LED1, Abs(svc.amp) * 5);

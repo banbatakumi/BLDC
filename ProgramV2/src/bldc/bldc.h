@@ -17,12 +17,9 @@
 #define SPEED_LPF 0.5                     // 速度のローパスフィルタ係数
 #define K_ENC_LPF 0.015                   // エンコーダのローパスフィルタ係数ゲイン
 #define K_ADV 0.01f                       // 進角ゲイン
-#define K_FF 0.002f                       // 速度制御フィードフォワードゲイン
 #define ADC2RADIAN 0.0015339807878856412  // ADC値をラジアンに変換する係数(2π/4096)
-#define MAX_SPEED 200.0f                  // 最大速度 [rad/s]
-#define MAX_ACCEL 100.0f                  // 最大加速度 [rad/s^2]
-
-#define MAX_DELTA_THETA 0.3f  // 最大角度変化量 [rad]
+#define MAX_SPEED 150.0f                  // 最大速度 [rad/s]
+#define MAX_ACCEL 10.0f                   // 最大加速度 [rad/s^2]
 
 typedef struct {
   uint32_t max_encoder_val;    // エンコーダーの最大値

@@ -90,7 +90,7 @@ static inline void BLDC_SetEncoder(SensoredVectorControl* svc, uint16_t* encoder
   for (uint16_t i = 0; i < 3000; i++) {
     phase += 0.2;
     svc->max_encoder_val = BLDC_GetMaxEncoderVal(*encoder_val);
-    BLDC_OpenLoopDrive(0.1, phase);
+    BLDC_OpenLoopDrive(0.15, phase);
     HAL_Delay(1);
   }
   svc->adc_correction_factor = (double)MAX_ADC_VAL / svc->max_encoder_val;
@@ -112,7 +112,7 @@ static inline void BLDC_SetEncoder(SensoredVectorControl* svc, uint16_t* encoder
     phase = 0;
     for (uint16_t i = 0; i < (TWO_PI * 10); i++) {
       phase += 0.1;
-      BLDC_OpenLoopDrive(0.1, phase);
+      BLDC_OpenLoopDrive(0.15, phase);
       HAL_Delay(1);
     }
   }
@@ -162,14 +162,14 @@ void BLDC_Init(SensoredVectorControl* svc, bool do_set_encoder, uint16_t* encode
   // PIDコントローラ
   // 速度制御
   svc->speed_pid.kp = 0.1;
-  svc->speed_pid.ki = 0.5;
+  svc->speed_pid.ki = 0.2;
   svc->speed_pid.kd = 0;
   svc->speed_pid.output_limit = 4;
 
   // 位置制御
   svc->position_pid.kp = 10;
-  svc->position_pid.ki = 5;
-  svc->position_pid.kd = 0.01;
+  svc->position_pid.ki = 10;
+  svc->position_pid.kd = 0.05;
   svc->position_pid.output_limit = 4;
 }
 
@@ -209,7 +209,7 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
   svc->elec_theta += Constrain(svc->speed * K_ADV, -1.5, 1.5);  // 進角を加算(これがあると高速回転時に安定する)
   svc->elec_theta = NormalizeRadians(svc->elec_theta);
 
-  svc->amp = svc->amp * 0.3 + (svc->amp_volt / supply_volt) * 0.7;  // ローパスフィルタ
+  svc->amp = svc->amp * 0.4 + (svc->amp_volt / supply_volt) * 0.6;  // ローパスフィルタ
   svc->amp = Constrain(svc->amp, -1, 1);
 
   // 正弦波を生成
@@ -233,8 +233,7 @@ void BLDC_SpeedControl(SensoredVectorControl* svc, double target_speed) {
   target_speed = prev_target_speed + accel * svc->dt;
   prev_target_speed = target_speed;
 
-  double ff_term = K_FF * target_speed;
-  svc->amp_volt = -(BLDC_PIDControl(&svc->speed_pid, target_speed - svc->speed, svc->dt) + ff_term);
+  svc->amp_volt = -BLDC_PIDControl(&svc->speed_pid, target_speed - svc->speed, svc->dt);
 
   // // 低速時は積分ゲインを上げて回転を安定させる
   // if (Abs(target_speed) < 5) {
