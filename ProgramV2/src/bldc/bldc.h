@@ -20,38 +20,38 @@
 #define K_FF 0.002f                       // 速度制御フィードフォワードゲイン
 #define ADC2RADIAN 0.0015339807878856412  // ADC値をラジアンに変換する係数(2π/4096)
 #define MAX_SPEED 200.0f                  // 最大速度 [rad/s]
-#define MAX_ACCEL 2000.0f                 // 最大加速度 [rad/s^2]
+#define MAX_ACCEL 100.0f                  // 最大加速度 [rad/s^2]
 
 #define MAX_DELTA_THETA 0.3f  // 最大角度変化量 [rad]
 
 typedef struct {
-      uint32_t max_encoder_val;    // エンコーダーの最大値
-      float encoder_offset_theta;  // エンコーダーのオフセット値
+  uint32_t max_encoder_val;    // エンコーダーの最大値
+  float encoder_offset_theta;  // エンコーダーのオフセット値
 } BLDCFlashData;
 
 // 構造体
 typedef struct {
-      double kp;
-      double ki;
-      double kd;
-      double integral;
-      double prev_error;
-      double output_limit;
+  double kp;
+  double ki;
+  double kd;
+  double integral;
+  double prev_error;
+  double output_limit;
 } PIDController;
 
 typedef struct {
-      double dt;                    // 制御周期 [s]
-      double amp;                   // 電圧振幅 [0 to 1]
-      double amp_volt;              // 電圧振幅 [v]
-      double encoder_offset_theta;  // エンコーダオフセット値
-      uint16_t max_encoder_val;
-      double adc_correction_factor;
-      double mech_theta;           // 機械角度 [rad]
-      double elec_theta;           // 電気角度 [rad]
-      double speed;                // 速度 [rad/s]
-      uint8_t pole_pairs;          // 極対数 (磁石の数/2)
-      PIDController speed_pid;     // 速度制御用PID
-      PIDController position_pid;  // 位置制御用PID
+  double dt;                    // 制御周期 [s]
+  double amp;                   // 電圧振幅 [0 to 1]
+  double amp_volt;              // 電圧振幅 [v]
+  double encoder_offset_theta;  // エンコーダオフセット値
+  uint16_t max_encoder_val;
+  double adc_correction_factor;
+  double mech_theta;           // 機械角度 [rad]
+  double elec_theta;           // 電気角度 [rad]
+  double speed;                // 速度 [rad/s]
+  uint8_t pole_pairs;          // 極対数 (磁石の数/2)
+  PIDController speed_pid;     // 速度制御用PID
+  PIDController position_pid;  // 位置制御用PID
 } SensoredVectorControl;
 
 void BLDC_Init(SensoredVectorControl* svc, bool do_set_encoder, uint16_t* encoder_val);
@@ -64,5 +64,6 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
 
 void BLDC_SpeedControl(SensoredVectorControl* svc, double target_speed);
 void BLDC_PositionControl(SensoredVectorControl* svc, double target_position);
+void BLDC_TorqueControl(SensoredVectorControl* svc, double target_torque);
 
 #endif  // BLDC_H_
