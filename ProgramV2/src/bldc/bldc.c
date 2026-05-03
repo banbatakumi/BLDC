@@ -164,13 +164,13 @@ void BLDC_Init(SensoredVectorControl* svc, bool do_set_encoder, uint16_t* encode
   svc->speed_pid.kp = 0.1;
   svc->speed_pid.ki = 0.2;
   svc->speed_pid.kd = 0;
-  svc->speed_pid.output_limit = 4;
+  svc->speed_pid.output_limit = 3;
 
   // 位置制御
   svc->position_pid.kp = 10;
-  svc->position_pid.ki = 10;
-  svc->position_pid.kd = 0.05;
-  svc->position_pid.output_limit = 4;
+  svc->position_pid.ki = 20;
+  svc->position_pid.kd = 0;
+  svc->position_pid.output_limit = 3;
 }
 
 void BLDC_Stop(bool brake) {
@@ -234,20 +234,11 @@ void BLDC_SpeedControl(SensoredVectorControl* svc, double target_speed) {
   prev_target_speed = target_speed;
 
   svc->amp_volt = -BLDC_PIDControl(&svc->speed_pid, target_speed - svc->speed, svc->dt);
-
-  // // 低速時は積分ゲインを上げて回転を安定させる
-  // if (Abs(target_speed) < 5) {
-  //       svc->speed_pid.ki = (5 - Abs(target_speed)) * 0.2 + 0.5;
-  //       // svc->speed_pid.kp = 0.025 * Abs(target_speed) * 0.2;
-  // } else {
-  //       svc->speed_pid.ki = 0.5;
-  //       svc->speed_pid.kp = 0.025;
-  // }
 }
 
 void BLDC_PositionControl(SensoredVectorControl* svc, double target_position) {
   // 位置制御のためのPID計算
-  double error = target_position - (svc->mech_theta + svc->encoder_offset_theta);  // 目標位置と現在位置の誤差
+  double error = target_position - (svc->mech_theta);  // 目標位置と現在位置の誤差
 
   // 0と2πのまたぎ対策
   while (error > PI) error -= TWO_PI;

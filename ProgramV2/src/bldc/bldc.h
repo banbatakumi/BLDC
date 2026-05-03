@@ -18,8 +18,8 @@
 #define K_ENC_LPF 0.015                   // エンコーダのローパスフィルタ係数ゲイン
 #define K_ADV 0.01f                       // 進角ゲイン
 #define ADC2RADIAN 0.0015339807878856412  // ADC値をラジアンに変換する係数(2π/4096)
-#define MAX_SPEED 150.0f                  // 最大速度 [rad/s]
-#define MAX_ACCEL 10.0f                   // 最大加速度 [rad/s^2]
+#define MAX_SPEED 100.0f                  // 最大速度 [rad/s]
+#define MAX_ACCEL 50.0f                   // 最大加速度 [rad/s^2]
 
 typedef struct {
   uint32_t max_encoder_val;    // エンコーダーの最大値

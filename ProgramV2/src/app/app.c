@@ -28,11 +28,12 @@ double temp;
 bool sw_state;
 
 bool is_overheat;
+bool is_voltage_out_of_range;
 
 bool enable = false;
 bool done_setup = false;
 
-float target_speed, target_torque, target_position;
+float target_speed, target_torque, target_position, brake_torque;
 
 uint8_t mode = 0;  // 制御モード(0: 停止, 1: 速度制御, 2: 位置制御, 3: トルク制御)
 
@@ -101,32 +102,30 @@ void GetSensors() {
 }
 
 void TimerInterrupt() {
-  // if (enable == true) {
-  //   if (mode == 0) {
-  //     BLDC_Stop(false);  // モーターストップ
-  //   } else if (mode == 1) {
-  //     BLDC_SpeedControl(&svc, target_speed);  // 速度制御
-  //   } else if (mode == 2) {
-  //     BLDC_PositionControl(&svc, target_position);  // 位置制御
-  //   } else if (mode == 3) {
-  //     BLDC_TorqueControl(&svc, target_torque);  // トルク制御
-  //   }
-  //   BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
-  // } else {
-  //   if (done_setup == true) BLDC_Stop(false);  // モーターストップ
-  // }
-  // BLDC_TorqueControl(&svc, -1);  // トルク制御
-  BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
-  BLDC_SpeedControl(&svc, 10);  // 速度制御
-  // BLDC_PositionControl(&svc, 0);  // 位置制御
+  if (enable == true) {
+    if (mode == 0) {
+      BLDC_Stop(false);  // モーターストップ
+    } else if (mode == 1) {
+      BLDC_SpeedControl(&svc, target_speed);  // 速度制御
+    } else if (mode == 2) {
+      BLDC_PositionControl(&svc, target_position);  // 位置制御
+    } else if (mode == 3) {
+      BLDC_TorqueControl(&svc, target_torque);  // トルク制御
+    } else if (mode == 4) {
+      BLDC_TorqueControl(&svc, brake_torque * Constrain(svc.speed * 0.05, -1, 1));  // ブレーキ
+    }
+    BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
+  } else {
+    if (done_setup == true) BLDC_Stop(false);  // モーターストップ
+  }
 }
 
 void MainApp() {
   while (1) {
     GetSensors();
     if (temp > TEMP_LIMIT || is_overheat == true) {
-      enable = false;
       printf("Overheat! Temperature: %.2f°C\n", temp);
+      enable = false;
       is_overheat = true;
       if (is_overheat == true && temp < (TEMP_LIMIT - 5)) {
         is_overheat = false;
@@ -141,29 +140,36 @@ void MainApp() {
         HAL_Delay(100);
       }
       BLDC_OpenLoopDrive(0, 0);  // モーターフリー状態
-    } else if (supply_volt > SUPPLY_VOLTAGE_MAX_LIMIT || supply_volt < SUPPLY_VOLTAGE_MIN_LIMIT) {
-      enable = false;
+    } else if (supply_volt > SUPPLY_VOLTAGE_MAX_LIMIT || supply_volt < SUPPLY_VOLTAGE_MIN_LIMIT || is_voltage_out_of_range == true) {
       printf("Supply voltage out of range: %.2fV\n", supply_volt);
+      enable = false;
+      is_voltage_out_of_range = true;
+      if (is_voltage_out_of_range == true && supply_volt > (SUPPLY_VOLTAGE_MIN_LIMIT + 0.5) && supply_volt < (SUPPLY_VOLTAGE_MAX_LIMIT - 0.5)) {
+        is_voltage_out_of_range = false;
+        PwmOut_Write(&LED2, 0);
+      } else {
+        PwmOut_Write(&LED1, 1);
+        PwmOut_Write(&LED2, 1);
+        PwmOut_Write(&LED3, 0);
+        PwmOut_Write(&LED4, 0);
+        HAL_Delay(100);
+        PwmOut_Write(&LED1, 0);
+        HAL_Delay(100);
+      }
       BLDC_OpenLoopDrive(0, 0);  // モーターフリー状態
-      PwmOut_Write(&LED1, 0);
-      PwmOut_Write(&LED2, 0);
-      PwmOut_Write(&LED3, 0);
-      PwmOut_Write(&LED4, 1);
-      HAL_Delay(250);
-      PwmOut_Write(&LED4, 0);
-      HAL_Delay(250);
     } else {
       const static uint8_t HEADER = 0xFF;
       const static uint8_t SPEED_HEADER = 0xFE;
       const static uint8_t POSITION_HEADER = 0xFD;
       const static uint8_t TORQUE_HEADER = 0xFC;
+      const static uint8_t BRAKE_HEADER = 0xFB;
       const static uint8_t FOOTER = 0xAA;
-      const uint8_t data_size = 2;
+      const static uint8_t DATA_SIZE = 2;
       static uint8_t recv_data[2];
       static uint8_t index = 0;
-      uint8_t recv_byte = Serial_Read(&uart2);
 
-      if (Serial_Available(&uart2)) {
+      while (Serial_Available(&uart2)) {
+        uint8_t recv_byte = Serial_Read(&uart2);
         enable = true;
         if (index == 0) {
           if (recv_byte == HEADER) {
@@ -181,10 +187,13 @@ void MainApp() {
           } else if (recv_byte == TORQUE_HEADER) {
             mode = 3;  // トルク制御モード
             index++;
+          } else if (recv_byte == BRAKE_HEADER) {
+            mode = 4;  // ブレーキモード
+            index++;
           } else {
             index = 0;
           }
-        } else if (index == (data_size + 2)) {
+        } else if (index == (DATA_SIZE + 2)) {
           if (recv_byte == FOOTER) {
             PwmOut_Write(&LED3, 1);
             if (mode == 1) {
@@ -193,36 +202,45 @@ void MainApp() {
               target_position = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.001;  // 位置制御
             } else if (mode == 3) {
               target_torque = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.01;  // トルク制御
+            } else if (mode == 4) {
+              brake_torque = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.01;  // ブレーキ制御
             }
+
+            Timer_Reset(&serial_recv_timer);
           }
           index = 0;
         } else {
           recv_data[index - 2] = recv_byte;
           index++;
         }
-        Timer_Reset(&serial_recv_timer);
-      } else if (Timer_Read(&serial_recv_timer) > 1) {  // 100msごとにシリアル受信
+      }
+      if (Timer_Read(&serial_recv_timer) > 0.5) {
         enable = false;
         PwmOut_Write(&LED3, 0);
         Serial_Reset(&uart2);
         Timer_Reset(&serial_recv_timer);
       }
-      // printf("mech_theta: %.6f, elec_theta: %.6f, speed: %.2f\n",
-      //        svc.mech_theta, svc.elec_theta, svc.speed);
-
-      // if (Timer_Read(&serial_send_timer) > 0.01) {  // 100msごとにシリアル送信
-      //   int16_t rad = (NormalizeRadians(svc.mech_theta + svc.encoder_offset_theta) - PI) * 10000;
-      //   rad = 1000;
-      //   uint8_t rad_high = (rad >> 8) & 0xFF;
-      //   uint8_t rad_low = rad & 0xFF;
-      //   uint8_t data[5] = {0xFF, 0xFE, rad_high, rad_low, 0xAA};  // フッターとラジアン値を送信
-      //   Serial_Write(&uart2, data, sizeof(data));                 // シリアル送信
-      //   Timer_Reset(&serial_send_timer);
-      // }
 
       // 状態の表示
       PwmOut_Write(&LED1, Abs(svc.amp) * 5);
       PwmOut_Write(&LED2, Abs(svc.amp) * 5 - 1);
+    }
+    if (Timer_Read(&serial_send_timer) > 0.001) {  // 1msごとにシリアル送信
+      const static uint8_t HEADER = 0xFF;
+      const static uint8_t FOOTER = 0xAA;
+      static uint8_t data[8];
+
+      data[0] = HEADER;
+      data[1] = (is_overheat << 2) | (is_voltage_out_of_range << 1) | enable;
+      data[2] = ((int16_t)(svc.speed * 100) >> 8) & 0xFF;
+      data[3] = (int16_t)(svc.speed * 100) & 0xFF;
+      data[4] = ((int16_t)(svc.mech_theta * 1000) >> 8) & 0xFF;
+      data[5] = (int16_t)(svc.mech_theta * 1000) & 0xFF;
+      data[6] = (uint8_t)(abs(svc.amp_volt) * 10);
+      data[7] = FOOTER;
+
+      Serial_Write(&uart2, data, sizeof(data));  // シリアル送信
+      Timer_Reset(&serial_send_timer);
     }
   }
 }
