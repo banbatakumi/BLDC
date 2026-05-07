@@ -56,7 +56,7 @@ static inline float BLDC_GetSpeed(float theta, float dt) {
   pre_delta_theta = delta_theta;
 
   float speed = delta_theta / dt;
-  speed = speed * (1 - SPEED_LPF) + pre_speed * SPEED_LPF;
+  speed = speed * SPEED_LPF_INV + pre_speed * SPEED_LPF;  // 最適化: (1 - SPEED_LPF)を定数化
   pre_speed = speed;
   pre_theta = theta;
 
@@ -69,8 +69,7 @@ static inline float BLDC_PIDControl(PIDController* pid, float error, float dt) {
 
   // 積分項
   pid->integral += pid->ki * error * dt;
-  if (pid->integral > pid->output_limit) pid->integral = pid->output_limit;
-  if (pid->integral < -pid->output_limit) pid->integral = -pid->output_limit;
+  pid->integral = Constrain(pid->integral, -pid->output_limit, pid->output_limit);  // 最適化: Constrainで統一
 
   // 微分項
   float d_term = pid->kd * (error - pid->prev_error) / dt;
@@ -78,8 +77,7 @@ static inline float BLDC_PIDControl(PIDController* pid, float error, float dt) {
 
   // 出力の計算
   float output = p_term + pid->integral + d_term;
-  if (output > pid->output_limit) output = pid->output_limit;
-  if (output < -pid->output_limit) output = -pid->output_limit;
+  output = Constrain(output, -pid->output_limit, pid->output_limit);  // 最適化: if文をConstrainで統一
 
   return output;
 }
@@ -209,7 +207,7 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
   svc->elec_theta += Constrain(svc->speed * K_ADV, -1.5, 1.5);  // 進角を加算(これがあると高速回転時に安定する)
   svc->elec_theta = NormalizeRadians(svc->elec_theta);
 
-  svc->amp = svc->amp * 0.4 + (svc->amp_volt / supply_volt) * 0.6;  // ローパスフィルタ
+  svc->amp = svc->amp * AMP_LPF_COEF + (svc->amp_volt / supply_volt) * AMP_VOLT_LPF_COEF;  // 最適化: 係数を定数化
   svc->amp = Constrain(svc->amp, -1, 1);
 
   // 正弦波を生成
