@@ -22,8 +22,8 @@ LPF temp_lpf;
 uint16_t adc_val[3];  // ADCの値を格納する配列
 
 uint16_t encoder_val, supply_volt_val, temp_val;
-double supply_volt;
-double temp;
+float supply_volt;
+float temp;
 
 bool sw_state;
 

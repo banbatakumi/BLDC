@@ -28,24 +28,24 @@ typedef struct {
 
 // 構造体
 typedef struct {
-  double kp;
-  double ki;
-  double kd;
-  double integral;
-  double prev_error;
-  double output_limit;
+  float kp;
+  float ki;
+  float kd;
+  float integral;
+  float prev_error;
+  float output_limit;
 } PIDController;
 
 typedef struct {
-  double dt;                    // 制御周期 [s]
-  double amp;                   // 電圧振幅 [0 to 1]
-  double amp_volt;              // 電圧振幅 [v]
-  double encoder_offset_theta;  // エンコーダオフセット値
+  float dt;                    // 制御周期 [s]
+  float amp;                   // 電圧振幅 [0 to 1]
+  float amp_volt;              // 電圧振幅 [v]
+  float encoder_offset_theta;  // エンコーダオフセット値
   uint16_t max_encoder_val;
-  double adc_correction_factor;
-  double mech_theta;           // 機械角度 [rad]
-  double elec_theta;           // 電気角度 [rad]
-  double speed;                // 速度 [rad/s]
+  float adc_correction_factor;
+  float mech_theta;            // 機械角度 [rad]
+  float elec_theta;            // 電気角度 [rad]
+  float speed;                 // 速度 [rad/s]
   uint8_t pole_pairs;          // 極対数 (磁石の数/2)
   PIDController speed_pid;     // 速度制御用PID
   PIDController position_pid;  // 位置制御用PID
@@ -55,12 +55,12 @@ void BLDC_Init(SensoredVectorControl* svc, bool do_set_encoder, uint16_t* encode
 
 void BLDC_Stop(bool brake);
 
-void BLDC_OpenLoopDrive(double amp, double freq);
+void BLDC_OpenLoopDrive(float amp, float freq);
 
-void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encoder_value, double supply_volt);
+void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encoder_value, float supply_volt);
 
-void BLDC_SpeedControl(SensoredVectorControl* svc, double target_speed);
-void BLDC_PositionControl(SensoredVectorControl* svc, double target_position);
-void BLDC_TorqueControl(SensoredVectorControl* svc, double target_torque);
+void BLDC_SpeedControl(SensoredVectorControl* svc, float target_speed);
+void BLDC_PositionControl(SensoredVectorControl* svc, float target_position);
+void BLDC_TorqueControl(SensoredVectorControl* svc, float target_torque);
 
 #endif  // BLDC_H_
