@@ -35,10 +35,17 @@ static inline float BLDC_GetMaxEncoderVal(uint16_t encoder_val) {
   return max_val;
 }
 
-static inline float BLDC_GetSpeed(float theta, float dt) {
+static inline float BLDC_GetSpeed(float theta) {
   static float pre_speed = 0;
   static float pre_theta = 0;
   static float pre_delta_theta = 0;
+
+  float dt = Timer_Read(&speed_dt_timer);
+  if (Timer_Read(&speed_dt_timer) < 0.005) {
+    return pre_speed;
+  }
+  if (dt > 0.01) dt = 0.01;  // 制御周期が大きすぎる場合は無視
+  Timer_Reset(&speed_dt_timer);
 
   if (pre_theta == theta) {
     pre_theta = theta + pre_delta_theta;
@@ -51,12 +58,12 @@ static inline float BLDC_GetSpeed(float theta, float dt) {
   if (delta_theta > PI) delta_theta -= TWO_PI;
   if (delta_theta < -PI) delta_theta += TWO_PI;
 
-  // スパイク除去
+  // ノイズによる速度の異常値を補正
   if (Abs(delta_theta) > PI) delta_theta = pre_delta_theta;
   pre_delta_theta = delta_theta;
 
   float speed = delta_theta / dt;
-  speed = speed * SPEED_LPF_INV + pre_speed * SPEED_LPF;  // 最適化: (1 - SPEED_LPF)を定数化
+  speed = speed * SPEED_LPF_INV + pre_speed * SPEED_LPF;  // ローパスフィルタ
   pre_speed = speed;
   pre_theta = theta;
 
@@ -170,7 +177,7 @@ void BLDC_Init(SensoredVectorControl* svc, bool do_set_encoder, uint16_t* encode
   // 位置制御
   svc->position_pid.kp = 10;
   svc->position_pid.ki = 30;
-  svc->position_pid.kd = 0.1;
+  svc->position_pid.kd = 0.01;
   svc->position_pid.d_term = 0;
   svc->position_pid.d_lpf = 0.9f;
   svc->position_pid.output_limit = 3;
@@ -198,14 +205,11 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
   // 制御周期の取得
   svc->dt = Timer_Read(&dt_timer);
   Timer_Reset(&dt_timer);
-  if (svc->dt > 0.001) return;  // 制御周期が大きすぎる場合は無視
+  if (svc->dt > 0.001) svc->dt = 0.001;  // 制御周期が大きすぎる場合は無視
 
   // エンコーダ値を処理
   svc->mech_theta = BLDC_GetEncoder(svc, encoder_value, svc->encoder_offset_theta);  // ラジアン(0〜2π)に変換
-  if (Timer_Read(&speed_dt_timer) > 0.01) {                                          // 10msごとに速度を計算
-    svc->speed = BLDC_GetSpeed(svc->mech_theta, Timer_Read(&speed_dt_timer));        // 角速度を計算
-    Timer_Reset(&speed_dt_timer);
-  }
+  svc->speed = BLDC_GetSpeed(svc->mech_theta);                                       // 角速度を計算
 
   // 電気角度を計算
   svc->elec_theta = svc->mech_theta * svc->pole_pairs;
@@ -216,18 +220,18 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
   svc->amp = Constrain(svc->amp, -1, 1);
 
   // 正弦波を生成 (sin+cos各1回で3相を導出)
-  float s = arm_sin_f32(svc->elec_theta);
-  float c = arm_cos_f32(svc->elec_theta);
+  float s = Sin(svc->elec_theta);
+  float c = Cos(svc->elec_theta);
   float half_amp = 0.5f * svc->amp;
   float u = 0.5f + half_amp * s;
-  float v = 0.5f + half_amp * (-0.5f * s - 0.8660254f * c);
-  float w = 0.5f + half_amp * (-0.5f * s + 0.8660254f * c);
+  float v = 0.5f + half_amp * (-0.5f * s - SQRT3_2 * c);
+  float w = 0.5f + half_amp * (-0.5f * s + SQRT3_2 * c);
   BLDC_WritePwm(u, v, w);
 }
 
 void BLDC_SpeedControl(SensoredVectorControl* svc, float target_speed) {
   // 最大速度制限
-  target_speed = Constrain(target_speed, -MAX_SPEED, MAX_SPEED);  // 最適化: if文をConstrainで統一
+  target_speed = Constrain(target_speed, -MAX_SPEED, MAX_SPEED);
 
   // 最大加速度制限
   static float prev_target_speed = 0;
