@@ -18,8 +18,8 @@ static inline float BLDC_GetEncoder(SensoredVectorControl* svc, uint16_t encoder
   float enc_lpf = Constrain((50 - Abs(svc->speed)) * K_ENC_LPF, 0, 0.75);  // フィルタ強度
 
   if (Abs(svc->speed) <= 50) {
-    float x = Cos(theta);
-    float y = Sin(theta);
+    float x = arm_cos_f32(theta);
+    float y = arm_sin_f32(theta);
 
     x_filt = x * (1 - enc_lpf) + x_filt * enc_lpf;
     y_filt = y * (1 - enc_lpf) + y_filt * enc_lpf;
@@ -215,18 +215,19 @@ void BLDC_SensoredVectorControlDrive(SensoredVectorControl* svc, uint16_t encode
   svc->amp = svc->amp * AMP_LPF_COEF + (svc->amp_volt / supply_volt) * AMP_VOLT_LPF_COEF;  // 最適化: 係数を定数化
   svc->amp = Constrain(svc->amp, -1, 1);
 
-  // 正弦波を生成
-  float u, v, w;
-  u = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta);
-  v = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta - TWO_THIRDS_PI);
-  w = 0.5 + 0.5 * svc->amp * Sin(svc->elec_theta + TWO_THIRDS_PI);
+  // 正弦波を生成 (sin+cos各1回で3相を導出)
+  float s = arm_sin_f32(svc->elec_theta);
+  float c = arm_cos_f32(svc->elec_theta);
+  float half_amp = 0.5f * svc->amp;
+  float u = 0.5f + half_amp * s;
+  float v = 0.5f + half_amp * (-0.5f * s - 0.8660254f * c);
+  float w = 0.5f + half_amp * (-0.5f * s + 0.8660254f * c);
   BLDC_WritePwm(u, v, w);
 }
 
 void BLDC_SpeedControl(SensoredVectorControl* svc, float target_speed) {
   // 最大速度制限
-  if (target_speed > MAX_SPEED) target_speed = MAX_SPEED;
-  if (target_speed < -MAX_SPEED) target_speed = -MAX_SPEED;
+  target_speed = Constrain(target_speed, -MAX_SPEED, MAX_SPEED);  // 最適化: if文をConstrainで統一
 
   // 最大加速度制限
   static float prev_target_speed = 0;

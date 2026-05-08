@@ -1,7 +1,9 @@
 #ifndef MYMATH_H_
 #define MYMATH_H_
 
+#ifndef PI
 #define PI 3.1415926535897932384626433832795
+#endif
 #define HALF_PI 1.5707963267948966192313216916398
 #define TWO_PI 6.283185307179586476925286766559
 #define FOUR_PI 12.566370614359172953850573533118
@@ -200,85 +202,85 @@ static const float sin_table[91] = {
     SIN90};
 
 static inline int NormalizeDegrees(int deg) {
-      while (deg < 0) deg += 360;
-      while (deg >= 360) deg -= 360;
-      return deg;
+  while (deg < 0) deg += 360;
+  while (deg >= 360) deg -= 360;
+  return deg;
 }
 
 static inline float NormalizeRadians(float rad) {
-      while (rad < 0) rad += TWO_PI;
-      while (rad >= TWO_PI) rad -= TWO_PI;
-      return rad;
+  while (rad < 0) rad += TWO_PI;
+  while (rad >= TWO_PI) rad -= TWO_PI;
+  return rad;
 }
 
 static inline float GapRadians(float rad1, float rad2) {
-      float gap = rad1 - rad2;
-      if (gap > PI) gap -= TWO_PI;
-      if (gap < -PI) gap += TWO_PI;
-      return gap;
+  float gap = rad1 - rad2;
+  if (gap > PI) gap -= TWO_PI;
+  if (gap < -PI) gap += TWO_PI;
+  return gap;
 }
 
 static inline float SinDeg(int deg) {
-      deg = NormalizeDegrees(deg);
-      int theta_cal = deg % 90;
-      if (deg >= 90 && deg < 180) {
-            theta_cal = 90 - theta_cal;
-      }
-      if (deg >= 270 && deg < 360) {
-            theta_cal = 90 - theta_cal;
-      }
+  deg = NormalizeDegrees(deg);
+  int theta_cal = deg % 90;
+  if (deg >= 90 && deg < 180) {
+    theta_cal = 90 - theta_cal;
+  }
+  if (deg >= 270 && deg < 360) {
+    theta_cal = 90 - theta_cal;
+  }
 
-      if (deg >= 0 && deg <= 90) {  // 0~90 第一象限
-            return sin_table[theta_cal];
-      } else if (deg > 90 && deg <= 180) {  // 91~180 第二象限
-            return sin_table[theta_cal];
-      } else if (deg > 180 && deg <= 270) {  // 181 ~270 第三象限
-            return -sin_table[theta_cal];
-      } else if (deg > 270 && deg < 360) {  // 271~360 第四象限
-            return -sin_table[theta_cal];
-      } else {
-            return 0;
-      }
+  if (deg >= 0 && deg <= 90) {  // 0~90 第一象限
+    return sin_table[theta_cal];
+  } else if (deg > 90 && deg <= 180) {  // 91~180 第二象限
+    return sin_table[theta_cal];
+  } else if (deg > 180 && deg <= 270) {  // 181 ~270 第三象限
+    return -sin_table[theta_cal];
+  } else if (deg > 270 && deg < 360) {  // 271~360 第四象限
+    return -sin_table[theta_cal];
+  } else {
+    return 0;
+  }
 }
 
 static inline float CosDeg(int deg) {
-      return SinDeg(deg + 90);
+  return SinDeg(deg + 90);
 }
 
 static inline float Sin(float rad) {
-      return SinDeg(Degrees(rad));
+  return SinDeg(Degrees(rad));
 }
 
 static inline float Cos(float rad) {
-      return CosDeg(Degrees(rad));
+  return CosDeg(Degrees(rad));
 }
 
 static inline float Atan2(float y, float x) {
-      if (x == 0) {
-            if (y > 0) return HALF_PI;
-            if (y < 0) return -HALF_PI;
-            return 0;
-      }
+  if (x == 0) {
+    if (y > 0) return HALF_PI;
+    if (y < 0) return -HALF_PI;
+    return 0;
+  }
 
-      float abs_y = Abs(y) + 1e-10f;  // 0除算防止
-      float angle;
+  float abs_y = Abs(y) + 1e-10f;  // 0除算防止
+  float angle;
 
-      if (Abs(x) >= abs_y) {
-            float r = (y / x);
-            angle = r / (1.0f + 0.28f * r * r);  // 近似式
-            if (x < 0.0f) {
-                  if (y >= 0)
-                        angle += PI;
-                  else
-                        angle -= PI;
-            }
-      } else {
-            float r = (x / y);
-            angle = HALF_PI - r / (1.0f + 0.28f * r * r);
-            if (y < 0) angle -= PI;
-      }
+  if (Abs(x) >= abs_y) {
+    float r = (y / x);
+    angle = r / (1.0f + 0.28f * r * r);  // 近似式
+    if (x < 0.0f) {
+      if (y >= 0)
+        angle += PI;
+      else
+        angle -= PI;
+    }
+  } else {
+    float r = (x / y);
+    angle = HALF_PI - r / (1.0f + 0.28f * r * r);
+    if (y < 0) angle -= PI;
+  }
 
-      return angle;
+  return angle;
 }
 
 #endif  // MYMATH_H_

@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "arm_math.h"
 #include "flash.h"
 #include "main.h"
 #include "mymath.h"
