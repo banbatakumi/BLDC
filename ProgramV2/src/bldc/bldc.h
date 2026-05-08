@@ -36,6 +36,8 @@ typedef struct {
   float kd;
   float integral;
   float prev_error;
+  float d_term;
+  float d_lpf;
   float output_limit;
 } PIDController;
 

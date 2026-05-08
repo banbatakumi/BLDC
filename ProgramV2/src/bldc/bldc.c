@@ -72,11 +72,12 @@ static inline float BLDC_PIDControl(PIDController* pid, float error, float dt) {
   pid->integral = Constrain(pid->integral, -pid->output_limit, pid->output_limit);  // 最適化: Constrainで統一
 
   // 微分項
-  float d_term = pid->kd * (error - pid->prev_error) / dt;
+  float raw_d_term = pid->kd * (error - pid->prev_error) / dt;
+  pid->d_term = pid->d_term * pid->d_lpf + raw_d_term * (1.0f - pid->d_lpf);
   pid->prev_error = error;
 
   // 出力の計算
-  float output = p_term + pid->integral + d_term;
+  float output = p_term + pid->integral + pid->d_term;
   output = Constrain(output, -pid->output_limit, pid->output_limit);  // 最適化: if文をConstrainで統一
 
   return output;
@@ -162,12 +163,16 @@ void BLDC_Init(SensoredVectorControl* svc, bool do_set_encoder, uint16_t* encode
   svc->speed_pid.kp = 0.1;
   svc->speed_pid.ki = 0.2;
   svc->speed_pid.kd = 0;
+  svc->speed_pid.d_term = 0;
+  svc->speed_pid.d_lpf = 0.0f;
   svc->speed_pid.output_limit = 3;
 
   // 位置制御
   svc->position_pid.kp = 10;
-  svc->position_pid.ki = 20;
-  svc->position_pid.kd = 0;
+  svc->position_pid.ki = 30;
+  svc->position_pid.kd = 0.1;
+  svc->position_pid.d_term = 0;
+  svc->position_pid.d_lpf = 0.9f;
   svc->position_pid.output_limit = 3;
 }
 
@@ -226,8 +231,7 @@ void BLDC_SpeedControl(SensoredVectorControl* svc, float target_speed) {
   // 最大加速度制限
   static float prev_target_speed = 0;
   float accel = (target_speed - prev_target_speed) / svc->dt;
-  if (accel > MAX_ACCEL) accel = MAX_ACCEL;
-  if (accel < -MAX_ACCEL) accel = -MAX_ACCEL;
+  accel = Constrain(accel, -MAX_ACCEL, MAX_ACCEL);
   target_speed = prev_target_speed + accel * svc->dt;
   prev_target_speed = target_speed;
 

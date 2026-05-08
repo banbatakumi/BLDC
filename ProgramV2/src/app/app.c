@@ -133,7 +133,7 @@ void MainApp() {
       } else {
         PwmOut_Write(&LED1, 0);
         PwmOut_Write(&LED2, 0);
-        PwmOut_Write(&LED4, 1);
+        PwmOut_Write(&LED4, 0);
         PwmOut_Write(&LED3, 1);
         HAL_Delay(100);
         PwmOut_Write(&LED3, 0);
@@ -149,7 +149,7 @@ void MainApp() {
         PwmOut_Write(&LED2, 0);
       } else {
         PwmOut_Write(&LED1, 1);
-        PwmOut_Write(&LED2, 1);
+        PwmOut_Write(&LED2, 0);
         PwmOut_Write(&LED3, 0);
         PwmOut_Write(&LED4, 0);
         HAL_Delay(100);
@@ -222,8 +222,8 @@ void MainApp() {
       }
 
       // 状態の表示
-      PwmOut_Write(&LED1, Abs(svc.amp) * 5);
-      PwmOut_Write(&LED2, Abs(svc.amp) * 5 - 1);
+      PwmOut_Write(&LED1, Abs(svc.amp_volt) * 0.4);
+      PwmOut_Write(&LED2, Abs(svc.amp_volt) * 0.4 - 1);
     }
     if (Timer_Read(&serial_send_timer) > 0.001) {  // 1msごとにシリアル送信
       const static uint8_t HEADER = 0xFF;
