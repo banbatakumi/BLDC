@@ -8,8 +8,6 @@ PwmOut LED3;
 PwmOut LED4;
 DigitalIn SW;
 
-SensoredVectorControl svc;
-
 Timer serial_send_timer;
 Timer serial_recv_timer;
 
@@ -29,9 +27,9 @@ bool sw_state;
 bool is_overheat;
 bool is_voltage_out_of_range;
 
-float target_speed, target_torque, target_position, brake_torque;
+float target_angular_speed, target_torque, target_position, brake_volt;
 
-uint8_t mode = 0;  // 制御モード(0: 停止, 1: 速度制御, 2: 位置制御, 3: トルク制御)
+uint8_t mode = 0;  // 制御モード(0: 停止, 1: 角速度制御, 2: 位置制御, 3: トルク制御)
 
 void Setup() {
   printf("Hello World\n");
@@ -57,7 +55,7 @@ void Setup() {
   PwmOut_Write(&LED1, 0);
 
   // BLDCの初期化
-  BLDC_Init(&svc, DigitalIn_Read(&SW), &adc_val[0]);
+  BLDC_Init(DigitalIn_Read(&SW), &adc_val[0]);
   PwmOut_Write(&LED2, 0);
 
   // Serialの初期化
@@ -96,7 +94,7 @@ void GetSensors() {
 
 void RecvSerial() {
   const static uint8_t HEADER = 0xFF;
-  const static uint8_t SPEED_HEADER = 0xFE;
+  const static uint8_t ANGULAR_SPEED_HEADER = 0xFE;
   const static uint8_t POSITION_HEADER = 0xFD;
   const static uint8_t TORQUE_HEADER = 0xFC;
   const static uint8_t BRAKE_HEADER = 0xFB;
@@ -114,8 +112,8 @@ void RecvSerial() {
         index = 0;
       }
     } else if (index == 1) {
-      if (recv_byte == SPEED_HEADER) {
-        mode = 1;  // 速度制御モード
+      if (recv_byte == ANGULAR_SPEED_HEADER) {
+        mode = 1;  // 角速度制御モード
         index++;
       } else if (recv_byte == POSITION_HEADER) {
         mode = 2;  // 位置制御モード
@@ -133,13 +131,13 @@ void RecvSerial() {
       if (recv_byte == FOOTER) {
         PwmOut_Write(&LED3, 1);
         if (mode == 1) {
-          target_speed = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.01;  // 速度制御
+          target_angular_speed = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.01;  // 角速度制御
         } else if (mode == 2) {
           target_position = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.001;  // 位置制御
         } else if (mode == 3) {
           target_torque = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.01;  // トルク制御
         } else if (mode == 4) {
-          brake_torque = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.01;  // ブレーキ制御
+          brake_volt = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.01;  // ブレーキ制御
         }
 
         Timer_Reset(&serial_recv_timer);
@@ -158,19 +156,20 @@ void RecvSerial() {
 }
 
 void SendSerial() {
-  if (Timer_Read(&serial_send_timer) > 0.001) {  // 1msごとにシリアル送信
+  if (Timer_ReadUs(&serial_send_timer) > SERIAL_SEND_INTERVAL_US) {  // 指定された間隔ごとにシリアル送信
     const static uint8_t HEADER = 0xFF;
     const static uint8_t FOOTER = 0xAA;
-    static uint8_t data[8];
+    static uint8_t data[9];
 
     data[0] = HEADER;
     data[1] = (is_overheat << 2) | (is_voltage_out_of_range << 1) | (mode != 0);
-    data[2] = ((int16_t)(svc.speed * 100) >> 8) & 0xFF;
-    data[3] = (int16_t)(svc.speed * 100) & 0xFF;
-    data[4] = ((int16_t)(svc.mech_theta * 1000) >> 8) & 0xFF;
-    data[5] = (int16_t)(svc.mech_theta * 1000) & 0xFF;
-    data[6] = (uint8_t)(abs(svc.amp_volt) * 10);
-    data[7] = FOOTER;
+    data[2] = ((int16_t)(BLDC_GetMechTheta() * 1000) >> 8) & 0xFF;
+    data[3] = (int16_t)(BLDC_GetMechTheta() * 1000) & 0xFF;
+    data[4] = ((int16_t)(BLDC_GetAngularSpeed() * 100) >> 8) & 0xFF;
+    data[5] = (int16_t)(BLDC_GetAngularSpeed() * 100) & 0xFF;
+    data[6] = ((int16_t)(BLDC_GetAngularAccel() * 10) >> 8) & 0xFF;
+    data[7] = (int16_t)(BLDC_GetAngularAccel() * 10) & 0xFF;
+    data[8] = FOOTER;
 
     Serial_Write(&uart2, data, sizeof(data));  // シリアル送信
     Timer_Reset(&serial_send_timer);
@@ -225,20 +224,20 @@ void MainApp() {
         PwmOut_Write(&LED1, 0);
         PwmOut_Write(&LED2, 0);
       } else {
-        BLDC_SensoredVectorControlDrive(&svc, encoder_val, supply_volt);
+        BLDC_SensoredVectorControlDrive(encoder_val, supply_volt);
         if (mode == 1) {
-          BLDC_SpeedControl(&svc, target_speed);  // 速度制御
+          BLDC_AngularSpeedControl(target_angular_speed);  // 角速度制御
         } else if (mode == 2) {
-          BLDC_PositionControl(&svc, target_position);  // 位置制御
+          BLDC_PositionControl(target_position);  // 位置制御
         } else if (mode == 3) {
-          BLDC_TorqueControl(&svc, target_torque);  // トルク制御
+          BLDC_TorqueControl(target_torque);  // トルク制御
         } else if (mode == 4) {
-          BLDC_TorqueControl(&svc, brake_torque * Constrain(svc.speed * 0.05, -1, 1));  // ブレーキ
+          BLDC_VoltageControl(brake_volt * Constrain(BLDC_GetAngularSpeed() * 0.05, -1, 1));  // ブレーキ
         }
 
         // 状態の表示
-        PwmOut_Write(&LED1, Abs(svc.amp_volt) * 0.4);
-        PwmOut_Write(&LED2, Abs(svc.amp_volt) * 0.4 - 1);
+        PwmOut_Write(&LED1, Abs(BLDC_GetAmpVolt()) * 0.4);
+        PwmOut_Write(&LED2, Abs(BLDC_GetAmpVolt()) * 0.4 - 1);
       }
     }
   }
