@@ -27,7 +27,7 @@ bool sw_state;
 bool is_overheat;
 bool is_voltage_out_of_range;
 
-float target_angular_speed, target_torque, target_position, brake_volt;
+float target_angular_speed, target_voltage, target_position, brake_volt;
 
 uint8_t mode = 0;  // 制御モード(0: 停止, 1: 角速度制御, 2: 位置制御, 3: トルク制御)
 
@@ -135,9 +135,9 @@ void RecvSerial() {
         } else if (mode == 2) {
           target_position = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.001;  // 位置制御
         } else if (mode == 3) {
-          target_torque = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.01;  // トルク制御
+          target_voltage = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.0001;  // 電圧制御
         } else if (mode == 4) {
-          brake_volt = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.01;  // ブレーキ制御
+          brake_volt = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.0001;  // ブレーキ制御
         }
 
         Timer_Reset(&serial_recv_timer);
@@ -163,8 +163,8 @@ void SendSerial() {
 
     data[0] = HEADER;
     data[1] = (is_overheat << 2) | (is_voltage_out_of_range << 1) | (mode != 0);
-    data[2] = ((int16_t)(BLDC_GetMechTheta() * 1000) >> 8) & 0xFF;
-    data[3] = (int16_t)(BLDC_GetMechTheta() * 1000) & 0xFF;
+    data[2] = ((uint16_t)(BLDC_GetMechTheta() * 10000) >> 8) & 0xFF;
+    data[3] = (uint16_t)(BLDC_GetMechTheta() * 10000) & 0xFF;
     data[4] = ((int16_t)(BLDC_GetAngularSpeed() * 100) >> 8) & 0xFF;
     data[5] = (int16_t)(BLDC_GetAngularSpeed() * 100) & 0xFF;
     data[6] = ((int16_t)(BLDC_GetAngularAccel() * 10) >> 8) & 0xFF;
@@ -182,7 +182,7 @@ void MainApp() {
     SendSerial();
 
     if (temp > TEMP_LIMIT || is_overheat == true) {
-      printf("Overheat! Temperature: %.2f°C\n", temp);
+      printf("Overheat! Temperature: %.2f°C, Supply Voltage: %.2fV\n", temp, supply_volt);
       is_overheat = true;
       BLDC_Stop(false);  // モーターストップ
 
@@ -199,7 +199,7 @@ void MainApp() {
         HAL_Delay(100);
       }
     } else if (supply_volt > SUPPLY_VOLTAGE_MAX_LIMIT || supply_volt < SUPPLY_VOLTAGE_MIN_LIMIT || is_voltage_out_of_range == true) {
-      printf("Supply voltage out of range: %.2fV\n", supply_volt);
+      printf("Supply voltage out of range: %.2fV, Temperature: %.2f°C\n", supply_volt, temp);
       is_voltage_out_of_range = true;
       BLDC_Stop(false);  // モーターストップ
 
@@ -217,7 +217,6 @@ void MainApp() {
       }
     } else {
       RecvSerial();
-
       if (mode == 0) {
         BLDC_Stop(false);  // モーターストップ
 
@@ -230,7 +229,7 @@ void MainApp() {
         } else if (mode == 2) {
           BLDC_PositionControl(target_position);  // 位置制御
         } else if (mode == 3) {
-          BLDC_TorqueControl(target_torque);  // トルク制御
+          BLDC_VoltageControl(target_voltage);  // 電圧制御
         } else if (mode == 4) {
           BLDC_VoltageControl(brake_volt * Constrain(BLDC_GetAngularSpeed() * 0.05, -1, 1));  // ブレーキ
         }
