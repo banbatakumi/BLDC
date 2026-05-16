@@ -44,8 +44,8 @@ typedef struct {
 } PIDController;
 
 typedef struct {
+  bool enable;                 // モーターを停止するかどうか
   float dt;                    // 制御周期 [s]
-  float amp;                   // 電圧振幅 [0 to 1]
   float amp_volt;              // 電圧振幅 [v]
   float encoder_offset_theta;  // エンコーダオフセット値
   uint16_t max_encoder_val;
@@ -60,7 +60,7 @@ typedef struct {
 } SensoredVectorControl;
 
 void BLDC_Init(bool do_set_encoder, uint16_t* encoder_val);
-void BLDC_Stop(bool brake);
+void BLDC_Stop();
 void BLDC_OpenLoopDrive(float amp, float freq);
 void BLDC_SensoredVectorControlDrive(uint16_t encoder_value, float supply_volt);
 void BLDC_AngularSpeedControl(float target_angular_speed);

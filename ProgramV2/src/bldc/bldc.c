@@ -200,12 +200,8 @@ void BLDC_Init(bool do_set_encoder, uint16_t* encoder_val) {
   svc.position_pid.output_limit = MAX_AMP_VOLT;
 }
 
-void BLDC_Stop(bool brake) {
-  if (brake) {
-    BLDC_WritePwm(0, 0, 0);
-  } else {
-    BLDC_WritePwm(0.5, 0.5, 0.5);
-  }
+void BLDC_Stop() {
+  svc.enable = false;
 }
 
 void BLDC_OpenLoopDrive(float amp, float phase) {
@@ -229,22 +225,29 @@ void BLDC_SensoredVectorControlDrive(uint16_t encoder_value, float supply_volt) 
   BLDC_CalculateAngularSpeed();    // 角速度・角加速度を計算
   BLDC_CalculateAngularAccel();    // 角加速度を計算
 
+  if (!svc.enable) {
+    svc.amp_volt = 0;
+    BLDC_WritePwm(0.5, 0.5, 0.5);  // モーター停止
+    return;
+  }
   // 電気角度を計算
   svc.elec_theta = svc.mech_theta * POLE_PAIRS - PI;                  // 電気角度 = 機械角度 * 極対数 + 位相合わせオフセット
   svc.elec_theta += Constrain(svc.angular_speed * K_ADV, -1.5, 1.5);  // 進角を加算(これがあると高速回転時に安定する)
   svc.elec_theta = NormalizeRadians(svc.elec_theta);
 
-  svc.amp = svc.amp * AMP_LPF_COEF + (svc.amp_volt / supply_volt) * AMP_VOLT_LPF_COEF;
-  svc.amp = Constrain(svc.amp, -0.5, 0.5);
+  static float amp = 0;
+  amp = amp * AMP_LPF_COEF + (svc.amp_volt / supply_volt) * AMP_VOLT_LPF_COEF;
+  amp = Constrain(amp, -0.5, 0.5);
 
   // 正弦波を生成
-  float u = 0.5f + svc.amp * Sin(svc.elec_theta);
-  float v = 0.5f + svc.amp * Sin(svc.elec_theta - TWO_THIRDS_PI);
-  float w = 0.5f + svc.amp * Sin(svc.elec_theta + TWO_THIRDS_PI);
+  float u = 0.5f + amp * Sin(svc.elec_theta);
+  float v = 0.5f + amp * Sin(svc.elec_theta - TWO_THIRDS_PI);
+  float w = 0.5f + amp * Sin(svc.elec_theta + TWO_THIRDS_PI);
   BLDC_WritePwm(u, v, w);
 }
 
 void BLDC_AngularSpeedControl(float target_angular_speed) {
+  svc.enable = true;
   // 最大角速度制限
   target_angular_speed = Constrain(target_angular_speed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED);
 
@@ -259,6 +262,7 @@ void BLDC_AngularSpeedControl(float target_angular_speed) {
 }
 
 void BLDC_PositionControl(float target_position) {
+  svc.enable = true;
   // 位置制御のためのPID計算
   float error = target_position - svc.mech_theta;  // 目標位置と現在位置の誤差
 
@@ -269,7 +273,8 @@ void BLDC_PositionControl(float target_position) {
 }
 
 void BLDC_VoltageControl(float target_volt) {
-  svc.amp_volt = target_volt;
+  svc.enable = true;
+  svc.amp_volt = Constrain(target_volt, -MAX_AMP_VOLT, MAX_AMP_VOLT);
 }
 
 float BLDC_GetAngularSpeed(void) { return svc.angular_speed; }

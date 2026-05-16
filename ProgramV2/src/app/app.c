@@ -184,7 +184,7 @@ void MainApp() {
     if (temp > TEMP_LIMIT || is_overheat == true) {
       printf("Overheat! Temperature: %.2f°C, Supply Voltage: %.2fV\n", temp, supply_volt);
       is_overheat = true;
-      BLDC_Stop(false);  // モーターストップ
+      BLDC_Stop();  // モーターストップ
 
       if (is_overheat == true && temp < (TEMP_LIMIT - 5)) {
         is_overheat = false;
@@ -201,7 +201,7 @@ void MainApp() {
     } else if (supply_volt > SUPPLY_VOLTAGE_MAX_LIMIT || supply_volt < SUPPLY_VOLTAGE_MIN_LIMIT || is_voltage_out_of_range == true) {
       printf("Supply voltage out of range: %.2fV, Temperature: %.2f°C\n", supply_volt, temp);
       is_voltage_out_of_range = true;
-      BLDC_Stop(false);  // モーターストップ
+      BLDC_Stop();  // モーターストップ
 
       if (is_voltage_out_of_range == true && supply_volt > (SUPPLY_VOLTAGE_MIN_LIMIT + 0.5) && supply_volt < (SUPPLY_VOLTAGE_MAX_LIMIT - 0.5)) {
         is_voltage_out_of_range = false;
@@ -218,26 +218,22 @@ void MainApp() {
     } else {
       RecvSerial();
       if (mode == 0) {
-        BLDC_Stop(false);  // モーターストップ
-
-        PwmOut_Write(&LED1, 0);
-        PwmOut_Write(&LED2, 0);
-      } else {
-        BLDC_SensoredVectorControlDrive(encoder_val, supply_volt);
-        if (mode == 1) {
-          BLDC_AngularSpeedControl(target_angular_speed);  // 角速度制御
-        } else if (mode == 2) {
-          BLDC_PositionControl(target_position);  // 位置制御
-        } else if (mode == 3) {
-          BLDC_VoltageControl(target_voltage);  // 電圧制御
-        } else if (mode == 4) {
-          BLDC_VoltageControl(brake_volt * Constrain(BLDC_GetAngularSpeed() * 0.05, -1, 1));  // ブレーキ
-        }
-
-        // 状態の表示
-        PwmOut_Write(&LED1, Abs(BLDC_GetAmpVolt()) * 0.4);
-        PwmOut_Write(&LED2, Abs(BLDC_GetAmpVolt()) * 0.4 - 1);
+        BLDC_Stop();  // モーターストップ
+      } else if (mode == 1) {
+        BLDC_AngularSpeedControl(target_angular_speed);  // 角速度制御
+      } else if (mode == 2) {
+        BLDC_PositionControl(target_position);  // 位置制御
+      } else if (mode == 3) {
+        BLDC_VoltageControl(target_voltage);  // 電圧制御
+      } else if (mode == 4) {
+        BLDC_VoltageControl(brake_volt * Constrain(BLDC_GetAngularSpeed() * -0.05, -1, 1));  // ブレーキ
       }
+
+      // 状態の表示
+      PwmOut_Write(&LED1, Abs(BLDC_GetAmpVolt()) * 0.4);
+      PwmOut_Write(&LED2, Abs(BLDC_GetAmpVolt()) * 0.4 - 1);
     }
+
+    BLDC_SensoredVectorControlDrive(encoder_val, supply_volt);
   }
 }
