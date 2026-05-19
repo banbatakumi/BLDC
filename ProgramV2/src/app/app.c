@@ -159,17 +159,18 @@ void SendSerial() {
   if (Timer_ReadUs(&serial_send_timer) > SERIAL_SEND_INTERVAL_US) {  // 指定された間隔ごとにシリアル送信
     const static uint8_t HEADER = 0xFF;
     const static uint8_t FOOTER = 0xAA;
-    static uint8_t data[9];
+    static uint8_t data[10];
 
     data[0] = HEADER;
     data[1] = (is_overheat << 2) | (is_voltage_out_of_range << 1) | (mode != 0);
-    data[2] = ((uint16_t)(BLDC_GetMechTheta() * 10000) >> 8) & 0xFF;
-    data[3] = (uint16_t)(BLDC_GetMechTheta() * 10000) & 0xFF;
-    data[4] = ((int16_t)(BLDC_GetAngularSpeed() * 100) >> 8) & 0xFF;
-    data[5] = (int16_t)(BLDC_GetAngularSpeed() * 100) & 0xFF;
-    data[6] = ((int16_t)(BLDC_GetAngularAccel() * 10) >> 8) & 0xFF;
-    data[7] = (int16_t)(BLDC_GetAngularAccel() * 10) & 0xFF;
-    data[8] = FOOTER;
+    data[2] = (uint8_t)temp;
+    data[3] = ((uint16_t)(BLDC_GetMechTheta() * 10000) >> 8) & 0xFF;
+    data[4] = (uint16_t)(BLDC_GetMechTheta() * 10000) & 0xFF;
+    data[5] = ((int16_t)(BLDC_GetAngularSpeed() * 100) >> 8) & 0xFF;
+    data[6] = (int16_t)(BLDC_GetAngularSpeed() * 100) & 0xFF;
+    data[7] = ((int16_t)(BLDC_GetAngularAccel() * 10) >> 8) & 0xFF;
+    data[8] = (int16_t)(BLDC_GetAngularAccel() * 10) & 0xFF;
+    data[9] = FOOTER;
 
     Serial_Write(&uart2, data, sizeof(data));  // シリアル送信
     Timer_Reset(&serial_send_timer);

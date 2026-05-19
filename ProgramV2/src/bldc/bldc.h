@@ -25,6 +25,9 @@
 #define K_ADV 0.01f                        // 進角ゲイン
 #define ELEC_THETA_OFFSET (PI)             // 電気角の位相合わせ用オフセット
 #define ADC2RADIAN 0.0015339807878856412f  // ADC値をラジアンに変換する係数(2π/4096)
+#define POSITION_DEADBAND_RAD 0.025f       // 位置制御の停止判定誤差 [rad]
+#define POSITION_SETTLE_SPEED_RAD_S 0.05f  // 位置制御の停止判定角速度 [rad/s]
+#define POSITION_INTEGRAL_STOP_RAD 0.05f   // 位置制御で積分を止める誤差 [rad]
 
 typedef struct {
   uint32_t max_encoder_val;    // エンコーダーの最大値

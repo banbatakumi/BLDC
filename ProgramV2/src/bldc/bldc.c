@@ -77,12 +77,14 @@ static inline void BLDC_CalculateAngularAccel(void) {
   pre_speed = svc.angular_speed;
 }
 
-static inline float BLDC_PIDControl(PIDController* pid, float error, float dt) {
+static inline float BLDC_PIDControl(PIDController* pid, float error, float dt, bool enable_integral) {
   // 比例項
   float p_term = pid->kp * error;
 
   // 積分項
-  pid->integral += pid->ki * error * dt;
+  if (enable_integral) {
+    pid->integral += pid->ki * error * dt;
+  }
   pid->integral = Constrain(pid->integral, -pid->output_limit, pid->output_limit);
 
   // 微分項
@@ -258,7 +260,7 @@ void BLDC_AngularSpeedControl(float target_angular_speed) {
   target_angular_speed = prev_target_angular_speed + accel * svc.dt;
   prev_target_angular_speed = target_angular_speed;
 
-  svc.amp_volt = BLDC_PIDControl(&svc.speed_pid, target_angular_speed - svc.angular_speed, svc.dt);
+  svc.amp_volt = BLDC_PIDControl(&svc.speed_pid, target_angular_speed - svc.angular_speed, svc.dt, true);
 }
 
 void BLDC_PositionControl(float target_position) {
@@ -269,7 +271,20 @@ void BLDC_PositionControl(float target_position) {
   // 0と2πのまたぎ対策
   while (error > PI) error -= TWO_PI;
   while (error < -PI) error += TWO_PI;
-  svc.amp_volt = BLDC_PIDControl(&svc.position_pid, error, svc.dt);
+
+  float abs_error = Abs(error);
+  if (abs_error < POSITION_INTEGRAL_STOP_RAD) {
+    svc.position_pid.integral = 0;
+  }
+
+  if (abs_error < POSITION_DEADBAND_RAD && Abs(svc.angular_speed) < POSITION_SETTLE_SPEED_RAD_S) {
+    svc.position_pid.prev_error = error;
+    svc.position_pid.d_term = 0;
+    svc.amp_volt = 0;
+    return;
+  }
+
+  svc.amp_volt = BLDC_PIDControl(&svc.position_pid, error, svc.dt, abs_error >= POSITION_INTEGRAL_STOP_RAD);
 }
 
 void BLDC_VoltageControl(float target_volt) {
