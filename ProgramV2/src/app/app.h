@@ -14,8 +14,6 @@
 #include "stdbool.h"
 #include "timer.h"
 
-void TimerInterrupt();
-
 void Setup();
 void MainApp();
 

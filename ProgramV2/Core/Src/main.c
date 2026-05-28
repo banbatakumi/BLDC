@@ -59,15 +59,9 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int _write(int file, char *ptr, int len) {
-      HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, 10);
-      return len;
-}
-
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-      if (htim == &htim6) {
-            TimerInterrupt();
-      }
+int _write(int file, char* ptr, int len) {
+  HAL_UART_Transmit(&huart1, (uint8_t*)ptr, len, 10);
+  return len;
 }
 
 /* USER CODE END 0 */
@@ -80,7 +74,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-      setbuf(stdout, NULL);
+  setbuf(stdout, NULL);
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -108,21 +102,19 @@ int main(void)
   MX_ADC2_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
-  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
-      HAL_TIM_Base_Start_IT(&htim6);
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-      Setup();
-      MainApp();
-      while (1) {
+  Setup();
+
+  MainApp();
+  while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-      }
+  }
   /* USER CODE END 3 */
 }
 
@@ -141,11 +133,11 @@ void SystemClock_Config(void)
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV4;
+  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV2;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL15;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -186,14 +178,13 @@ void SystemClock_Config(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-      /* User can add his own implementation to report the HAL error return state */
-      __disable_irq();
-      while (1) {
-      }
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1) {
+  }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -204,8 +195,8 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-      /* User can add his own implementation to report the file name and line number,
-         ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
