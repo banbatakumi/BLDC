@@ -179,6 +179,10 @@
 	(net 59 "Net-(J1-Pin_2)")
 	(net 60 "USB")
 	(net 61 "Net-(D13-A)")
+	(net 62 "Net-(D1-A)")
+	(net 63 "Net-(D3-A)")
+	(net 64 "SENSEA")
+	(net 65 "SENSEB")
 	(footprint "0-MyLibrary:SSM6K819R"
 		(layer "F.Cu")
 		(uuid "0af1bfd8-c01f-4b5d-ab05-0b1188a7743d")
@@ -208,7 +212,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -236,7 +240,7 @@
 		)
 		(path "/d6ec6899-2a14-43bc-96e1-a0f9c96eaffe")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0 1.56)
@@ -418,7 +422,7 @@
 			(size 1.325 0.6)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net 15 "OUTB")
+			(net 63 "Net-(D3-A)")
 			(pinfunction "S")
 			(pintype "passive")
 			(uuid "34bd5631-51e3-4f11-b0d2-adcc173b1d0d")
@@ -465,7 +469,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -493,7 +497,7 @@
 		)
 		(path "/2cd0847a-82de-45e6-a707-0ed0a37b4a94")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -2.2 1.75)
@@ -786,7 +790,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -813,7 +817,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/0a04ce76-1393-4392-a6e1-dc3779d514d6")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -986,7 +990,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -1013,7 +1017,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/2a365b0a-d549-416c-ae7d-c375979058f5")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.14058 -0.51)
@@ -1241,7 +1245,7 @@
 		(property ki_fp_filters "D*SOD?123*")
 		(path "/c44f77ed-4142-4410-a4a4-c49cb7fdfb45")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -2.36 -1)
@@ -1439,7 +1443,7 @@
 			(size 0.9 1.2)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net 15 "OUTB")
+			(net 63 "Net-(D3-A)")
 			(pinfunction "K")
 			(pintype "passive")
 			(uuid "d221c07b-31f7-4df6-90eb-713c7bbae6f4")
@@ -1496,7 +1500,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -1523,7 +1527,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/4b0f2c56-1405-40f9-83d7-50c88c6fc5c9")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -1696,7 +1700,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -1723,7 +1727,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/0e5783e3-667f-456f-8ff8-df29e6222785")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 4.06 -1.46)
@@ -2201,7 +2205,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -2228,7 +2232,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/b26ef6d8-90b9-41e5-bf37-ed5f05416305")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -2401,7 +2405,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -2428,7 +2432,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/c59a8f4d-dd68-45b2-b61a-41c09e2e2d2e")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -2555,7 +2559,7 @@
 			(size 0.8 0.95)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net 16 "OUTA")
+			(net 62 "Net-(D1-A)")
 			(pintype "passive")
 			(uuid "7c433903-9fd7-4209-82d3-e5d5dd3deea2")
 		)
@@ -2601,7 +2605,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -2628,7 +2632,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/1f3b807c-3039-49c4-a0ab-c07a216f8c2d")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -2801,7 +2805,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -2828,7 +2832,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/7b9dee0e-a414-4779-a818-b1591f8f8ee2")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0.8 -0.735)
@@ -3078,7 +3082,7 @@
 		(property ki_fp_filters "D*SOD?123*")
 		(path "/7f3b436e-33b5-46b1-b3c2-de3277f9f752")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -2.36 1)
@@ -3286,7 +3290,7 @@
 			(size 0.9 1.2)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net 16 "OUTA")
+			(net 62 "Net-(D1-A)")
 			(pinfunction "A")
 			(pintype "passive")
 			(uuid "3e1fd4e5-606b-4570-b636-f04d16f17f13")
@@ -3333,7 +3337,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -3360,7 +3364,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/2854b847-d36e-42df-93aa-f106241a76ed")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0.8 -0.735)
@@ -3582,7 +3586,7 @@
 		(property ki_fp_filters "LQFP*7x7mm*P0.8mm*")
 		(path "/6c114fba-5a09-402d-976c-1ec1c37e46a7")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 3.61 3.61)
@@ -4299,7 +4303,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -4326,7 +4330,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/9d48089f-2cb9-4f43-a623-a93c531e5719")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -4499,7 +4503,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -4526,7 +4530,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/a46d2258-2825-4f03-a396-f65a98328e88")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 7.56 -2.41)
@@ -5025,7 +5029,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -5053,7 +5057,7 @@
 		)
 		(path "/43df1b54-5f7c-4d02-9aa2-5b1b859556a3")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0 1.56)
@@ -5282,7 +5286,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -5309,7 +5313,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/4b3a400e-8a10-41e8-9317-109492fd9444")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -1.485 -0.735)
@@ -5504,7 +5508,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -5531,7 +5535,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/3d560bd6-deec-4d93-afdb-84dcebad8c30")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.14058 0.51)
@@ -5704,7 +5708,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -5731,7 +5735,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/723fa4d9-a3ed-4a3a-9ad3-b2084bef38bf")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -5904,7 +5908,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -5931,7 +5935,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/7a91afd8-6d91-478e-922d-d4795b5ea7ec")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -6104,7 +6108,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -6131,7 +6135,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/66a19aa8-5ae6-451d-ad7e-e8274e8b2473")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.14058 0.51)
@@ -6304,7 +6308,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -6331,7 +6335,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/f5e25835-d4c1-4efc-8423-b4acbe1c599b")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.14058 -0.51)
@@ -6504,7 +6508,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -6531,7 +6535,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/697ada6c-17d0-49e7-8f65-5eaa58e9f2a3")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -6704,7 +6708,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -6731,7 +6735,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/1c20de89-c90c-4b4d-b550-6e46db4ba6a2")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -6904,7 +6908,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -6931,7 +6935,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/9cf18294-bf20-4224-a875-da939b56b3a7")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -7104,7 +7108,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -7131,7 +7135,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/bfb994e7-e647-435b-af43-98bac133f29e")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -7249,7 +7253,7 @@
 			(size 1 1.45)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net 16 "OUTA")
+			(net 62 "Net-(D1-A)")
 			(pintype "passive")
 			(uuid "c89ec4eb-b299-4760-a4f5-3f543173acb2")
 		)
@@ -7304,7 +7308,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -7331,7 +7335,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/03e8ec7e-cd44-4f0c-bba6-4d2eaae61e14")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -7504,7 +7508,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -7531,7 +7535,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/65488310-48ce-4b55-9cf6-e1c171b06e2c")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -7704,7 +7708,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -7731,7 +7735,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/55d0a798-39af-4d39-9faa-35bc7035d19c")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -7904,7 +7908,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -7933,7 +7937,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/db4509e5-3cbe-46b3-b6a3-78926602db45")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -2.01 0.85)
@@ -8178,7 +8182,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -8205,7 +8209,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/7901f872-4115-4e3d-92e9-0a07e8829c81")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -8433,7 +8437,7 @@
 		(property ki_fp_filters "D*SOD?123*")
 		(path "/ca482bf8-1a58-4cd6-aff8-09fdb19c4b0d")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -2.36 1)
@@ -8641,7 +8645,7 @@
 			(size 0.9 1.2)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net 15 "OUTB")
+			(net 63 "Net-(D3-A)")
 			(pinfunction "A")
 			(pintype "passive")
 			(uuid "2d049a15-04c3-4b75-8bdc-aa1aefe1c1d8")
@@ -8688,7 +8692,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -8715,7 +8719,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/3dd295c5-9be3-4ee5-b7a0-f5818ba968c6")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0.8 -0.735)
@@ -8910,7 +8914,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -8937,7 +8941,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/1242a4ac-6d3f-4729-b1a6-b3ce091c26c1")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -9110,7 +9114,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -9137,7 +9141,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/41a379ec-dc05-469b-993c-52010d47a42c")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 -0.5225)
@@ -9281,6 +9285,147 @@
 			)
 		)
 	)
+	(footprint "Resistor_SMD:R_1206_3216Metric"
+		(layer "F.Cu")
+		(uuid "5dd5e1db-5063-4344-83be-ba5e86d2a929")
+		(at 151 116.75)
+		(descr "Resistor SMD 1206 (3216 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
+		(tags "resistor")
+		(property "Reference" "R27"
+			(at 0 -1.83 0)
+			(layer "F.SilkS")
+			(uuid "a5af5fd3-2453-483d-a09a-e20a93b00c6d")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Value" "10m"
+			(at 0 1.83 0)
+			(layer "F.Fab")
+			(uuid "de07b605-0974-4c82-b06a-3fc4d6639bd1")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "e3d55fb9-c92a-43b0-9f47-e1d9e7f7936c")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "480a9c85-bfe0-4494-b414-4be222f8e7d8")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property ki_fp_filters "R_*")
+		(path "/212c2721-f13a-4fdf-a173-03bdfadb1f5d")
+		(sheetname "/")
+		(sheetfile "CurcuitV3.kicad_sch")
+		(attr smd)
+		(fp_line
+			(start -0.727064 -0.91)
+			(end 0.727064 -0.91)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "81d0d039-8ecc-407e-91a6-9b0f73bc5332")
+		)
+		(fp_line
+			(start -0.727064 0.91)
+			(end 0.727064 0.91)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "c26a6fd1-387f-4253-89bd-62f06591c1e0")
+		)
+		(fp_rect
+			(start -2.28 -1.13)
+			(end 2.28 1.13)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.CrtYd")
+			(uuid "77dec7e8-fd6f-4065-bdeb-d3de992bceff")
+		)
+		(fp_rect
+			(start -1.6 -0.8)
+			(end 1.6 0.8)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.Fab")
+			(uuid "779bf66e-d8f3-4351-970a-42ff4465ebb4")
+		)
+		(fp_text user "${REFERENCE}"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(uuid "f82bf948-a0dd-4aba-b063-6bfaaaab0a67")
+			(effects
+				(font
+					(size 0.8 0.8)
+					(thickness 0.12)
+				)
+			)
+		)
+		(pad "1" smd roundrect
+			(at -1.4625 0)
+			(size 1.125 1.75)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.222222)
+			(net 63 "Net-(D3-A)")
+			(pintype "passive")
+			(uuid "a79f7fb1-ada0-4d8e-8f88-77db34ffecfe")
+		)
+		(pad "2" smd roundrect
+			(at 1.4625 0)
+			(size 1.125 1.75)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.222222)
+			(net 15 "OUTB")
+			(pintype "passive")
+			(uuid "7f570e4f-3b75-447c-8d42-ec6a77948968")
+		)
+		(embedded_fonts no)
+		(model "${KICAD9_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_1206_3216Metric.step"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
 	(footprint "0-MyLibrary:SSM6K819R"
 		(layer "F.Cu")
 		(uuid "5e097aa6-b6ec-4507-a5ce-34b673058a58")
@@ -9310,7 +9455,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -9338,7 +9483,7 @@
 		)
 		(path "/b9de19fb-91fe-4c3a-9778-95fa60e4a58d")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0 1.56)
@@ -9500,7 +9645,7 @@
 			(size 3.6 1.55)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.09677419355)
-			(net 16 "OUTA")
+			(net 62 "Net-(D1-A)")
 			(pinfunction "D")
 			(pintype "passive")
 			(uuid "44969eab-5d3d-47bf-b5db-ca29dc5bc9cf")
@@ -9567,7 +9712,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -9595,7 +9740,7 @@
 		)
 		(path "/5dd8e0e7-5b7e-45a5-9e67-416161dd1dd7")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0 1.56)
@@ -9777,7 +9922,7 @@
 			(size 1.325 0.6)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net 16 "OUTA")
+			(net 62 "Net-(D1-A)")
 			(pinfunction "S")
 			(pintype "passive")
 			(uuid "e1f923d0-f138-41be-b6b0-c6fd96940214")
@@ -9824,7 +9969,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -9852,7 +9997,7 @@
 		)
 		(path "/46781276-caca-4866-8ac5-1e25e6837581")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 2.2 -1.75)
@@ -10145,7 +10290,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -10172,7 +10317,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/2835528e-0c06-4f10-8fe5-5cf2f4dff28f")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0.8 -0.735)
@@ -10367,7 +10512,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -10394,7 +10539,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/fc3761cc-d182-4b4d-9d0d-dff6bc34cbdb")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -10567,7 +10712,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -10594,7 +10739,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/1eb259ab-bdb7-4ea1-bc23-2d8cc3362164")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -10721,7 +10866,7 @@
 			(size 0.8 0.95)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net 15 "OUTB")
+			(net 63 "Net-(D3-A)")
 			(pintype "passive")
 			(uuid "162c06e7-b661-4663-a6ca-9e323a354783")
 		)
@@ -10767,7 +10912,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -10794,7 +10939,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/e22ce258-6122-457c-80a0-26d4dfbb2eaa")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1.33 1.27)
@@ -11076,7 +11221,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -11103,7 +11248,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/c0d429ea-b395-4b1c-9063-efff8a78cf35")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -11276,7 +11421,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -11303,7 +11448,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/63608d8c-9dda-4e59-a57e-ebdad56741af")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 -0.5225)
@@ -11476,7 +11621,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -11503,7 +11648,7 @@
 		(property ki_fp_filters "MountingHole*Pad*")
 		(path "/92799e28-a123-468a-89b8-e42eac4dddb8")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr exclude_from_pos_files exclude_from_bom)
 		(fp_circle
 			(center 0 0)
@@ -11601,7 +11746,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -11628,7 +11773,7 @@
 		(property ki_fp_filters "MountingHole*Pad*")
 		(path "/43eca85c-43b4-489a-8a42-828377a5bf11")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr exclude_from_pos_files exclude_from_bom)
 		(fp_circle
 			(center 0 0)
@@ -11726,7 +11871,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -11753,7 +11898,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/51c7fbc0-3698-46a5-be73-dc39f6f5f8cc")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -11926,7 +12071,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -11953,7 +12098,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/6b9c57e9-2642-40fd-ab70-f0ef8c8d0870")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -12126,7 +12271,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -12153,7 +12298,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/48ae8311-9211-4f54-b88b-ffa50506bfd5")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -12326,7 +12471,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -12353,7 +12498,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/813a239f-9956-4b3e-8e06-e23f417394df")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(zone_connect 2)
 		(attr through_hole)
 		(fp_line
@@ -12802,7 +12947,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -12829,7 +12974,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/f76f209f-ceda-42bb-a2cb-db1bc7ba1d1d")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 -0.5225)
@@ -13002,7 +13147,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -13029,7 +13174,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/01b38309-e15a-4887-9b08-9a70237398ef")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0.8 -0.735)
@@ -13224,7 +13369,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -13251,7 +13396,7 @@
 		(property ki_fp_filters "MountingHole*Pad*")
 		(path "/bc5cd1b1-60ee-4065-8abc-0a629575c528")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr exclude_from_pos_files exclude_from_bom)
 		(fp_circle
 			(center 0 0)
@@ -13349,7 +13494,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -13376,7 +13521,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/99257991-3f80-4085-b8aa-6db4cf7f716c")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -13604,7 +13749,7 @@
 		(property ki_fp_filters "D*SOD?123*")
 		(path "/d753bf70-d840-4ff5-8f12-d0f6b7cc07ce")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -2.36 -1)
@@ -13888,7 +14033,7 @@
 		(property ki_fp_filters "*SC?70*")
 		(path "/7b6a3eb9-2997-4209-9c64-9eeb7bc13a4a")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.71 -1.16)
@@ -14125,7 +14270,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -14152,7 +14297,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/b3b68c35-47e4-46e0-84f2-fe1cc5987a56")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -14270,7 +14415,7 @@
 			(size 1 1.45)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net 15 "OUTB")
+			(net 63 "Net-(D3-A)")
 			(pintype "passive")
 			(uuid "3c0d5b2b-8e6e-4351-97d6-280259e25306")
 		)
@@ -14325,7 +14470,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -14352,7 +14497,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/e3f29b1c-fc9b-4656-9216-1a7bde65b6db")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -14525,7 +14670,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -14552,7 +14697,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/7b26e2ca-1477-4aa8-9987-3d2ed1cc48c3")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -14725,7 +14870,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -14752,7 +14897,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/931a24c3-0544-4ed8-abe3-42e3df03af3d")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -14925,7 +15070,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -14952,7 +15097,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/801b7d35-d831-4010-b52a-9a74c1028937")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 -0.5225)
@@ -15096,6 +15241,390 @@
 			)
 		)
 	)
+	(footprint "Package_TO_SOT_SMD:SOT-23-5"
+		(layer "F.Cu")
+		(uuid "afbc7b1f-b94c-4ff6-b7a7-c2bd4e9e5c50")
+		(at 145.62 114.185)
+		(descr "SOT, 5 Pin (JEDEC MO-178 Var AA https://www.jedec.org/document_search?search_api_views_fulltext=MO-178), generated with kicad-footprint-generator ipc_gullwing_generator.py")
+		(tags "SOT TO_SOT_SMD")
+		(property "Reference" "U5"
+			(at 0 -2.4 0)
+			(layer "F.SilkS")
+			(uuid "f443c5a9-799a-4fec-bf03-ce6d210b21f4")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Value" "INA180A2"
+			(at 0 2.4 0)
+			(layer "F.Fab")
+			(uuid "fb41f5b6-3224-46bb-9fb9-b9c9bbc1abd0")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/ina180.pdf"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "8c078862-1ac9-4934-960b-6a647bc56363")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Description" "Current Sense Amplifier, 1 Circuit, Rail-to-Rail, 26V, Gain 50 V/V, SOT-23-5"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "f88de9be-3b5a-4af2-83fa-e0a1c62cc118")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property ki_fp_filters "SOT?23*")
+		(path "/c8327887-303b-4c0e-9f38-61c680f3529e")
+		(sheetname "/")
+		(sheetfile "CurcuitV3.kicad_sch")
+		(attr smd)
+		(fp_line
+			(start -0.91 -1.56)
+			(end 0.91 -1.56)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "35569a63-f419-48d1-b97f-65a63c6d86a8")
+		)
+		(fp_line
+			(start -0.91 -1.51)
+			(end -0.91 -1.56)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "d7cf64b4-36a6-4762-96d9-d7c6d4eb723a")
+		)
+		(fp_line
+			(start -0.91 1.56)
+			(end -0.91 1.51)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "d3699090-2ce3-4e69-a140-e26fec2b2fbe")
+		)
+		(fp_line
+			(start 0.91 -1.56)
+			(end 0.91 -1.51)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "da2f59a5-23d7-4f1d-88a5-2020dc056031")
+		)
+		(fp_line
+			(start 0.91 -0.39)
+			(end 0.91 0.39)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "6d7db78a-2b35-4faa-9508-065c7ebcd199")
+		)
+		(fp_line
+			(start 0.91 1.51)
+			(end 0.91 1.56)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "a825ba52-b654-470c-b437-5bceb4678169")
+		)
+		(fp_line
+			(start 0.91 1.56)
+			(end -0.91 1.56)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "e3e361cd-912d-43fe-8099-b726a0e77789")
+		)
+		(fp_poly
+			(pts
+				(xy -1.45 -1.51) (xy -1.69 -1.84) (xy -1.21 -1.84)
+			)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(fill yes)
+			(layer "F.SilkS")
+			(uuid "1165d52a-60dc-4ba6-aaee-06176506a82c")
+		)
+		(fp_line
+			(start -2.05 -1.5)
+			(end -1.05 -1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "609b5409-75c7-4faf-9883-ce5eda0847fd")
+		)
+		(fp_line
+			(start -2.05 1.5)
+			(end -2.05 -1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "e82dc6d2-a55f-4e7f-afa7-48383952619f")
+		)
+		(fp_line
+			(start -1.05 -1.7)
+			(end 1.05 -1.7)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "3c46e3ba-231e-4812-9929-2f76b1b5fc3f")
+		)
+		(fp_line
+			(start -1.05 -1.5)
+			(end -1.05 -1.7)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "c6b8d602-46bf-4a06-8b58-6563b3f616ad")
+		)
+		(fp_line
+			(start -1.05 1.5)
+			(end -2.05 1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "734309d1-c915-49d5-9375-7aa641212f3d")
+		)
+		(fp_line
+			(start -1.05 1.7)
+			(end -1.05 1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "508845d9-8bd7-4974-a7ee-b4b4bd2179bc")
+		)
+		(fp_line
+			(start 1.05 -1.7)
+			(end 1.05 -1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "ac11c9ac-c25e-44dd-bac9-a59809470f8e")
+		)
+		(fp_line
+			(start 1.05 -1.5)
+			(end 2.05 -1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "3e8fad4e-2201-4210-8210-348316d91b56")
+		)
+		(fp_line
+			(start 1.05 -0.39)
+			(end 1.05 0.39)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "c5000e39-fcce-451c-93e1-92e90a09059a")
+		)
+		(fp_line
+			(start 1.05 0.39)
+			(end 2.05 0.39)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "870b8ada-a164-4af9-add1-238674a5d13e")
+		)
+		(fp_line
+			(start 1.05 1.5)
+			(end 1.05 1.7)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "56c643f5-4563-4dc9-9a23-703c3ab7d86a")
+		)
+		(fp_line
+			(start 1.05 1.7)
+			(end -1.05 1.7)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "79713458-a733-418f-93d4-cedd0178f889")
+		)
+		(fp_line
+			(start 2.05 -1.5)
+			(end 2.05 -0.39)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "77d9f87b-5416-46d3-aed1-c34645152d5f")
+		)
+		(fp_line
+			(start 2.05 -0.39)
+			(end 1.05 -0.39)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "a152a0e6-b4ff-492e-86ae-912da077da8e")
+		)
+		(fp_line
+			(start 2.05 0.39)
+			(end 2.05 1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "1904d819-5cb3-4e19-a631-2640707de3c8")
+		)
+		(fp_line
+			(start 2.05 1.5)
+			(end 1.05 1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "4985d429-415f-486b-bfd4-e59304f6c2ad")
+		)
+		(fp_poly
+			(pts
+				(xy -0.4 -1.45) (xy 0.8 -1.45) (xy 0.8 1.45) (xy -0.8 1.45) (xy -0.8 -1.05)
+			)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.Fab")
+			(uuid "6cdde4c9-9c39-48c5-a210-5a7195a70158")
+		)
+		(fp_text user "${REFERENCE}"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(uuid "9efe821d-fe68-4057-84ce-fe2126092658")
+			(effects
+				(font
+					(size 0.72 0.72)
+					(thickness 0.11)
+				)
+			)
+		)
+		(pad "1" smd roundrect
+			(at -1.1375 -0.95)
+			(size 1.325 0.6)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.25)
+			(net 64 "SENSEA")
+			(pintype "output")
+			(uuid "f9cf6ff5-a3a7-46c3-aa83-ea6020d37ff6")
+		)
+		(pad "2" smd roundrect
+			(at -1.1375 0)
+			(size 1.325 0.6)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.25)
+			(net 57 "GNDA")
+			(pinfunction "GND")
+			(pintype "power_in")
+			(uuid "ca697fb7-ecb6-43f1-84df-5ddcd2f6363d")
+		)
+		(pad "3" smd roundrect
+			(at -1.1375 0.95)
+			(size 1.325 0.6)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.25)
+			(net 62 "Net-(D1-A)")
+			(pinfunction "+")
+			(pintype "input")
+			(uuid "9338666e-2938-4bd7-bf49-161b5dcf2a7d")
+		)
+		(pad "4" smd roundrect
+			(at 1.1375 0.95)
+			(size 1.325 0.6)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.25)
+			(net 16 "OUTA")
+			(pinfunction "-")
+			(pintype "input")
+			(uuid "0b10f1f1-afa3-42a9-acf2-51b37492eab6")
+		)
+		(pad "5" smd roundrect
+			(at 1.1375 -0.95)
+			(size 1.325 0.6)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.25)
+			(net 2 "+3V3")
+			(pinfunction "V+")
+			(pintype "power_in")
+			(uuid "6d2cb6d0-d035-4d27-999b-57d65ef3dacb")
+		)
+		(embedded_fonts no)
+		(model "${KICAD9_3DMODEL_DIR}/Package_TO_SOT_SMD.3dshapes/SOT-23-5.step"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
 	(footprint "Resistor_SMD:R_0603_1608Metric"
 		(layer "F.Cu")
 		(uuid "b408b904-2a2b-4493-9018-fd7445c68af0")
@@ -15125,7 +15654,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -15152,7 +15681,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/4677985b-fa34-461c-875f-d0de397f5367")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 -0.5225)
@@ -15351,7 +15880,7 @@
 		)
 		(path "/9d378f9a-41fd-4041-af25-0fa31433c5d0")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0 -3.385)
@@ -15828,7 +16357,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -15855,7 +16384,7 @@
 		(property ki_fp_filters "MountingHole*Pad*")
 		(path "/9767e28c-8cd1-4bd0-ac64-925efccf92d4")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr exclude_from_pos_files exclude_from_bom)
 		(fp_circle
 			(center 0 0)
@@ -15980,7 +16509,7 @@
 		(property ki_fp_filters "SOT?23*")
 		(path "/2dc065fd-4e39-4a70-9796-86803c35751d")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0 1.56)
@@ -16258,6 +16787,147 @@
 			)
 		)
 	)
+	(footprint "Resistor_SMD:R_1206_3216Metric"
+		(layer "F.Cu")
+		(uuid "cd381eb4-812d-48ee-a000-7a13b6e4dc0b")
+		(at 151 113.75)
+		(descr "Resistor SMD 1206 (3216 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
+		(tags "resistor")
+		(property "Reference" "R26"
+			(at 0 -1.83 0)
+			(layer "F.SilkS")
+			(uuid "f4b34492-0bf0-48d5-b2c3-f79819b79e4f")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Value" "10m"
+			(at 0 1.83 0)
+			(layer "F.Fab")
+			(uuid "141891e1-a4fe-464d-b99d-78a318b11210")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "bb786776-c578-41a7-a0be-545d88910946")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "08923072-fb9f-433e-94f5-3acd958c18ee")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property ki_fp_filters "R_*")
+		(path "/a7ba0f01-69f4-43e5-ad5d-c8487f4ebc77")
+		(sheetname "/")
+		(sheetfile "CurcuitV3.kicad_sch")
+		(attr smd)
+		(fp_line
+			(start -0.727064 -0.91)
+			(end 0.727064 -0.91)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "303852b7-3ab5-42da-b84b-bef91a90bff1")
+		)
+		(fp_line
+			(start -0.727064 0.91)
+			(end 0.727064 0.91)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "b0708112-d15e-434f-8bbd-8c9991ace01a")
+		)
+		(fp_rect
+			(start -2.28 -1.13)
+			(end 2.28 1.13)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.CrtYd")
+			(uuid "6fdf7246-698a-4793-b25d-efa467db8281")
+		)
+		(fp_rect
+			(start -1.6 -0.8)
+			(end 1.6 0.8)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.Fab")
+			(uuid "61a03ca6-ce10-45b6-a3a9-3be37bfed2d0")
+		)
+		(fp_text user "${REFERENCE}"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(uuid "ee378f0a-2a27-47dc-b34d-dbe04658f562")
+			(effects
+				(font
+					(size 0.8 0.8)
+					(thickness 0.12)
+				)
+			)
+		)
+		(pad "1" smd roundrect
+			(at -1.4625 0)
+			(size 1.125 1.75)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.222222)
+			(net 62 "Net-(D1-A)")
+			(pintype "passive")
+			(uuid "b4ae2116-aeb9-42d3-b2a6-b7b18ae551b8")
+		)
+		(pad "2" smd roundrect
+			(at 1.4625 0)
+			(size 1.125 1.75)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.222222)
+			(net 16 "OUTA")
+			(pintype "passive")
+			(uuid "593c8a39-710e-4efb-ba29-a00398617d2a")
+		)
+		(embedded_fonts no)
+		(model "${KICAD9_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_1206_3216Metric.step"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
 	(footprint "Capacitor_SMD:C_0805_2012Metric"
 		(layer "F.Cu")
 		(uuid "cf5552b5-78b4-461e-b703-6ba12856cecb")
@@ -16287,7 +16957,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -16314,7 +16984,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/79567f80-20f6-4ab7-8fe3-d741d78044d2")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -16542,7 +17212,7 @@
 		(property ki_fp_filters "D*SOD?123*")
 		(path "/303318ad-1ea3-4744-ac13-0754bc958488")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -2.36 1)
@@ -16797,7 +17467,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -16825,7 +17495,7 @@
 		)
 		(path "/bb8ead4a-0a49-43de-a146-686be8aeecf1")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0 1.56)
@@ -16987,7 +17657,7 @@
 			(size 3.6 1.55)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.09677419355)
-			(net 15 "OUTB")
+			(net 63 "Net-(D3-A)")
 			(pinfunction "D")
 			(pintype "passive")
 			(uuid "aa074717-84cb-4e6b-802f-6b6f2aceb662")
@@ -17054,7 +17724,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -17081,7 +17751,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/a981053d-3090-4b7c-a533-fa1dbe0db34e")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.14058 0.51)
@@ -17254,7 +17924,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -17281,7 +17951,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/352852d1-c47b-4bd6-8fe3-809aaed6fec7")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -17481,7 +18151,7 @@
 		(property ki_fp_filters "SOT?23*")
 		(path "/5d765b21-6cb7-44ff-aa5f-3be2cf8cb0bb")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0 -1.56)
@@ -17788,7 +18458,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -17815,7 +18485,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/9ac65fa0-5574-4e1e-9593-334977e32f88")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -17988,7 +18658,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -18015,7 +18685,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/badcecc5-e327-4ce9-bf39-41c178f79e17")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -18188,7 +18858,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -18215,7 +18885,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/745d9a49-6538-487c-bf4b-253d8a339a12")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.14058 0.51)
@@ -18359,6 +19029,390 @@
 			)
 		)
 	)
+	(footprint "Package_TO_SOT_SMD:SOT-23-5"
+		(layer "F.Cu")
+		(uuid "e71e75c5-0e33-4700-8396-617e3b103df4")
+		(at 145.62 118.81)
+		(descr "SOT, 5 Pin (JEDEC MO-178 Var AA https://www.jedec.org/document_search?search_api_views_fulltext=MO-178), generated with kicad-footprint-generator ipc_gullwing_generator.py")
+		(tags "SOT TO_SOT_SMD")
+		(property "Reference" "U6"
+			(at 0 -2.4 0)
+			(layer "F.SilkS")
+			(uuid "4338edc9-fb30-4f4a-9fdb-da1667da9774")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Value" "INA180A2"
+			(at 0 2.4 0)
+			(layer "F.Fab")
+			(uuid "66d3b99f-ea65-4300-9d0c-4e38eee7c1d1")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Datasheet" "http://www.ti.com/lit/ds/symlink/ina180.pdf"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "8befe912-8c3b-4995-b994-5f0b1b476afd")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Description" "Current Sense Amplifier, 1 Circuit, Rail-to-Rail, 26V, Gain 50 V/V, SOT-23-5"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "63f9633d-becf-4088-acd9-2f06fcf00c57")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property ki_fp_filters "SOT?23*")
+		(path "/72ec770c-5d5d-4874-aa22-d97ef734abe2")
+		(sheetname "/")
+		(sheetfile "CurcuitV3.kicad_sch")
+		(attr smd)
+		(fp_line
+			(start -0.91 -1.56)
+			(end 0.91 -1.56)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "b68a1b05-4560-482f-b679-c9508700f458")
+		)
+		(fp_line
+			(start -0.91 -1.51)
+			(end -0.91 -1.56)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "c3e97e85-7ca5-421e-b389-081e3bc11876")
+		)
+		(fp_line
+			(start -0.91 1.56)
+			(end -0.91 1.51)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "6c78bab3-ab5a-4e73-baa0-26269de88843")
+		)
+		(fp_line
+			(start 0.91 -1.56)
+			(end 0.91 -1.51)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "771a8275-b1e1-47cf-9f91-482d205e53f9")
+		)
+		(fp_line
+			(start 0.91 -0.39)
+			(end 0.91 0.39)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "e19da34c-ad99-4d6d-8495-3a1a812d30e8")
+		)
+		(fp_line
+			(start 0.91 1.51)
+			(end 0.91 1.56)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "82ad730c-c703-4df0-ac86-da44da5c03e0")
+		)
+		(fp_line
+			(start 0.91 1.56)
+			(end -0.91 1.56)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "856624d2-4ae5-4a1c-b9fc-b4863d84f4d6")
+		)
+		(fp_poly
+			(pts
+				(xy -1.45 -1.51) (xy -1.69 -1.84) (xy -1.21 -1.84)
+			)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(fill yes)
+			(layer "F.SilkS")
+			(uuid "843634df-8dc1-4a8a-96e3-52864866a3bf")
+		)
+		(fp_line
+			(start -2.05 -1.5)
+			(end -1.05 -1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "135e13cb-3404-43f4-becc-d16fc64d8eac")
+		)
+		(fp_line
+			(start -2.05 1.5)
+			(end -2.05 -1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "25e6938d-c5a1-4ee9-9b6b-1a593596946d")
+		)
+		(fp_line
+			(start -1.05 -1.7)
+			(end 1.05 -1.7)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "d8f7e913-d212-4247-a5b3-c826a7000518")
+		)
+		(fp_line
+			(start -1.05 -1.5)
+			(end -1.05 -1.7)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "33b21fb0-cdda-4f4f-b6cb-956e7872b2ff")
+		)
+		(fp_line
+			(start -1.05 1.5)
+			(end -2.05 1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "7a6046c8-ba5c-4244-87e4-06227916338c")
+		)
+		(fp_line
+			(start -1.05 1.7)
+			(end -1.05 1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "43fff477-e55a-48f2-acf2-1a75d087c7b4")
+		)
+		(fp_line
+			(start 1.05 -1.7)
+			(end 1.05 -1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "2481c868-f8a2-4722-9d87-2d6c43dc3578")
+		)
+		(fp_line
+			(start 1.05 -1.5)
+			(end 2.05 -1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "8b0a257a-cba8-422e-bced-1b3afab880ae")
+		)
+		(fp_line
+			(start 1.05 -0.39)
+			(end 1.05 0.39)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "a89b3fcc-d36f-4936-8da6-9f9853ec07c7")
+		)
+		(fp_line
+			(start 1.05 0.39)
+			(end 2.05 0.39)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "73be0bd5-a1d0-4132-902f-05c21e9d0027")
+		)
+		(fp_line
+			(start 1.05 1.5)
+			(end 1.05 1.7)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "76fb2b9a-b749-42d5-abe8-ebe2ed547ec2")
+		)
+		(fp_line
+			(start 1.05 1.7)
+			(end -1.05 1.7)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "e01ad2ca-04be-42d3-965c-a8e71b4d3eb3")
+		)
+		(fp_line
+			(start 2.05 -1.5)
+			(end 2.05 -0.39)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "76a179c8-7609-40d6-b100-f0d0b92b021f")
+		)
+		(fp_line
+			(start 2.05 -0.39)
+			(end 1.05 -0.39)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "1ec89ec6-2b35-4749-b417-693df332c45d")
+		)
+		(fp_line
+			(start 2.05 0.39)
+			(end 2.05 1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "913e12cc-0f09-4043-8ada-5929baa9a4cf")
+		)
+		(fp_line
+			(start 2.05 1.5)
+			(end 1.05 1.5)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "F.CrtYd")
+			(uuid "accf8fc5-290b-4b82-bebf-0819867bb6f1")
+		)
+		(fp_poly
+			(pts
+				(xy -0.4 -1.45) (xy 0.8 -1.45) (xy 0.8 1.45) (xy -0.8 1.45) (xy -0.8 -1.05)
+			)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.Fab")
+			(uuid "dde185f6-1db6-4259-a492-32f3901226a7")
+		)
+		(fp_text user "${REFERENCE}"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(uuid "7bd19e62-c0ab-491e-bd54-4475e9b00ea8")
+			(effects
+				(font
+					(size 0.72 0.72)
+					(thickness 0.11)
+				)
+			)
+		)
+		(pad "1" smd roundrect
+			(at -1.1375 -0.95)
+			(size 1.325 0.6)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.25)
+			(net 65 "SENSEB")
+			(pintype "output")
+			(uuid "5423e890-e610-4fde-b4f6-7b72da3ecc84")
+		)
+		(pad "2" smd roundrect
+			(at -1.1375 0)
+			(size 1.325 0.6)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.25)
+			(net 57 "GNDA")
+			(pinfunction "GND")
+			(pintype "power_in")
+			(uuid "be77eb6a-f6f9-4a13-b94e-953dbd846724")
+		)
+		(pad "3" smd roundrect
+			(at -1.1375 0.95)
+			(size 1.325 0.6)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.25)
+			(net 63 "Net-(D3-A)")
+			(pinfunction "+")
+			(pintype "input")
+			(uuid "dd23d407-8850-4214-a2ef-eddd0f432785")
+		)
+		(pad "4" smd roundrect
+			(at 1.1375 0.95)
+			(size 1.325 0.6)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.25)
+			(net 15 "OUTB")
+			(pinfunction "-")
+			(pintype "input")
+			(uuid "ee971af5-6375-4dc3-a409-2707e518c434")
+		)
+		(pad "5" smd roundrect
+			(at 1.1375 -0.95)
+			(size 1.325 0.6)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.25)
+			(net 2 "+3V3")
+			(pinfunction "V+")
+			(pintype "power_in")
+			(uuid "c64c3407-565d-406d-9e58-d491adfdaddc")
+		)
+		(embedded_fonts no)
+		(model "${KICAD9_3DMODEL_DIR}/Package_TO_SOT_SMD.3dshapes/SOT-23-5.step"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
 	(footprint "Diode_SMD:D_SOD-123"
 		(layer "F.Cu")
 		(uuid "e9969ed8-f2e4-4fdd-a4d6-e0131de70715")
@@ -18443,7 +19497,7 @@
 		(property ki_fp_filters "D*SOD?123*")
 		(path "/7b80c1ae-f30c-46ad-94a4-30af315e6857")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -2.36 -1)
@@ -18641,7 +19695,7 @@
 			(size 0.9 1.2)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net 16 "OUTA")
+			(net 62 "Net-(D1-A)")
 			(pinfunction "K")
 			(pintype "passive")
 			(uuid "cf33cb3f-457a-486a-ae12-8e1057f8284a")
@@ -18698,7 +19752,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -18725,7 +19779,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/9ea96450-01b6-42d9-b30a-3169d4d4b197")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -18898,7 +19952,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -18925,7 +19979,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/96fea1fe-40aa-4528-9fc7-20917a362db2")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 -0.5225)
@@ -19098,7 +20152,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -19125,7 +20179,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/0295ae7d-71b8-4ee7-b11c-f98ea31cd965")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 -0.5225)
@@ -19298,7 +20352,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -19326,7 +20380,7 @@
 		)
 		(path "/7abf4d60-bfff-4184-810b-5c174b2f74f2")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0 1.56)
@@ -19555,7 +20609,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -19582,7 +20636,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/1d49c048-8ea7-42da-b921-62a2f7dbb2b9")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -19755,7 +20809,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -19782,7 +20836,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/c56a8a2b-0f36-418c-a635-b7c2d528665c")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -19955,7 +21009,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -19982,7 +21036,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/40cab478-2bae-4007-a4a2-29d34f0f677a")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -20155,7 +21209,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -20182,7 +21236,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/9e17f01b-b52c-482e-a8e1-612d28b1f27d")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.237258 0.5225)
@@ -20552,7 +21606,7 @@
 		)
 		(path "/86f6ac83-7779-434e-a753-32d310397c8f")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1.8 -1.2)
@@ -20833,7 +21887,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -20864,7 +21918,7 @@
 		(property ki_fp_filters "Pin* Test*")
 		(path "/8c99a124-4b41-4855-ab8b-d64f46c94dab")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr exclude_from_pos_files)
 		(fp_circle
 			(center 0 0)
@@ -20942,7 +21996,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -20973,7 +22027,7 @@
 		(property ki_fp_filters "Pin* Test*")
 		(path "/6b2624ca-3a5d-4a61-9a7b-c42ad9eabb70")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr exclude_from_pos_files)
 		(fp_circle
 			(center 0 0)
@@ -21052,7 +22106,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -21083,7 +22137,7 @@
 		(property ki_fp_filters "Net*Tie*")
 		(path "/f6cafe04-0980-4875-9bd4-4ee1497769ac")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(zone_connect 2)
 		(attr exclude_from_pos_files exclude_from_bom allow_missing_courtyard)
 		(net_tie_pad_groups "1, 2")
@@ -21150,7 +22204,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -21181,7 +22235,7 @@
 		(property ki_fp_filters "Pin* Test*")
 		(path "/61704f9a-5f04-41b1-a1eb-7d6c115ef040")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr exclude_from_pos_files)
 		(fp_circle
 			(center 0 0)
@@ -21259,7 +22313,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -21290,7 +22344,7 @@
 		(property ki_fp_filters "Pin* Test*")
 		(path "/a882001c-1625-4c4d-99c2-dca36ec40011")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr exclude_from_pos_files)
 		(fp_circle
 			(center 0 0)
@@ -21634,7 +22688,7 @@
 		)
 		(path "/27ec6432-577d-4f13-a5ba-6db94555815b")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0 -2.56)
@@ -21994,7 +23048,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "~"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -22025,7 +23079,7 @@
 		(property ki_fp_filters "Pin* Test*")
 		(path "/3baf1dff-72a5-4923-a840-efb6fc0778ed")
 		(sheetname "/")
-		(sheetfile "CurcuitV2.kicad_sch")
+		(sheetfile "CurcuitV3.kicad_sch")
 		(attr exclude_from_pos_files)
 		(fp_circle
 			(center 0 0)
