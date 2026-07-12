@@ -60,26 +60,15 @@ void Setup() {
     while (!(adc_val[i] > 0));  // ADCの値が代入されるまで待つ
   }
 
-  // 電流センシング用ADC1(ローサイドシャント2相)
-  // STM32F3のADCは使用前にセルフキャリブレーションが必要(ADEN=0の状態で実行)
-  HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
-
-  // ADC1は連続変換+循環DMAで高速(約2µs周期)に回るため、DMA完了割り込みが毎秒約100万回
-  // 発生してCPUを飽和させてしまう。電流バッファは最新値を読むだけで割り込みは不要なので、
-  // DMA1_Channel1のNVIC割り込みを無効化する(DMA転送自体はHWで継続し、値は背後で更新され続ける)。
-  HAL_NVIC_DisableIRQ(DMA1_Channel1_IRQn);
-  // ※ ゼロ電流時はADC値が0になり得るため adc_val のような ">0" 待ちは使えない
-  if (HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&current_adc_val, 2) != HAL_OK) {
-    printf("ADC1 DMA start failed!\n");
-  }
-  HAL_Delay(1);  // 初回のDMA変換完了を待つ
-
   printf("ADC_DMA start\n");
   PwmOut_Write(&LED1, 0);
 
-  // BLDCの初期化
+  // BLDCの初期化(TIM1のPWM出力を開始)
   BLDC_Init(0, &adc_val[0]);
   PwmOut_Write(&LED2, 0);
+
+  // 電流センシングADC1をPWM同期トリガで初期化(TIM1起動後に行う)
+  CurrentSense_Init();
 
   // Serialの初期化
   Serial_Init(&uart2, &huart2, 256);
@@ -200,6 +189,63 @@ void SendSerial() {
   }
 }
 
+// 電流センシングADC1をPWM同期トリガで初期化する
+// ローサイドシャントは「低側FETがONの区間」しか正しい電流が流れないため、
+// 全相の低側FETが同時にONになるPWM谷付近(CNTがARRに近い区間)でADCをトリガする。
+//   エッジ揃えUPカウントPWM1: CNT<CCRで高側ON、CNT>=CCRで低側ON
+//   → 全相低側ONの区間 = [max(CCRu,CCRv,CCRw), ARR]
+//   TIM1_CH4をPWM2モードにしCCR4をARR手前(3200/3599)に置くと、その位置でOC4REFが立ち上がる。
+//   これをTRGO2に出し、ADC1の外部トリガ(TIM1_TRGO2)として使う。
+void CurrentSense_Init() {
+  const uint32_t TRIG_POINT = 3200;  // ARR=3599。低側ON区間内(amp<=0.5まで安全)
+
+  // TIM1_CH4 コンペア設定 (OC4REF生成用。CH4に出力ピンは無いが内部REFは生成される)
+  TIM_OC_InitTypeDef oc = {0};
+  oc.OCMode = TIM_OCMODE_PWM2;  // CNT>=CCR4 でOC4REF=High(立ち上がりでトリガ)
+  oc.Pulse = TRIG_POINT;
+  oc.OCPolarity = TIM_OCPOLARITY_HIGH;
+  oc.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &oc, TIM_CHANNEL_4) != HAL_OK) {
+    printf("TIM1 CH4 config failed!\n");
+  }
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+
+  // TRGO2 = OC4REF
+  TIM_MasterConfigTypeDef mc = {0};
+  mc.MasterOutputTrigger = TIM_TRGO_RESET;
+  mc.MasterOutputTrigger2 = TIM_TRGO2_OC4REF;
+  mc.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  HAL_TIMEx_MasterConfigSynchronization(&htim1, &mc);
+
+  // ADC1 を外部トリガ(TIM1_TRGO2立ち上がり)・単発変換に再設定
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T1_TRGO2;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK) {
+    printf("ADC1 re-init failed!\n");
+  }
+  // 変換チャンネル列を再設定 (IN1=U相 rank1, IN2=V相 rank2)
+  ADC_ChannelConfTypeDef sc = {0};
+  sc.SingleDiff = ADC_SINGLE_ENDED;
+  sc.SamplingTime = ADC_SAMPLETIME_61CYCLES_5;
+  sc.OffsetNumber = ADC_OFFSET_NONE;
+  sc.Channel = ADC_CHANNEL_1;
+  sc.Rank = ADC_REGULAR_RANK_1;
+  HAL_ADC_ConfigChannel(&hadc1, &sc);
+  sc.Channel = ADC_CHANNEL_2;
+  sc.Rank = ADC_REGULAR_RANK_2;
+  HAL_ADC_ConfigChannel(&hadc1, &sc);
+
+  // セルフキャリブレーション
+  HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+
+  // DMA開始。トリガはPWM周期(20kHz)なので割り込み頻度は低いが、値を読むだけなので割り込み不要
+  HAL_NVIC_DisableIRQ(DMA1_Channel1_IRQn);
+  if (HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&current_adc_val, 2) != HAL_OK) {
+    printf("ADC1 DMA start failed!\n");
+  }
+}
+
 // 電流計測テスト(ベクトル制御実装前の動作確認用)
 // ローサイドシャント(5mΩ) + INA180A2(ゲイン50) の2相電流を計測してprintfする
 void CurrentSenseTest() {
@@ -250,6 +296,7 @@ void ForcedCommutationCurrentTest() {
   printf("Current offset  U:%.1f  V:%.1f [ADC]\n", current_offset_u, current_offset_v);
 
   float phase = 0;
+  float iu_f = 0, iv_f = 0;  // 表示用の簡易ローパス
   uint16_t print_counter = 0;
   while (1) {
     // 電気角を進めてオープンループ駆動
@@ -257,21 +304,19 @@ void ForcedCommutationCurrentTest() {
     if (phase > TWO_PI) phase -= TWO_PI;
     BLDC_OpenLoopDrive(amp, phase);
 
-    // 電流をまとめて平均(PWMのオン/オフによるノイズを低減)
-    const uint16_t AVG = 64;
-    uint32_t u_acc = 0, v_acc = 0;
-    for (uint16_t i = 0; i < AVG; i++) {
-      u_acc += current_adc_val[0];
-      v_acc += current_adc_val[1];
-    }
-    float iu = ((float)u_acc / AVG - current_offset_u) * ADC2CURRENT;
-    float iv = ((float)v_acc / AVG - current_offset_v) * ADC2CURRENT;
-    float iw = -(iu + iv);  // キルヒホッフの電流則より
+    // 同期サンプリングされた最新値(PWM谷でトリガ、1周期=50µsごとに更新)を読む。
+    // 以前のようにタイトループで多数回読んでも同じ値なので、簡易ローパスで平滑化する。
+    float iu = ((float)current_adc_val[0] - current_offset_u) * ADC2CURRENT;
+    float iv = ((float)current_adc_val[1] - current_offset_v) * ADC2CURRENT;
+    iu_f += 0.2f * (iu - iu_f);
+    iv_f += 0.2f * (iv - iv_f);
+    float iw = -(iu_f + iv_f);  // キルヒホッフの電流則より
 
     // 一定間隔で表示(毎ループ出すとシリアルが詰まる)
     if (++print_counter >= 50) {
       print_counter = 0;
-      printf("phase:%5.2f  Iu:%6.3f  Iv:%6.3f  Iw:%6.3f A\n", phase, iu, iv, iw);
+      printf("phase:%5.2f  Iu:%6.3f  Iv:%6.3f  Iw:%6.3f A  (raw U:%4u V:%4u)\n",
+             phase, iu_f, iv_f, iw, current_adc_val[0], current_adc_val[1]);
     }
 
     HAL_Delay(1);  // ループ周期 約1ms
