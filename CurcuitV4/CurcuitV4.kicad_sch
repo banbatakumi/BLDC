@@ -3442,6 +3442,144 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Diode:SMAJ13A"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "SMAJ13A"
+				(at 0 -2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "Diode_SMD:D_SMA"
+				(at 0 -5.08 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "https://www.littelfuse.com/media?resourcetype=datasheets&itemid=75e32973-b177-4ee3-a0ff-cedaf1abdb93&filename=smaj-datasheet"
+				(at -1.27 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "400W unidirectional Transient Voltage Suppressor, 13.0Vr, SMA(DO-214AC)"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "unidirectional diode TVS voltage suppressor"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "D*SMA*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "SMAJ13A_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy -1.27 1.27) (xy -1.27 -1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 1.27) (xy 1.27 -1.27) (xy -1.27 0) (xy 1.27 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "SMAJ13A_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "A1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "MCU_ST_STM32F3:STM32F303K8Tx"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -5798,6 +5936,12 @@
 		(uuid "cd84fef3-1363-412e-9d97-d0d2e6cbd7a8")
 	)
 	(junction
+		(at 105.41 119.38)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "cde6c758-36a4-4f1d-aecc-79784682b412")
+	)
+	(junction
 		(at 80.01 160.02)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5832,6 +5976,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "d7fd4714-623e-49e9-95db-2bc09dd906db")
+	)
+	(junction
+		(at 105.41 106.68)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d9d5b696-4f5e-4560-af9b-d86078281aca")
 	)
 	(junction
 		(at 226.06 87.63)
@@ -5973,6 +6123,16 @@
 	)
 	(wire
 		(pts
+			(xy 110.49 119.38) (xy 105.41 119.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "08f58361-87f9-4fbe-a3d7-5480bc98fec6")
+	)
+	(wire
+		(pts
 			(xy 226.06 85.09) (xy 226.06 87.63)
 		)
 		(stroke
@@ -6093,6 +6253,16 @@
 	)
 	(wire
 		(pts
+			(xy 189.23 110.49) (xy 191.77 110.49)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "180c0bd6-8553-49b5-939c-53f5ab7656f5")
+	)
+	(wire
+		(pts
 			(xy 120.65 66.04) (xy 120.65 71.12)
 		)
 		(stroke
@@ -6120,6 +6290,16 @@
 			(type default)
 		)
 		(uuid "1acb67fb-68d4-49f4-8ce6-7c15e40480b4")
+	)
+	(wire
+		(pts
+			(xy 110.49 109.22) (xy 110.49 106.68)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1cbc6660-f9b7-4fd2-9e16-ab75b84730c0")
 	)
 	(wire
 		(pts
@@ -6740,6 +6920,16 @@
 			(type default)
 		)
 		(uuid "5362032b-0626-4926-91da-04f65822bb46")
+	)
+	(wire
+		(pts
+			(xy 179.07 110.49) (xy 181.61 110.49)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "54f614c8-9af8-488b-a81b-e3c43923f319")
 	)
 	(wire
 		(pts
@@ -7663,6 +7853,16 @@
 	)
 	(wire
 		(pts
+			(xy 110.49 106.68) (xy 105.41 106.68)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c2dce541-e88b-4133-894e-db26061c1146")
+	)
+	(wire
+		(pts
 			(xy 100.33 119.38) (xy 100.33 116.84)
 		)
 		(stroke
@@ -7870,6 +8070,16 @@
 			(type default)
 		)
 		(uuid "d6594982-0461-4628-82d2-8fad07ab9d1f")
+	)
+	(wire
+		(pts
+			(xy 110.49 116.84) (xy 110.49 119.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d891dd9a-d76e-4114-85cd-63bcb96a2e3c")
 	)
 	(wire
 		(pts
@@ -9968,6 +10178,75 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C")
+		(at 110.49 113.03 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "0357f93c-67b7-4f8c-8ba1-d331da794830")
+		(property "Reference" "C14"
+			(at 111.76 112.014 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "1u"
+			(at 111.76 114.3 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 109.5248 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 110.49 113.03 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 110.49 113.03 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "43cc65c4-8f3d-4d83-9f18-4ffbd3f15023")
+		)
+		(pin "2"
+			(uuid "585b8297-69d1-439d-b16b-7ed9ce5714e0")
+		)
+		(instances
+			(project "CurcuitV4"
+				(path "/181931d1-2c3c-43ab-8337-eaba460a1744"
+					(reference "C14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:R")
 		(at 212.09 80.01 90)
 		(unit 1)
@@ -11553,6 +11832,71 @@
 			(project "CurcuitV2"
 				(path "/181931d1-2c3c-43ab-8337-eaba460a1744"
 					(reference "C3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GNDPWR")
+		(at 191.77 110.49 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2b28c867-8110-4b64-afdf-5554576d0f09")
+		(property "Reference" "#PWR027"
+			(at 191.77 115.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GNDPWR"
+			(at 191.77 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 191.77 111.76 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 191.77 111.76 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GNDPWR\" , global ground"
+			(at 191.77 110.49 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "a3526387-c2a1-4049-b143-e2348348141d")
+		)
+		(instances
+			(project "CurcuitV4"
+				(path "/181931d1-2c3c-43ab-8337-eaba460a1744"
+					(reference "#PWR027")
 					(unit 1)
 				)
 			)
@@ -16021,6 +16365,71 @@
 		)
 	)
 	(symbol
+		(lib_id "power:VCC")
+		(at 179.07 110.49 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "88664e40-20bc-4178-a912-d9e706cbbb05")
+		(property "Reference" "#PWR026"
+			(at 179.07 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "VCC"
+			(at 179.07 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 179.07 110.49 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 179.07 110.49 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"VCC\""
+			(at 179.07 110.49 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "b9bdc602-9c7e-4cbd-baff-9ef51ab43261")
+		)
+		(instances
+			(project "CurcuitV4"
+				(path "/181931d1-2c3c-43ab-8337-eaba460a1744"
+					(reference "#PWR026")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Amplifier_Current:INA181")
 		(at 254 102.87 0)
 		(unit 1)
@@ -17152,6 +17561,74 @@
 			(project "CurcuitV3"
 				(path "/181931d1-2c3c-43ab-8337-eaba460a1744"
 					(reference "D9")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Diode:SMAJ13A")
+		(at 185.42 110.49 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a07e0a89-9b85-4f1a-8acd-ee46c0ce7a6f")
+		(property "Reference" "D14"
+			(at 185.42 104.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SMAJ13A"
+			(at 185.42 106.68 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SMA"
+			(at 185.42 115.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "https://www.littelfuse.com/media?resourcetype=datasheets&itemid=75e32973-b177-4ee3-a0ff-cedaf1abdb93&filename=smaj-datasheet"
+			(at 184.15 110.49 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "400W unidirectional Transient Voltage Suppressor, 13.0Vr, SMA(DO-214AC)"
+			(at 185.42 110.49 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "f40164e7-b6bd-4e7c-943c-d54bbd937638")
+		)
+		(pin "1"
+			(uuid "57e5a26d-9d4f-4b29-a117-ea56a3f7699a")
+		)
+		(instances
+			(project ""
+				(path "/181931d1-2c3c-43ab-8337-eaba460a1744"
+					(reference "D14")
 					(unit 1)
 				)
 			)
