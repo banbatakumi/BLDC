@@ -1,6 +1,9 @@
 #include "app.h"
 
-#define ADC2VOLT 0.0008058608059
+#define ADC2VOLT 0.0008058608059  // ADC値 → 電圧 [V] (3.3V / 4095)
+
+// ADC値 → 電流 [A] : Vout = I * Rshunt * Gain より I = Vout / (Rshunt * Gain)
+#define ADC2CURRENT (ADC2VOLT / (SHUNT_RESISTANCE * CURRENT_AMP_GAIN))
 
 PwmOut LED1;
 PwmOut LED2;
@@ -16,7 +19,12 @@ Serial uart2;
 LPF supply_volt_lpf;
 LPF temp_lpf;
 
-uint16_t adc_val[3];  // ADCの値を格納する配列
+uint16_t adc_val[3];  // ADC2の値を格納する配列 (エンコーダ, 電圧, 温度)
+
+// ADC1(ローサイドシャント電流)の値を格納する配列
+// [0]: PA0/ADC1_IN1 (U相),  [1]: PA1/ADC1_IN2 (V相)
+uint16_t current_adc_val[2];
+float current_offset_u, current_offset_v;  // ゼロ電流時のADCオフセット
 
 uint16_t encoder_val, supply_volt_val, temp_val;
 float supply_volt;
@@ -46,17 +54,21 @@ void Setup() {
 
   DigitalIn_Init(&SW, GPIOA, GPIO_PIN_0);
 
-  // ADCの初期化
+  // ADC2(エンコーダ・電圧・温度)のDMA開始
   HAL_ADC_Start_DMA(&hadc2, (uint32_t*)&adc_val, 3);
   for (uint8_t i = 0; i < 3; i++) {
     while (!(adc_val[i] > 0));  // ADCの値が代入されるまで待つ
   }
+
   printf("ADC_DMA start\n");
   PwmOut_Write(&LED1, 0);
 
-  // BLDCの初期化
-  BLDC_Init(DigitalIn_Read(&SW), &adc_val[0]);
+  // BLDCの初期化(TIM1のPWM出力を開始)
+  BLDC_Init(0, &adc_val[0]);
   PwmOut_Write(&LED2, 0);
+
+  // 電流センシングADC1をPWM同期トリガで初期化(TIM1起動後に行う)
+  CurrentSense_Init();
 
   // Serialの初期化
   Serial_Init(&uart2, &huart2, 256);
@@ -177,6 +189,140 @@ void SendSerial() {
   }
 }
 
+// 電流センシングADC1をPWM同期トリガで初期化する
+// ローサイドシャントは「低側FETがONの区間」しか正しい電流が流れないため、
+// 全相の低側FETが同時にONになるPWM谷付近(CNTがARRに近い区間)でADCをトリガする。
+//   エッジ揃えUPカウントPWM1: CNT<CCRで高側ON、CNT>=CCRで低側ON
+//   → 全相低側ONの区間 = [max(CCRu,CCRv,CCRw), ARR]
+//   TIM1_CH4をPWM2モードにしCCR4をARR手前(3200/3599)に置くと、その位置でOC4REFが立ち上がる。
+//   これをTRGO2に出し、ADC1の外部トリガ(TIM1_TRGO2)として使う。
+void CurrentSense_Init() {
+  const uint32_t TRIG_POINT = 3200;  // ARR=3599。低側ON区間内(amp<=0.5まで安全)
+
+  // TIM1_CH4 コンペア設定 (OC4REF生成用。CH4に出力ピンは無いが内部REFは生成される)
+  TIM_OC_InitTypeDef oc = {0};
+  oc.OCMode = TIM_OCMODE_PWM2;  // CNT>=CCR4 でOC4REF=High(立ち上がりでトリガ)
+  oc.Pulse = TRIG_POINT;
+  oc.OCPolarity = TIM_OCPOLARITY_HIGH;
+  oc.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &oc, TIM_CHANNEL_4) != HAL_OK) {
+    printf("TIM1 CH4 config failed!\n");
+  }
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+
+  // TRGO2 = OC4REF
+  TIM_MasterConfigTypeDef mc = {0};
+  mc.MasterOutputTrigger = TIM_TRGO_RESET;
+  mc.MasterOutputTrigger2 = TIM_TRGO2_OC4REF;
+  mc.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  HAL_TIMEx_MasterConfigSynchronization(&htim1, &mc);
+
+  // ADC1 を外部トリガ(TIM1_TRGO2立ち上がり)・単発変換に再設定
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T1_TRGO2;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK) {
+    printf("ADC1 re-init failed!\n");
+  }
+  // 変換チャンネル列を再設定 (IN1=U相 rank1, IN2=V相 rank2)
+  ADC_ChannelConfTypeDef sc = {0};
+  sc.SingleDiff = ADC_SINGLE_ENDED;
+  sc.SamplingTime = ADC_SAMPLETIME_61CYCLES_5;
+  sc.OffsetNumber = ADC_OFFSET_NONE;
+  sc.Channel = ADC_CHANNEL_1;
+  sc.Rank = ADC_REGULAR_RANK_1;
+  HAL_ADC_ConfigChannel(&hadc1, &sc);
+  sc.Channel = ADC_CHANNEL_2;
+  sc.Rank = ADC_REGULAR_RANK_2;
+  HAL_ADC_ConfigChannel(&hadc1, &sc);
+
+  // セルフキャリブレーション
+  HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+
+  // DMA開始。トリガはPWM周期(20kHz)なので割り込み頻度は低いが、値を読むだけなので割り込み不要
+  HAL_NVIC_DisableIRQ(DMA1_Channel1_IRQn);
+  if (HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&current_adc_val, 2) != HAL_OK) {
+    printf("ADC1 DMA start failed!\n");
+  }
+}
+
+// 電流計測テスト(ベクトル制御実装前の動作確認用)
+// ローサイドシャント(5mΩ) + INA180A2(ゲイン50) の2相電流を計測してprintfする
+void CurrentSenseTest() {
+  // ゼロ電流時の出力(オフセット)を計測する。必ずモーター停止状態で実行すること
+  const uint16_t CALIB_SAMPLES = 1000;
+  uint32_t u_sum = 0, v_sum = 0;
+  for (uint16_t i = 0; i < CALIB_SAMPLES; i++) {
+    u_sum += current_adc_val[0];
+    v_sum += current_adc_val[1];
+    HAL_Delay(1);
+  }
+  current_offset_u = (float)u_sum / CALIB_SAMPLES;
+  current_offset_v = (float)v_sum / CALIB_SAMPLES;
+  printf("Current offset  U:%.1f  V:%.1f [ADC]\n", current_offset_u, current_offset_v);
+  printf("ADC2CURRENT = %.6f [A/LSB]\n", (double)ADC2CURRENT);
+
+  while (1) {
+    // ADC値 → 電流 [A] : (ADC値 - オフセット) * 変換係数
+    float iu = ((float)current_adc_val[0] - current_offset_u) * ADC2CURRENT;
+    float iv = ((float)current_adc_val[1] - current_offset_v) * ADC2CURRENT;
+    float iw = -(iu + iv);  // キルヒホッフの電流則 (Iu + Iv + Iw = 0) より
+
+    printf("Iu:%7.3f A  Iv:%7.3f A  Iw:%7.3f A   (raw U:%4u V:%4u)\n",
+           iu, iv, iw, current_adc_val[0], current_adc_val[1]);
+
+    HAL_Delay(100);
+  }
+}
+
+// 強制転流(オープンループ駆動)しながら電流を計測するテスト
+// 電気角をゆっくり回し、各相の電流が正弦波状に変化するか確認する
+void ForcedCommutationCurrentTest() {
+  const float amp = 0.2f;          // 印加電圧振幅(0〜1)。まずは控えめに
+  const float phase_step = 0.005f;  // 1msあたりの電気角進み [rad] → 電気角速度 約5rad/s
+
+  // まず停止状態(全相デューティ0.5=電流ゼロ)でオフセットを校正
+  BLDC_OpenLoopDrive(0, 0);
+  HAL_Delay(200);
+  const uint16_t CALIB_SAMPLES = 1000;
+  uint32_t u_sum = 0, v_sum = 0;
+  for (uint16_t i = 0; i < CALIB_SAMPLES; i++) {
+    u_sum += current_adc_val[0];
+    v_sum += current_adc_val[1];
+    HAL_Delay(1);
+  }
+  current_offset_u = (float)u_sum / CALIB_SAMPLES;
+  current_offset_v = (float)v_sum / CALIB_SAMPLES;
+  printf("Current offset  U:%.1f  V:%.1f [ADC]\n", current_offset_u, current_offset_v);
+
+  float phase = 0;
+  float iu_f = 0, iv_f = 0;  // 表示用の簡易ローパス
+  uint16_t print_counter = 0;
+  while (1) {
+    // 電気角を進めてオープンループ駆動
+    phase += phase_step;
+    if (phase > TWO_PI) phase -= TWO_PI;
+    BLDC_OpenLoopDrive(amp, phase);
+
+    // 同期サンプリングされた最新値(PWM谷でトリガ、1周期=50µsごとに更新)を読む。
+    // 以前のようにタイトループで多数回読んでも同じ値なので、簡易ローパスで平滑化する。
+    float iu = ((float)current_adc_val[0] - current_offset_u) * ADC2CURRENT;
+    float iv = ((float)current_adc_val[1] - current_offset_v) * ADC2CURRENT;
+    iu_f += 0.2f * (iu - iu_f);
+    iv_f += 0.2f * (iv - iv_f);
+    float iw = -(iu_f + iv_f);  // キルヒホッフの電流則より
+
+    // 一定間隔で表示(毎ループ出すとシリアルが詰まる)
+    if (++print_counter >= 50) {
+      print_counter = 0;
+      printf("phase:%5.2f  Iu:%6.3f  Iv:%6.3f  Iw:%6.3f A  (raw U:%4u V:%4u)\n",
+             phase, iu_f, iv_f, iw, current_adc_val[0], current_adc_val[1]);
+    }
+
+    HAL_Delay(1);  // ループ周期 約1ms
+  }
+}
+
 void MainApp() {
   while (1) {
     GetSensors();
@@ -219,7 +365,7 @@ void MainApp() {
     } else {
       RecvSerial();
       if (mode == 0) {
-        BLDC_Stop();  // モーターストップ
+        // BLDC_Stop();  // モーターストップ
       } else if (mode == 1) {
         BLDC_AngularSpeedControl(target_angular_speed);  // 角速度制御
       } else if (mode == 2) {
@@ -235,6 +381,7 @@ void MainApp() {
       PwmOut_Write(&LED2, Abs(BLDC_GetAmpVolt()) * 0.4 - 1);
     }
 
+    BLDC_VoltageControl(-0.1);  // 電圧制御
     BLDC_SensoredVectorControlDrive(encoder_val, supply_volt);
   }
 }
