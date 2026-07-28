@@ -14,10 +14,9 @@
 #include "stdbool.h"
 #include "timer.h"
 
+// app は外部との入出力 (シリアル通信・LED・スイッチ・保護判定) を担当する。
+// モーター制御そのものは src/bldc 側の20kHz割り込みの中で完結している。
 void Setup();
 void MainApp();
-void CurrentSense_Init();            // 電流センシングADC1をPWM同期トリガで初期化
-void CurrentSenseTest();             // 電流計測テスト(停止状態)
-void ForcedCommutationCurrentTest();  // 強制転流しながら電流計測するテスト
 
 #endif  // APP_H_

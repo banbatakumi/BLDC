@@ -109,10 +109,8 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   Setup();
+  MainApp();
 
-  ForcedCommutationCurrentTest();  // 強制転流しながら電流計測
-  // CurrentSenseTest();  // 停止状態での電流計測
-  // MainApp();
   while (1) {
     /* USER CODE END WHILE */
 
