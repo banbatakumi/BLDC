@@ -52,7 +52,7 @@ IN+ がシャント上側なので、**相電流が正 (インバータ → モ�
 | VOLTAGE | PA6 (ADC2_IN3, rank2 → `adc_val[1]`) |
 | TEMP | PA4 (ADC2_IN1, rank3 → `adc_val[2]`) |
 | BUTTON | **PA12** (V3 の PA0 から変更。PA0 は電流センスに使うので注意) |
-| LED1-4 | PA15 / PB3 / PB4 / PB5 |
+| LED1-4 | PA15 / PB3 / PB4 / PB5 (色: LED1・LED2 = 青 / LED3 = 緑 / LED4 = 赤) |
 | PC_TX / PC_RX (USART1, printf) | PB6 / PB7 |
 | UART2_TX / RX | PA2 / PA3 |
 

@@ -592,18 +592,18 @@ void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val) {
 
   // --- 制御器のゲイン ---
   // 外側ループの出力は「Iq指令 [A]」。電圧制御だった頃とは単位が違うので再調整が必要。
-  svc.speed_pid.kp = 0.2f;
-  svc.speed_pid.ki = 0.4f;
+  svc.speed_pid.kp = 0.1f;
+  svc.speed_pid.ki = 0.2f;
   svc.speed_pid.kd = 0;
   svc.speed_pid.d_term = 0;
   svc.speed_pid.d_lpf = 0.0f;
   svc.speed_pid.output_limit = MAX_CURRENT;
 
-  svc.position_pid.kp = 5;
-  svc.position_pid.ki = 10;
+  svc.position_pid.kp = 7.5;
+  svc.position_pid.ki = 15;
   svc.position_pid.kd = 0.2f;
   svc.position_pid.d_term = 0;
-  svc.position_pid.d_lpf = 0.9f;
+  svc.position_pid.d_lpf = 0.8f;
   svc.position_pid.output_limit = MAX_CURRENT;
 
   // 電流PIの出力は電圧 [V]。上限は変調限界。

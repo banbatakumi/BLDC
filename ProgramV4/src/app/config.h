@@ -76,7 +76,7 @@
 // BLDCのパラメーター
 // ===========================================================================
 #define POLE_PAIRS 7              // 極対数 (磁石の数/2)
-#define MAX_ANGULAR_SPEED 200.0f  // 最大角速度 [rad/s]
+#define MAX_ANGULAR_SPEED 150.0f  // 最大角速度 [rad/s]
 #define MAX_ANGULAR_ACCEL 100.0f  // 最大角加速度 [rad/s^2]
 
 // ===========================================================================
@@ -102,7 +102,7 @@
 // 補足: 大きな周波数誤差からの引き込み(ロータを手で急停止させた場合など)は
 // PLL_KP がおよその上限になる。PLL_KP ≥ MAX_ANGULAR_SPEED を満たしていれば、
 // どの運転速度からでも即座に再ロックできる。
-#define PLL_OMEGA_N 250.0f
+#define PLL_OMEGA_N 200.0f
 #define PLL_KP (2.0f * PLL_OMEGA_N)         // 2ζω_n [1/s]
 #define PLL_KI (PLL_OMEGA_N * PLL_OMEGA_N)  // ω_n²  [1/s²]
 
@@ -147,13 +147,13 @@
 // (MAX_ANGULAR_ACCEL = 100 rad/s²) の3倍の余裕がある。
 #define PLL_SPEED_ERROR_LIMIT_RAD 0.005f
 
-#define MAX_CURRENT 8.0f         // Id/Iq指令の上限 [A]
+#define MAX_CURRENT 7.0f         // Id/Iq指令の上限 [A]
 #define OVERCURRENT_LIMIT 10.0f  // 過電流保護のしきい値 [A]
 
 // 連続して何サンプルしきい値を超えたら保護を発動するか。
 // 1サンプル(50µs)だけのノイズで誤検出しないためのデバウンス。
 // 3 なら 150µs 継続した過電流で発動する。
-#define OVERCURRENT_TRIP_COUNT 10
+#define OVERCURRENT_TRIP_COUNT 5
 
 // 電流PI制御のゲイン
 //   理論値は  Kp = L * 2π * f_bw,  Ki = R * 2π * f_bw

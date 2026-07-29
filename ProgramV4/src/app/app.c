@@ -2,11 +2,20 @@
 
 #define ADC2VOLT 0.0008058608059f  // ADC値 → 電圧 [V] (3.3V / 4095)
 
+// 基板上のLEDの色と役割
+//   LED1/LED2 (青)  : 起動シーケンスの進捗 → 運転中は負荷(Iq)のバーグラフ
+//   LED3      (緑)  : 正常。初期化完了と、シリアルでコマンドを受け取っている間の点灯
+//   LED4      (赤)  : 異常。点滅回数で種別 (1回:過熱 2回:電圧異常 3回:過電流)
 PwmOut LED1;
 PwmOut LED2;
 PwmOut LED3;
 PwmOut LED4;
 DigitalIn SW;
+
+// 赤LEDの点滅回数でエラー種別を知らせる。異常時は他の色を消して赤だけにする。
+#define ERROR_BLINK_OVERHEAT 1
+#define ERROR_BLINK_VOLTAGE 2
+#define ERROR_BLINK_OVERCURRENT 3
 
 Timer serial_send_timer;
 Timer serial_recv_timer;
@@ -44,9 +53,10 @@ void Setup() {
   PwmOut_Init(&LED2, &htim2, TIM_CHANNEL_2);
   PwmOut_Init(&LED3, &htim3, TIM_CHANNEL_1);
   PwmOut_Init(&LED4, &htim3, TIM_CHANNEL_2);
-  PwmOut_Write(&LED1, 1);
+  PwmOut_Write(&LED1, 1);  // 青2つが点いている間は初期化中
   PwmOut_Write(&LED2, 1);
-  PwmOut_Write(&LED3, 1);
+  PwmOut_Write(&LED3, 0);  // 緑は初期化完了で点ける
+  PwmOut_Write(&LED4, 0);  // 赤は異常時のみ
 
   DigitalIn_Init(&SW, GPIOA, GPIO_PIN_12);
 
@@ -73,6 +83,8 @@ void Setup() {
   // Serialの初期化
   Serial_Init(&uart2, &huart2, 256);
 
+  PwmOut_Write(&LED3, 1);  // 初期化完了 (緑)
+  HAL_Delay(200);
   PwmOut_Write(&LED3, 0);
 
   Timer_Init(&serial_send_timer);
@@ -81,6 +93,23 @@ void Setup() {
   Timer_Reset(&serial_recv_timer);
   Timer_Init(&status_print_timer);
   Timer_Reset(&status_print_timer);
+}
+
+// 異常を赤LED(LED4)の点滅回数で知らせる。点滅の間は青・緑を消して
+// 「赤だけが点滅している = 異常」と一目で分かるようにする。
+// MainAppのループから毎周期呼ばれるので、1回の呼び出しで1パターンだけ出す。
+static void BlinkError(uint8_t blink_count) {
+  PwmOut_Write(&LED1, 0);
+  PwmOut_Write(&LED2, 0);
+  PwmOut_Write(&LED3, 0);
+
+  for (uint8_t i = 0; i < blink_count; i++) {
+    PwmOut_Write(&LED4, 1);
+    HAL_Delay(100);
+    PwmOut_Write(&LED4, 0);
+    HAL_Delay(100);
+  }
+  HAL_Delay(400);  // パターンの区切り (点滅回数を数えやすくする)
 }
 
 // 電流の実測値を定期表示する。ゲイン調整と過電流のしきい値決めに使う。
@@ -162,7 +191,7 @@ void RecvSerial() {
       }
     } else if (index == (DATA_SIZE + 2)) {
       if (recv_byte == FOOTER) {
-        PwmOut_Write(&LED3, 1);
+        PwmOut_Write(&LED3, 1);  // 緑点灯 = コマンドを受信できている
         if (mode == 1) {
           target_angular_speed = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.01;  // 角速度 [rad/s]
         } else if (mode == 2) {
@@ -181,8 +210,8 @@ void RecvSerial() {
       index++;
     }
   } else if (Timer_Read(&serial_recv_timer) > 0.5) {
-    mode = 0;  // 一定時間データが受信されない場合は停止モードにする
-    PwmOut_Write(&LED3, 0);
+    mode = 0;                // 一定時間データが受信されない場合は停止モードにする
+    PwmOut_Write(&LED3, 0);  // 通信が途切れたので緑を消す
     Serial_Reset(&uart2);
     Timer_Reset(&serial_recv_timer);
   }
@@ -227,15 +256,9 @@ void MainApp() {
 
       if (is_overheat == true && temp < (TEMP_LIMIT - 5)) {
         is_overheat = false;
-        PwmOut_Write(&LED4, 0);
+        PwmOut_Write(&LED4, 0);  // 復帰したので赤を消す
       } else {
-        PwmOut_Write(&LED1, 0);
-        PwmOut_Write(&LED2, 0);
-        PwmOut_Write(&LED4, 0);
-        PwmOut_Write(&LED3, 1);
-        HAL_Delay(100);
-        PwmOut_Write(&LED3, 0);
-        HAL_Delay(100);
+        BlinkError(ERROR_BLINK_OVERHEAT);
       }
     } else if (supply_volt > SUPPLY_VOLTAGE_MAX_LIMIT || supply_volt < SUPPLY_VOLTAGE_MIN_LIMIT || is_voltage_out_of_range == true) {
       printf("Supply voltage out of range: %.2fV, Temperature: %.2f°C\n", supply_volt, temp);
@@ -244,15 +267,9 @@ void MainApp() {
 
       if (is_voltage_out_of_range == true && supply_volt > (SUPPLY_VOLTAGE_MIN_LIMIT + 0.5) && supply_volt < (SUPPLY_VOLTAGE_MAX_LIMIT - 0.5)) {
         is_voltage_out_of_range = false;
-        PwmOut_Write(&LED2, 0);
+        PwmOut_Write(&LED4, 0);  // 復帰したので赤を消す
       } else {
-        PwmOut_Write(&LED1, 1);
-        PwmOut_Write(&LED2, 0);
-        PwmOut_Write(&LED3, 0);
-        PwmOut_Write(&LED4, 0);
-        HAL_Delay(100);
-        PwmOut_Write(&LED1, 0);
-        HAL_Delay(100);
+        BlinkError(ERROR_BLINK_VOLTAGE);
       }
     } else if (BLDC_IsOvercurrent()) {
       // 過電流保護。制御ループ側で既にモーターは止まっている。
@@ -272,33 +289,34 @@ void MainApp() {
                t.mech_theta, t.angular_speed, supply_volt);
       }
       mode = 0;
-      PwmOut_Write(&LED1, 1);
-      PwmOut_Write(&LED4, 1);
-      HAL_Delay(100);
-      PwmOut_Write(&LED1, 0);
-      PwmOut_Write(&LED4, 0);
-      HAL_Delay(100);
+      BlinkError(ERROR_BLINK_OVERCURRENT);
       if (sw_state) {  // スイッチを押すと復帰
         trip_reported = false;
         BLDC_ResetPeakCurrent();
         BLDC_ClearOvercurrent();
-        Serial_Reset(&uart2);  // 停止中に溜まった受信データを捨てる
+        Serial_Reset(&uart2);    // 停止中に溜まった受信データを捨てる
+        PwmOut_Write(&LED4, 0);  // 復帰したので赤を消す
       }
     } else {
       RecvSerial();
-      if (mode == 0) {
-        BLDC_Stop();  // モーターストップ
-      } else if (mode == 1) {
-        BLDC_AngularSpeedControl(target_angular_speed);  // 角速度制御
-      } else if (mode == 2) {
-        BLDC_PositionControl(target_position);  // 位置制御
-      } else if (mode == 3) {
-        BLDC_TorqueControl(target_current);  // トルク制御
-      } else if (mode == 4) {
-        BLDC_BrakeControl(brake_current);  // ブレーキ
-      }
+      // if (mode == 0) {
+      //   BLDC_Stop();  // モーターストップ
+      // } else if (mode == 1) {
+      //   BLDC_AngularSpeedControl(target_angular_speed);  // 角速度制御
+      // } else if (mode == 2) {
+      //   BLDC_PositionControl(target_position);  // 位置制御
+      // } else if (mode == 3) {
+      //   BLDC_TorqueControl(target_current);  // トルク制御
+      // } else if (mode == 4) {
+      //   BLDC_BrakeControl(brake_current);  // ブレーキ
+      // }
+      BLDC_PositionControl(0);  // 位置制御
+      // BLDC_TorqueControl(2);  // トルク制御
+      // BLDC_AngularSpeedControl(150);  // 角速度制御
 
-      // 状態の表示 (q軸電流の大きさ)
+      // 状態の表示。正常なので赤は消し、青2つでq軸電流の大きさをバーグラフにする
+      // (LED1が0→100%、そこから先をLED2が0→100%で引き継ぐ)。
+      PwmOut_Write(&LED4, 0);
       float iq_ratio = Abs(BLDC_GetIq()) / MAX_CURRENT;
       PwmOut_Write(&LED1, iq_ratio * 2.0f);
       PwmOut_Write(&LED2, iq_ratio * 2.0f - 1.0f);
