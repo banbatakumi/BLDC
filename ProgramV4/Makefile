@@ -68,9 +68,10 @@ Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart_ex.c \
 $(wildcard src/**/*.c) \
 $(wildcard lib/**/*.c) \
 Core/Src/dma.c \
-Drivers/CMSIS/DSP/Source/FastMathFunctions/arm_sin_f32.c \
-Drivers/CMSIS/DSP/Source/FastMathFunctions/arm_cos_f32.c \
 Drivers/CMSIS/DSP/Source/CommonTables/arm_common_tables.c
+# arm_sin_f32.c / arm_cos_f32.c はビルド対象から外してある。
+# foc.h の FOC_SinCos が sinTable_f32 (arm_common_tables.c) を直接引いて
+# sin と cos を1回の範囲縮約で同時に求めるので、CMSIS の関数は呼んでいない。
 
 # ASM sources
 ASM_SOURCES =  \

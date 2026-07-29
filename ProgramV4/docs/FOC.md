@@ -58,8 +58,11 @@ HAL_ADC_ConvCpltCallback()   [bldc.c]
   単精度FPUしか無い Cortex-M4 では式全体がソフトウェアエミュレーションに落ちる。
   割り込みの中では `foc.h` の `PI_F` / `TWO_PI_F` / `FOC_NormalizeRadians()` /
   `FOC_AngleDiff()` を使う。定数リテラルには必ず `f` を付ける。
-- **sin/cos は CMSIS-DSP の `arm_sin_f32` / `arm_cos_f32`** (512点テーブル+線形補間)。
-  `mymath.h` の `Sin`/`Cos` は1度刻みなので Park 変換には粗すぎる。
+- **sin/cos は `FOC_SinCos()`**。CMSIS-DSP の 512点テーブル `sinTable_f32` を直接引き、
+  範囲縮約と補間係数を1回で済ませて sin と cos を同時に返す
+  (`arm_sin_f32` / `arm_cos_f32` を別々に呼ぶと縮約が2回走るので使っていない)。
+  強制転流 (`BLDC_OpenLoopDrive`) もこれを使う。sin/cos の実装はプロジェクト内で
+  この1つだけにしてあるので、`mymath.h` に三角関数を足さないこと。
 - **PWM 出力は `TIM1->CCRx` を直接書く**。`PwmOut_Write` は `__HAL_TIM_SET_COMPARE` の
   チャンネル判定 switch が展開されて1相あたり約100命令になる。
 - **平方根は `FOC_Sqrt()` (VSQRT.F32 一命令)**。libm の `sqrtf` は errno / NaN 処理で

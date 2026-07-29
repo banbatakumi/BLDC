@@ -7,8 +7,6 @@
 #include "mymath.h"
 #include "tim.h"
 
-#define ADC2VOLT 0.0008058608059f  // ADC値 → 電圧 [V] (3.3V / 4095)
-
 // ADC値 → 電流 [A] : Vout = REF + I * Rshunt * Gain より I = (Vout - REF) / (Rshunt * Gain)
 // CURRENT_SIGN は配線上の向きを合わせるための符号 (config.h 参照)
 #define ADC2CURRENT_ABS (ADC2VOLT / (SHUNT_RESISTANCE * CURRENT_AMP_GAIN))
@@ -19,7 +17,6 @@ static volatile uint16_t adc_val[2];
 
 static float offset_v = CURRENT_REF_ADC;
 static float offset_u = CURRENT_REF_ADC;
-static bool offset_valid = false;
 
 // 電流センシングADC1をPWM同期トリガで初期化する
 //
@@ -136,7 +133,8 @@ void CurrentSense_Calibrate(void) {
 
   float dev_u = offset_u - CURRENT_REF_ADC;
   float dev_v = offset_v - CURRENT_REF_ADC;
-  offset_valid = (Abs(dev_u) <= CURRENT_OFFSET_TOLERANCE) && (Abs(dev_v) <= CURRENT_OFFSET_TOLERANCE);
+  bool offset_valid =
+      (Abs(dev_u) <= CURRENT_OFFSET_TOLERANCE) && (Abs(dev_v) <= CURRENT_OFFSET_TOLERANCE);
 
   printf("CurrentSense: offset Iu:%.1f Iv:%.1f [ADC] (中点 %.0f), %.4f A/LSB, レンジ 約±%.1f A\n",
          offset_u, offset_v, (double)CURRENT_REF_ADC,
@@ -156,13 +154,4 @@ void CurrentSense_Read(float* iu, float* iv, float* iw) {
 void CurrentSense_GetRaw(uint16_t* raw_u, uint16_t* raw_v) {
   *raw_v = adc_val[0];
   *raw_u = adc_val[1];
-}
-
-void CurrentSense_GetOffset(float* out_offset_u, float* out_offset_v) {
-  *out_offset_u = offset_u;
-  *out_offset_v = offset_v;
-}
-
-bool CurrentSense_IsOffsetValid(void) {
-  return offset_valid;
 }

@@ -25,7 +25,6 @@
 // app 側は BLDC_SetSupplyVolt() でセンサ値を渡し、BLDC_XxxControl() で
 // 目標値を指示するだけでよい。実際の制御は全て割り込みの中で走る。
 
-#define MAX_ADC_VAL 4095    // ADCの最大値(12bit)
 #define ACCEL_LPF 0.6f      // 角加速度のローパスフィルタ係数
 #define ACCEL_LPF_INV 0.4f  // (1.0 - ACCEL_LPF) 事前計算値
 

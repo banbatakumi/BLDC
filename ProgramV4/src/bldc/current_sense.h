@@ -31,7 +31,4 @@ void CurrentSense_Read(float* iu, float* iv, float* iw);
 // 生のADC値を取得する (原因調査用)
 void CurrentSense_GetRaw(uint16_t* raw_u, uint16_t* raw_v);
 
-void CurrentSense_GetOffset(float* offset_u, float* offset_v);
-bool CurrentSense_IsOffsetValid(void);
-
 #endif  // CURRENT_SENSE_H_

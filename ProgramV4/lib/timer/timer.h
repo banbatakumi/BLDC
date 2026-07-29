@@ -7,13 +7,18 @@ typedef struct {
       uint32_t start_time;
 } Timer;
 
+static inline void Timer_Reset(Timer *timer) {
+      timer->start_time = DWT->CYCCNT;
+}
+
+// DWTサイクルカウンタを動かして、計測開始点を「いま」に合わせる。
+// 以前は引数を一切使わず DWT を有効にするだけだったので、呼び出し側が
+// 必ず Timer_Reset を続けて書く必要があった (書き忘れると起動からの
+// 経過時間が入って初回だけ挙動が変わる)。ここで一緒にリセットしておく。
 static inline void Timer_Init(Timer *timer) {
       CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
       DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-}
-
-static inline void Timer_Reset(Timer *timer) {
-      timer->start_time = DWT->CYCCNT;
+      Timer_Reset(timer);
 }
 
 static inline float _timer_inv_clk(void) {

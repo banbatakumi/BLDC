@@ -1,51 +1,60 @@
 #include "app.h"
 
-#define ADC2VOLT 0.0008058608059f  // ADC値 → 電圧 [V] (3.3V / 4095)
-
 // 基板上のLEDの色と役割
 //   LED1/LED2 (青)  : 起動シーケンスの進捗 → 運転中は負荷(Iq)のバーグラフ
 //   LED3      (緑)  : 正常。初期化完了と、シリアルでコマンドを受け取っている間の点灯
 //   LED4      (赤)  : 異常。点滅回数で種別 (1回:過熱 2回:電圧異常 3回:過電流)
-PwmOut LED1;
-PwmOut LED2;
-PwmOut LED3;
-PwmOut LED4;
-DigitalIn SW;
+static PwmOut LED1;
+static PwmOut LED2;
+static PwmOut LED3;
+static PwmOut LED4;
+static DigitalIn SW;
 
 // 赤LEDの点滅回数でエラー種別を知らせる。異常時は他の色を消して赤だけにする。
 #define ERROR_BLINK_OVERHEAT 1
 #define ERROR_BLINK_VOLTAGE 2
 #define ERROR_BLINK_OVERCURRENT 3
 
-Timer serial_send_timer;
-Timer serial_recv_timer;
-Timer status_print_timer;
+static Timer serial_send_timer;
+static Timer serial_recv_timer;
+static Timer status_print_timer;
 #if PROFILE_ISR
-Timer profile_print_timer;
+static Timer profile_print_timer;
 #endif
 
-Serial uart2;
+static Serial uart2;
 
-LPF supply_volt_lpf;
-LPF temp_lpf;
+static LPF supply_volt_lpf;
+static LPF temp_lpf;
 
 // ADC2の値を格納する配列 (エンコーダ, 電圧, 温度)。
 // DMAが非同期に書き換えるので volatile 必須。これが無いと、下の
 // 「値が入るまで待つ」ループが最適化で無限ループになりうる。
-volatile uint16_t adc_val[3];
+static volatile uint16_t adc_val[3];
+#define ADC_ENCODER 0
+#define ADC_SUPPLY_VOLT 1
+#define ADC_TEMP 2
 
-uint16_t encoder_val, supply_volt_val, temp_val;
-float supply_volt;
-float temp;
+static float supply_volt;
+static float temp;
 
-bool sw_state;
+static bool sw_state;
 
-bool is_overheat;
-bool is_voltage_out_of_range;
+static bool is_overheat;
+static bool is_voltage_out_of_range;
 
-float target_angular_speed, target_current, target_position, brake_current;
+// 制御モード。シリアルのヘッダバイトで切り替わる。
+typedef enum {
+  APP_MODE_STOP = 0,
+  APP_MODE_SPEED,
+  APP_MODE_POSITION,
+  APP_MODE_TORQUE,
+  APP_MODE_BRAKE,
+} AppMode;
 
-uint8_t mode = 0;  // 制御モード(0: 停止, 1: 角速度制御, 2: 位置制御, 3: トルク制御, 4: ブレーキ)
+static AppMode mode = APP_MODE_STOP;
+
+static float target_angular_speed, target_current, target_position, brake_current;
 
 void Setup() {
   printf("Hello World\n");
@@ -73,7 +82,7 @@ void Setup() {
   PwmOut_Write(&LED1, 0);
 
   // ローパスフィルタの初期化。電源電圧は実測値を初期値にする。
-  supply_volt = adc_val[1] * ADC2VOLT * 10.0f;
+  supply_volt = adc_val[ADC_SUPPLY_VOLT] * ADC2VOLT * 10.0f;
   LPF_Init(&supply_volt_lpf, 0.9, supply_volt);
   LPF_Init(&temp_lpf, 0.99, 30);
 
@@ -81,7 +90,7 @@ void Setup() {
   // スイッチを押しながら起動するとエンコーダの校正を行う。
   // 母線電圧は BLDC_Init に渡す。校正もこの中で走るので、実際の電圧を
   // 知らないまま測ると モータ定数が母線のずれの比だけ狂う (bldc.c 参照)。
-  BLDC_Init(DigitalIn_Read(&SW), &adc_val[0], supply_volt);
+  BLDC_Init(DigitalIn_Read(&SW), &adc_val[ADC_ENCODER], supply_volt);
   PwmOut_Write(&LED2, 0);
 
   // Serialの初期化
@@ -92,14 +101,10 @@ void Setup() {
   PwmOut_Write(&LED3, 0);
 
   Timer_Init(&serial_send_timer);
-  Timer_Reset(&serial_send_timer);
   Timer_Init(&serial_recv_timer);
-  Timer_Reset(&serial_recv_timer);
   Timer_Init(&status_print_timer);
-  Timer_Reset(&status_print_timer);
 #if PROFILE_ISR
   Timer_Init(&profile_print_timer);
-  Timer_Reset(&profile_print_timer);
   BLDC_ResetIsrProfile();  // BLDC_Init 中に溜まったぶんを捨てて測定開始点を揃える
 #endif
 }
@@ -121,9 +126,25 @@ static void BlinkError(uint8_t blink_count) {
   HAL_Delay(400);  // パターンの区切り (点滅回数を数えやすくする)
 }
 
+// ラッチ式の異常処理。復帰条件を満たすまでモータを止め、赤LEDを点滅させ続ける。
+//
+// 復帰条件にヒステリシスを持たせているのは、しきい値ちょうどで
+// 停止と復帰を往復させないため (過熱なら -5°C、電圧なら ±0.5V)。
+// 過熱と電圧異常でまったく同じ形だったのでまとめた。
+static void HandleFault(bool* latched, bool recovered, uint8_t blink_count) {
+  BLDC_Stop();  // モーターストップ
+
+  if (recovered) {
+    *latched = false;
+    PwmOut_Write(&LED4, 0);  // 復帰したので赤を消す
+  } else {
+    BlinkError(blink_count);
+  }
+}
+
 // 電流の実測値を定期表示する。ゲイン調整と過電流のしきい値決めに使う。
 // STATUS_PRINT_INTERVAL_S を 0 にすると無効。
-void PrintStatus() {
+static void PrintStatus() {
   if (STATUS_PRINT_INTERVAL_S <= 0) return;
   if (Timer_Read(&status_print_timer) < STATUS_PRINT_INTERVAL_S) return;
   Timer_Reset(&status_print_timer);
@@ -155,7 +176,7 @@ void PrintStatus() {
 // 20kHz制御ループの実行時間を定期表示する。
 // 制御周期を上げる/処理を足す前の余裕の確認に使う。
 // PROFILE_ISR / PROFILE_PRINT_INTERVAL_S を 0 にすると丸ごと消える。
-void PrintProfile() {
+static void PrintProfile() {
 #if PROFILE_ISR
   if (PROFILE_PRINT_INTERVAL_S <= 0) return;
 
@@ -169,73 +190,76 @@ void PrintProfile() {
 #endif
 }
 
-void GetSensors() {
-  encoder_val = adc_val[0];      // エンコーダの値
-  supply_volt_val = adc_val[1];  // 電圧の値
-  temp_val = adc_val[2];         // 温度の値
-
+static void GetSensors() {
   // 電源電圧の変換(分圧で1/10にしている)
-  supply_volt = supply_volt_val * ADC2VOLT * 10.0f;
+  supply_volt = adc_val[ADC_SUPPLY_VOLT] * ADC2VOLT * 10.0f;
   supply_volt = LPF_Update(&supply_volt_lpf, supply_volt);  // ローパスフィルタを適用
   BLDC_SetSupplyVolt(supply_volt);                          // 変調率の計算に使うのでBLDCへ渡す
 
-  // MCP9700T/HTT温度センサの変換
-  float temp_voltage = temp_val * ADC2VOLT;  // ADC値 → 電圧変換
-
-  temp = (temp_voltage - 0.5) * 100;   // 電圧 → 温度変換
+  // MCP9700T/HTT温度センサの変換 (0.5V が 0°C、10mV/°C)
+  float temp_voltage = adc_val[ADC_TEMP] * ADC2VOLT;
+  temp = (temp_voltage - 0.5f) * 100.0f;
   temp = LPF_Update(&temp_lpf, temp);  // ローパスフィルタを適用
 
   // スイッチ
   sw_state = DigitalIn_Read(&SW);
 }
 
-void RecvSerial() {
-  const static uint8_t HEADER = 0xFF;
-  const static uint8_t ANGULAR_SPEED_HEADER = 0xFE;
-  const static uint8_t POSITION_HEADER = 0xFD;
-  const static uint8_t TORQUE_HEADER = 0xFC;
-  const static uint8_t BRAKE_HEADER = 0xFB;
-  const static uint8_t FOOTER = 0xAA;
-  const static uint8_t DATA_SIZE = 2;
+// ---------------------------------------------------------------------------
+// シリアル受信
+// ---------------------------------------------------------------------------
+// パケット形式: [0xFF][モードヘッダ][データ上位][データ下位][0xAA]
+//
+// モードごとに「どのヘッダか」「どの変数へ入れるか」「どんな単位か」を
+// 別々の if 連鎖で2回書いていたので、表にまとめた。
+// モードを増やすときはこの表に1行足すだけでよい。
+typedef struct {
+  uint8_t header;
+  AppMode mode;
+  float scale;    // 受信した int16 に掛ける係数
+  float* target;  // 格納先
+} SerialCommand;
+
+static const SerialCommand SERIAL_COMMANDS[] = {
+    {0xFE, APP_MODE_SPEED, 0.01f, &target_angular_speed},  // 角速度 [rad/s]
+    {0xFD, APP_MODE_POSITION, 0.001f, &target_position},   // 位置 [rad]
+    {0xFC, APP_MODE_TORQUE, 0.001f, &target_current},      // トルク(Iq指令) [A]
+    {0xFB, APP_MODE_BRAKE, 0.001f, &brake_current},        // 制動電流 [A]
+};
+#define SERIAL_COMMAND_COUNT (sizeof(SERIAL_COMMANDS) / sizeof(SERIAL_COMMANDS[0]))
+
+static void RecvSerial() {
+  static const uint8_t HEADER = 0xFF;
+  static const uint8_t FOOTER = 0xAA;
+  static const uint8_t DATA_SIZE = 2;
   static uint8_t recv_data[2];
   static uint8_t index = 0;
+  static const SerialCommand* command = NULL;
 
   if (Serial_Available(&uart2)) {
     uint8_t recv_byte = Serial_Read(&uart2);
     if (index == 0) {
-      if (recv_byte == HEADER) {
-        index++;
-      } else {
-        index = 0;
-      }
+      index = (recv_byte == HEADER) ? 1 : 0;
     } else if (index == 1) {
-      if (recv_byte == ANGULAR_SPEED_HEADER) {
-        mode = 1;  // 角速度制御モード
-        index++;
-      } else if (recv_byte == POSITION_HEADER) {
-        mode = 2;  // 位置制御モード
-        index++;
-      } else if (recv_byte == TORQUE_HEADER) {
-        mode = 3;  // トルク制御モード
-        index++;
-      } else if (recv_byte == BRAKE_HEADER) {
-        mode = 4;  // ブレーキモード
+      // モードヘッダを表から引く。見つからなければ先頭から取り直す。
+      command = NULL;
+      for (uint8_t i = 0; i < SERIAL_COMMAND_COUNT; i++) {
+        if (SERIAL_COMMANDS[i].header == recv_byte) {
+          command = &SERIAL_COMMANDS[i];
+          break;
+        }
+      }
+      if (command != NULL) {
+        mode = command->mode;
         index++;
       } else {
         index = 0;
       }
     } else if (index == (DATA_SIZE + 2)) {
-      if (recv_byte == FOOTER) {
+      if (recv_byte == FOOTER && command != NULL) {
         PwmOut_Write(&LED3, 1);  // 緑点灯 = コマンドを受信できている
-        if (mode == 1) {
-          target_angular_speed = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.01;  // 角速度 [rad/s]
-        } else if (mode == 2) {
-          target_position = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.001;  // 位置 [rad]
-        } else if (mode == 3) {
-          target_current = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.001;  // トルク(Iq指令) [A]
-        } else if (mode == 4) {
-          brake_current = (int16_t)((recv_data[0] << 8) | recv_data[1]) * 0.001;  // 制動電流 [A]
-        }
+        int16_t raw = (int16_t)((recv_data[0] << 8) | recv_data[1]);
+        *command->target = raw * command->scale;
 
         Timer_Reset(&serial_recv_timer);
       }
@@ -245,37 +269,57 @@ void RecvSerial() {
       index++;
     }
   } else if (Timer_Read(&serial_recv_timer) > 0.5) {
-    mode = 0;                // 一定時間データが受信されない場合は停止モードにする
+    mode = APP_MODE_STOP;    // 一定時間データが受信されない場合は停止モードにする
     PwmOut_Write(&LED3, 0);  // 通信が途切れたので緑を消す
     Serial_Reset(&uart2);
     Timer_Reset(&serial_recv_timer);
   }
 }
 
-void SendSerial() {
-  if (Timer_ReadUs(&serial_send_timer) > SERIAL_SEND_INTERVAL_US) {  // 指定された間隔ごとにシリアル送信
-    const static uint8_t HEADER = 0xFF;
-    const static uint8_t FOOTER = 0xAA;
-    static uint8_t data[12];
+static void SendSerial() {
+  if (Timer_ReadUs(&serial_send_timer) <= SERIAL_SEND_INTERVAL_US) return;
 
-    int16_t iq = (int16_t)(BLDC_GetIq() * 1000);  // q軸電流 [mA]
+  static const uint8_t HEADER = 0xFF;
+  static const uint8_t FOOTER = 0xAA;
+  static uint8_t data[12];
 
-    data[0] = HEADER;
-    data[1] = (BLDC_IsOvercurrent() << 3) | (is_overheat << 2) | (is_voltage_out_of_range << 1) | (mode != 0);
-    data[2] = (uint8_t)temp;
-    data[3] = ((uint16_t)(BLDC_GetMechTheta() * 10000) >> 8) & 0xFF;
-    data[4] = (uint16_t)(BLDC_GetMechTheta() * 10000) & 0xFF;
-    data[5] = ((int16_t)(BLDC_GetAngularSpeed() * 100) >> 8) & 0xFF;
-    data[6] = (int16_t)(BLDC_GetAngularSpeed() * 100) & 0xFF;
-    data[7] = ((int16_t)(BLDC_GetAngularAccel() * 10) >> 8) & 0xFF;
-    data[8] = (int16_t)(BLDC_GetAngularAccel() * 10) & 0xFF;
-    data[9] = (iq >> 8) & 0xFF;
-    data[10] = iq & 0xFF;
-    data[11] = FOOTER;
+  // **1つの値につき取得は1回だけ。** これらは20kHzの割り込みが書き換えるので、
+  // 上位バイトと下位バイトで別々に取得すると違う瞬間の値が混ざる。
+  uint16_t theta = (uint16_t)(BLDC_GetMechTheta() * 10000);  // 機械角 [0.1mrad]
+  int16_t speed = (int16_t)(BLDC_GetAngularSpeed() * 100);   // 角速度 [0.01rad/s]
+  int16_t accel = (int16_t)(BLDC_GetAngularAccel() * 10);    // 角加速度 [0.1rad/s^2]
+  int16_t iq = (int16_t)(BLDC_GetIq() * 1000);               // q軸電流 [mA]
 
-    Serial_Write(&uart2, data, sizeof(data));  // シリアル送信
-    Timer_Reset(&serial_send_timer);
-  }
+  data[0] = HEADER;
+  data[1] = (BLDC_IsOvercurrent() << 3) | (is_overheat << 2) |
+            (is_voltage_out_of_range << 1) | (mode != APP_MODE_STOP);
+  data[2] = (uint8_t)temp;
+  data[3] = (theta >> 8) & 0xFF;
+  data[4] = theta & 0xFF;
+  data[5] = (speed >> 8) & 0xFF;
+  data[6] = speed & 0xFF;
+  data[7] = (accel >> 8) & 0xFF;
+  data[8] = accel & 0xFF;
+  data[9] = (iq >> 8) & 0xFF;
+  data[10] = iq & 0xFF;
+  data[11] = FOOTER;
+
+  Serial_Write(&uart2, data, sizeof(data));  // シリアル送信
+  Timer_Reset(&serial_send_timer);
+}
+
+// 過電流保護が働いた瞬間の状態を一度だけ表示する (原因の切り分け用)。
+static void ReportOvercurrentTrip() {
+  BLDCTripInfo t;
+  BLDC_GetTripInfo(&t);
+  printf("=== Overcurrent (limit %.1fA) ===\n", (double)OVERCURRENT_LIMIT);
+  printf("  peak:%.2fA  Iu:%+.2f Iv:%+.2f Iw:%+.2f A\n", t.peak_current, t.iu, t.iv, t.iw);
+  printf("  raw  U:%4u V:%4u  (中点%.0f)\n", t.raw_u, t.raw_v, (double)CURRENT_REF_ADC);
+  printf("  Id:%+.2f Iq:%+.2f A  (指令 Iq:%+.2f A)\n", t.id, t.iq, t.target_iq);
+  printf("  Vd:%+.2f Vq:%+.2f V  (上限%.2f V)\n", t.vd, t.vq,
+         supply_volt * MAX_MODULATION_RATIO);
+  printf("  theta:%.3f rad  speed:%.1f rad/s  Vdc:%.2f V\n",
+         t.mech_theta, t.angular_speed, supply_volt);
 }
 
 void MainApp() {
@@ -285,46 +329,26 @@ void MainApp() {
     PrintStatus();
     PrintProfile();
 
-    if (temp > TEMP_LIMIT || is_overheat == true) {
+    if (temp > TEMP_LIMIT || is_overheat) {
       printf("Overheat! Temperature: %.2f°C, Supply Voltage: %.2fV\n", temp, supply_volt);
       is_overheat = true;
-      BLDC_Stop();  // モーターストップ
-
-      if (is_overheat == true && temp < (TEMP_LIMIT - 5)) {
-        is_overheat = false;
-        PwmOut_Write(&LED4, 0);  // 復帰したので赤を消す
-      } else {
-        BlinkError(ERROR_BLINK_OVERHEAT);
-      }
-    } else if (supply_volt > SUPPLY_VOLTAGE_MAX_LIMIT || supply_volt < SUPPLY_VOLTAGE_MIN_LIMIT || is_voltage_out_of_range == true) {
+      HandleFault(&is_overheat, temp < (TEMP_LIMIT - 5), ERROR_BLINK_OVERHEAT);
+    } else if (supply_volt > SUPPLY_VOLTAGE_MAX_LIMIT ||
+               supply_volt < SUPPLY_VOLTAGE_MIN_LIMIT || is_voltage_out_of_range) {
       printf("Supply voltage out of range: %.2fV, Temperature: %.2f°C\n", supply_volt, temp);
       is_voltage_out_of_range = true;
-      BLDC_Stop();  // モーターストップ
-
-      if (is_voltage_out_of_range == true && supply_volt > (SUPPLY_VOLTAGE_MIN_LIMIT + 0.5) && supply_volt < (SUPPLY_VOLTAGE_MAX_LIMIT - 0.5)) {
-        is_voltage_out_of_range = false;
-        PwmOut_Write(&LED4, 0);  // 復帰したので赤を消す
-      } else {
-        BlinkError(ERROR_BLINK_VOLTAGE);
-      }
+      HandleFault(&is_voltage_out_of_range,
+                  supply_volt > (SUPPLY_VOLTAGE_MIN_LIMIT + 0.5f) &&
+                      supply_volt < (SUPPLY_VOLTAGE_MAX_LIMIT - 0.5f),
+                  ERROR_BLINK_VOLTAGE);
     } else if (BLDC_IsOvercurrent()) {
       // 過電流保護。制御ループ側で既にモーターは止まっている。
-      // 発動した瞬間の状態を一度だけ表示する (原因の切り分け用)。
       static bool trip_reported = false;
       if (!trip_reported) {
         trip_reported = true;
-        BLDCTripInfo t;
-        BLDC_GetTripInfo(&t);
-        printf("=== Overcurrent (limit %.1fA) ===\n", (double)OVERCURRENT_LIMIT);
-        printf("  peak:%.2fA  Iu:%+.2f Iv:%+.2f Iw:%+.2f A\n", t.peak_current, t.iu, t.iv, t.iw);
-        printf("  raw  U:%4u V:%4u  (中点%.0f)\n", t.raw_u, t.raw_v, (double)CURRENT_REF_ADC);
-        printf("  Id:%+.2f Iq:%+.2f A  (指令 Iq:%+.2f A)\n", t.id, t.iq, t.target_iq);
-        printf("  Vd:%+.2f Vq:%+.2f V  (上限%.2f V)\n", t.vd, t.vq,
-               supply_volt * MAX_MODULATION_RATIO);
-        printf("  theta:%.3f rad  speed:%.1f rad/s  Vdc:%.2f V\n",
-               t.mech_theta, t.angular_speed, supply_volt);
+        ReportOvercurrentTrip();
       }
-      mode = 0;
+      mode = APP_MODE_STOP;
       BlinkError(ERROR_BLINK_OVERCURRENT);
       if (sw_state) {  // スイッチを押すと復帰
         trip_reported = false;
@@ -335,20 +359,25 @@ void MainApp() {
       }
     } else {
       RecvSerial();
-      // if (mode == 0) {
-      //   BLDC_Stop();  // モーターストップ
-      // } else if (mode == 1) {
-      //   BLDC_AngularSpeedControl(target_angular_speed);  // 角速度制御
-      // } else if (mode == 2) {
-      //   BLDC_PositionControl(target_position);  // 位置制御
-      // } else if (mode == 3) {
-      //   BLDC_TorqueControl(target_current);  // トルク制御
-      // } else if (mode == 4) {
-      //   BLDC_BrakeControl(brake_current);  // ブレーキ
-      // }
-      // BLDC_PositionControl(0);  // 位置制御
-      BLDC_TorqueControl(0.5);  // トルク制御
-      // BLDC_AngularSpeedControl(60);  // 角速度制御
+
+      switch (mode) {
+        case APP_MODE_SPEED:
+          BLDC_AngularSpeedControl(target_angular_speed);
+          break;
+        case APP_MODE_POSITION:
+          BLDC_PositionControl(target_position);
+          break;
+        case APP_MODE_TORQUE:
+          BLDC_TorqueControl(target_current);
+          break;
+        case APP_MODE_BRAKE:
+          BLDC_BrakeControl(brake_current);
+          break;
+        case APP_MODE_STOP:
+        default:
+          BLDC_Stop();
+          break;
+      }
 
       // 状態の表示。正常なので赤は消し、青2つでq軸電流の大きさをバーグラフにする
       // (LED1が0→100%、そこから先をLED2が0→100%で引き継ぐ)。

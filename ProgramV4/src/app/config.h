@@ -2,6 +2,15 @@
 #define CONFIG_H_
 
 // ===========================================================================
+// ADC (共通)
+// ===========================================================================
+// ADC1(相電流) も ADC2(エンコーダ・電源電圧・温度) も 12bit・基準 3.3V なので、
+// 変換係数はどちらも同じ。以前は app.c と current_sense.c に同じ数値が
+// 別々に書かれていた。片方だけ直すと静かにずれるので1箇所にまとめる。
+#define MAX_ADC_VAL 4095           // ADCの最大値(12bit)
+#define ADC2VOLT 0.0008058608059f  // ADC値 → 電圧 [V] (3.3V / 4095)
+
+// ===========================================================================
 // 保護
 // ===========================================================================
 #define TEMP_LIMIT 60  // 温度制限 [°C]
@@ -28,7 +37,7 @@
 //       CPU使用率の正確な値が欲しいときはこちら。
 //   2 : 内訳 (オブザーバ / 電流ループ / 外側ループ) も測る。
 //       計測点が増えるぶん全体が 0.5µs ほど水増しされる。
-#define PROFILE_ISR 2
+#define PROFILE_ISR 0
 
 // プロファイルの表示間隔 [s]。0 で表示しない。
 // 表示は printf (USART1, ブロッキング) なのでメインループだけが待たされる。
@@ -228,7 +237,7 @@ _Static_assert(CURRENT_SENSE_TRIG_ADVANCE > 0 && CURRENT_SENSE_TRIG_ADVANCE < PW
 // 補足: 大きな周波数誤差からの引き込み(ロータを手で急停止させた場合など)は
 // PLL_KP がおよその上限になる。PLL_KP ≥ MAX_ANGULAR_SPEED を満たしていれば、
 // どの運転速度からでも即座に再ロックできる。
-#define PLL_OMEGA_N 200.0f
+#define PLL_OMEGA_N 1000.0f
 #define PLL_KP (2.0f * PLL_OMEGA_N)         // 2ζω_n [1/s]
 #define PLL_KI (PLL_OMEGA_N * PLL_OMEGA_N)  // ω_n²  [1/s²]
 
@@ -273,7 +282,7 @@ _Static_assert(CURRENT_SENSE_TRIG_ADVANCE > 0 && CURRENT_SENSE_TRIG_ADVANCE < PW
 // (MAX_ANGULAR_ACCEL = 100 rad/s²) の3倍の余裕がある。
 #define PLL_SPEED_ERROR_LIMIT_RAD 0.005f
 
-#define MAX_CURRENT 7.0f         // Id/Iq指令の上限 [A]
+#define MAX_CURRENT 8.0f         // Id/Iq指令の上限 [A]
 #define OVERCURRENT_LIMIT 10.0f  // 過電流保護のしきい値 [A]
 
 // 連続して何サンプルしきい値を超えたら保護を発動するか。
@@ -453,8 +462,8 @@ _Static_assert(CURRENT_SENSE_TRIG_ADVANCE > 0 && CURRENT_SENSE_TRIG_ADVANCE < PW
 //       R = (V2 - V1) / (I2 - I1)
 //     とすればキャンセルできる。1点だけだと R に10%近い誤差が乗る。
 #define MEASURE_MOTOR_RL 0
-#define MOTOR_RL_STEP_VOLTS 0.4f   // 1点目の電圧 [V]。2点目はこの2倍
-#define MOTOR_RL_ABORT_AMPS 5.0f   // これを超えたら即座に電圧を切る (Rが想定より小さい場合)
+#define MOTOR_RL_STEP_VOLTS 0.4f  // 1点目の電圧 [V]。2点目はこの2倍
+#define MOTOR_RL_ABORT_AMPS 5.0f  // これを超えたら即座に電圧を切る (Rが想定より小さい場合)
 
 // (2) 閉ループの検証。電流指令にステップを入れて Id の応答を見る。
 //     (1) でゲインを直したあと、**極とゼロが打ち消せて1次系になったか**を確認する。
