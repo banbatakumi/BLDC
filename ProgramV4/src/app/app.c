@@ -17,7 +17,10 @@ Serial uart2;
 LPF supply_volt_lpf;
 LPF temp_lpf;
 
-uint16_t adc_val[3];  // ADC2の値を格納する配列 (エンコーダ, 電圧, 温度)
+// ADC2の値を格納する配列 (エンコーダ, 電圧, 温度)。
+// DMAが非同期に書き換えるので volatile 必須。これが無いと、下の
+// 「値が入るまで待つ」ループが最適化で無限ループになりうる。
+volatile uint16_t adc_val[3];
 
 uint16_t encoder_val, supply_volt_val, temp_val;
 float supply_volt;
@@ -87,11 +90,19 @@ void PrintStatus() {
   if (Timer_Read(&status_print_timer) < STATUS_PRINT_INTERVAL_S) return;
   Timer_Reset(&status_print_timer);
 
-  printf("Iq:%+6.2f/%+6.2fA  Id:%+6.2fA  Vq:%+5.2f/%5.2fV  peak:%5.2fA  %5.1frad/s  %4.1fV %2.0fC\n",
-         BLDC_GetIq(), BLDC_GetTargetIq(), BLDC_GetId(),
-         BLDC_GetVq(), supply_volt * MAX_MODULATION_RATIO,
-         BLDC_GetPeakCurrent(), BLDC_GetAngularSpeed(), supply_volt, temp);
-  BLDC_ResetPeakCurrent();  // 次の区間のピークを測るためリセット
+  BLDCEncoderStats enc;
+  BLDC_GetEncoderStats(&enc);
+
+  printf(
+      "Iq:%+6.2f/%+6.2fA  Id:%+6.2fA  Vq:%+5.2f/%5.2fV  peak:%5.2fA  %6.1frad/s"
+      "  sat:%4lu glt:%4lu emax:%.4frad  %4.1fV %2.0fC\n",
+      BLDC_GetIq(), BLDC_GetTargetIq(), BLDC_GetId(),
+      BLDC_GetVq(), supply_volt * MAX_MODULATION_RATIO,
+      BLDC_GetPeakCurrent(), BLDC_GetAngularSpeed(),
+      (unsigned long)enc.saturated, (unsigned long)enc.glitch, enc.max_innovation,
+      supply_volt, temp);
+  BLDC_ResetPeakCurrent();   // 次の区間のピークを測るためリセット
+  BLDC_ResetEncoderStats();  // sat/glt/emax はこの表示区間あたりの値
 }
 
 void GetSensors() {
@@ -275,20 +286,17 @@ void MainApp() {
       }
     } else {
       RecvSerial();
-      // if (mode == 0) {
-      //   BLDC_Stop();  // モーターストップ
-      // } else if (mode == 1) {
-      //   BLDC_AngularSpeedControl(target_angular_speed);  // 角速度制御
-      // } else if (mode == 2) {
-      //   BLDC_PositionControl(target_position);  // 位置制御
-      // } else if (mode == 3) {
-      //   BLDC_TorqueControl(target_current);  // トルク制御
-      // } else if (mode == 4) {
-      //   BLDC_BrakeControl(brake_current);  // ブレーキ
-      // }
-      // BLDC_TorqueControl(4.0);  // トルク制御
-      // BLDC_AngularSpeedControl(1);  // 角速度制御
-      BLDC_PositionControl(0);  // 位置制御
+      if (mode == 0) {
+        BLDC_Stop();  // モーターストップ
+      } else if (mode == 1) {
+        BLDC_AngularSpeedControl(target_angular_speed);  // 角速度制御
+      } else if (mode == 2) {
+        BLDC_PositionControl(target_position);  // 位置制御
+      } else if (mode == 3) {
+        BLDC_TorqueControl(target_current);  // トルク制御
+      } else if (mode == 4) {
+        BLDC_BrakeControl(brake_current);  // ブレーキ
+      }
 
       // 状態の表示 (q軸電流の大きさ)
       float iq_ratio = Abs(BLDC_GetIq()) / MAX_CURRENT;

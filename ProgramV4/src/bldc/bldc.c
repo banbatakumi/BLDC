@@ -5,9 +5,15 @@ typedef struct {
   volatile uint16_t* encoder_val_ptr;  // ADC2のDMAが更新するエンコーダ値へのポインタ
   uint16_t max_encoder_val;            // エンコーダーの最大値
   uint16_t min_encoder_val;            // エンコーダーの最小値
-  float encoder_scale;                 // 2π / (max - min)。毎回割り算しないよう事前計算する
+  float encoder_dead_zone;             // レール飽和で角度が読めない区間の幅 [rad]
+  float encoder_scale;                 // (2π - 盲点) / (max - min)。事前計算して割り算を避ける
   float encoder_offset_theta;          // エンコーダーのオフセット値 [rad]
   bool encoder_primed;                 // 機械角をエンコーダ実測値で初期化済みか
+  uint16_t encoder_reject_count;       // 飽和域で連続して棄却した回数
+  uint16_t encoder_glitch_count;       // イノベーション過大で連続して棄却した回数
+  uint32_t saturated_total;            // 飽和で棄却した総数     (調査用)
+  uint32_t glitch_total;               // グリッチで棄却した総数 (調査用)
+  float max_innovation;                // 採用したイノベーションのピーク [rad] (調査用)
 
   // --- 指令 ---
   volatile BLDCMode mode;
@@ -62,6 +68,27 @@ static inline void BLDC_WritePwm(float u, float v, float w) {
   TIM1->CCR3 = (uint32_t)(Constrain(w, MIN_DUTY, MAX_DUTY) * PWM_ARR);
 }
 
+// 出力の有効/無効。無効側は「フリーラン(コースト)」= 上下FETともOFF。
+//
+// 全相デューティ0.5は線間電圧こそ0だが、3相の端子が常に同電位で振られるため
+// モータの3相を短絡しているのと同じ状態になる。止まっていれば無害でも、回転中は
+// 逆起電力が短絡電流 I ≈ E / |R + jωL| を流すので短絡制動になってしまう。
+// 過電流保護が働いた直後にこれをやると、一番電流を流したくない場面で
+// 一番電流が流れる状態に入ることになる。
+//
+// MOE=0 にすると全チャンネルの出力が止まる。BDTR の OSSI=1 と
+// OISx/OISxN=0 (tim.c で TIM_OCIDLESTATE_RESET) の組み合わせにより、出力ピンは
+// Hi-Z ではなくアイドルレベル(Low)に固定される。DRV8300 の INH/INL が
+// どちらも Low になるので上下FETともOFF、つまりコーストになる。
+static inline void BLDC_SetOutputEnable(bool on) {
+  if (on) {
+    __HAL_TIM_MOE_ENABLE(&htim1);
+  } else {
+    // __HAL_TIM_MOE_DISABLE は「全チャンネルが無効なとき」しか効かないマクロなので使わない
+    __HAL_TIM_MOE_DISABLE_UNCONDITIONALLY(&htim1);
+  }
+}
+
 // 強制転流(オープンループ駆動)。エンコーダ校正でのみ使う。
 static void BLDC_OpenLoopDrive(float amp, float phase) {
   phase = NormalizeRadians(phase);
@@ -76,53 +103,115 @@ static void BLDC_OpenLoopDrive(float amp, float phase) {
 // ---------------------------------------------------------------------------
 // センサ処理
 // ---------------------------------------------------------------------------
-// エンコーダのレンジからラジアン変換係数を作り直す。max/minを変えたら必ず呼ぶこと。
+// エンコーダのレンジからラジアン変換係数を作り直す。max/min/盲点幅を変えたら必ず呼ぶこと。
+//
+// 素朴に 2π / (max - min) としてはいけない。AS5600のアナログ出力はレール付近で
+// 飽和しており、ADC値 [min, max] が実際にカバーしているのは 2π ではなく
+// 「2π - 盲点幅」だから。2π を割り当てると θ_meas が 2π/(2π-dead) 倍に引き伸ばされ、
+//   - 観測できる区間では ω̂ がその比率ぶん高く出る
+//   - 盲点を外挿で渡ると θ̂ が dead × その比率 だけ進み、観測再開時に段差になる
+// という形で、1回転ごとの速度スパイクの原因になる。
+// (実測: 盲点 0.108rad のとき比率 1.0173、段差 0.11rad ≒ emax の実測値 0.09rad)
 static void BLDC_UpdateEncoderScale(void) {
   float range = (float)(svc.max_encoder_val - svc.min_encoder_val);
-  svc.encoder_scale = (range > 0.0f) ? (TWO_PI_F / range) : 0.0f;
+  float span = TWO_PI_F - svc.encoder_dead_zone;  // ADCレンジが実際にカバーする機械角
+  svc.encoder_scale = (range > 0.0f) ? (span / range) : 0.0f;
 }
 
+// 角度追従オブザーバ (2次PLL)。機械角と角速度を同時に更新する。
+//
+// 「角度を微分して速度を出す」のをやめ、推定角 θ̂ を観測角に追従させる制御ループを
+// 回して、その内部状態として θ̂ と ω̂ を得る (パラメータは config.h)。
+//
+//   e   = θ_meas - θ̂                (イノベーション)
+//   ω̂ += PLL_KI * e * dt            (速度推定 = 積分器)
+//   θ̂ += (ω̂ + PLL_KP * e) * dt      (角度推定)
+//
+// 微分ではなく積分で速度を作るので、
+//   1. 量子化ノイズが増幅されない (微分は高周波を持ち上げる)
+//   2. 等速回転に対して定常誤差ゼロ (1次ローパスと違い位相が遅れない)
+//   3. 観測が一時的に欠測しても ω̂ による外挿で角度が進み続ける
+// という3つの利点が同時に得られる。3つ目が、AS5600の飽和域を渡るときに
+// 速度がゼロに落ちてから跳ね上がる (= 1回転ごとの「がくっ」) の直接の対策になる。
 static inline void BLDC_UpdateEncoder(uint16_t encoder_val) {
   uint16_t clamped_encoder_val = Constrain(encoder_val, svc.min_encoder_val, svc.max_encoder_val);
-  float theta = (float)(clamped_encoder_val - svc.min_encoder_val) * svc.encoder_scale;
-  theta = FOC_NormalizeRadians(theta - svc.encoder_offset_theta);
+  float theta_meas = (float)(clamped_encoder_val - svc.min_encoder_val) * svc.encoder_scale;
+  theta_meas = FOC_NormalizeRadians(theta_meas - svc.encoder_offset_theta);
 
-  // 初回はフィルタを通さず実測値をそのまま入れる。
-  // これをしないと mech_theta が 0 から実際の角度まで移動する約1msの間、
+  // 初回は推定値を実測値に張り付ける。
+  // これをしないと mech_theta が 0 から実際の角度まで移動する間、
   // 電気角がその極対数倍(7倍)の速さで何回転もしてしまい、電流制御が破綻する。
   if (!svc.encoder_primed) {
     svc.encoder_primed = true;
-    svc.mech_theta = theta;
+    svc.mech_theta = theta_meas;
+    svc.angular_speed = 0.0f;
+    svc.encoder_reject_count = 0;
+    svc.encoder_glitch_count = 0;
     return;
   }
 
-  // 0と2πの境目を跨いでも壊れないよう、差分を-π〜+πに正規化してから扱う。
-  float diff = FOC_AngleDiff(theta, svc.mech_theta);
+  // 0と2πの境目を跨いでも壊れないよう、-π〜+π に正規化して差を取る
+  float e = FOC_AngleDiff(theta_meas, svc.mech_theta);
 
-  // 物理的にありえない飛びはセンサのグリッチなので頭打ちにする。
-  // これが無いと、0/2πの切り替わりで拾った1サンプルのノイズが
-  // 極対数倍された電気角の飛びになり、トルクが乱れて「カチッ」と鳴る。
-  diff = Constrain(diff, -ENCODER_MAX_STEP_RAD, ENCODER_MAX_STEP_RAD);
+  // --- 観測値の妥当性チェック ---
+  // 棄却したサンプルは補正に使わず、ω̂ による外挿(デッドレコニング)だけで進む。
+  //
+  // 「観測できない」と「推定がずれている」は必ず区別すること。混ぜると、
+  // ロータを手で急停止させたときに θ̂ が ω̂ のまま自走を始め、その状態を
+  // 「異常な観測」と誤認して棄却し続ける → 永久にロックが戻らない
+  // (= オープンループ駆動と同じ、脱調したような挙動) という事故になる。
+  bool saturated = (encoder_val <= svc.min_encoder_val + ENCODER_EDGE_MARGIN_LSB) ||
+                   (encoder_val >= svc.max_encoder_val - ENCODER_EDGE_MARGIN_LSB);
+  if (saturated) {
+    // (a) 飽和: AS5600のアナログ出力がレールに張り付いていて角度情報が存在しない。
+    //     「観測できない」ことが生のADC値から確実に分かるので、長めに外挿してよい。
+    if (svc.encoder_reject_count < ENCODER_REJECT_MAX) {
+      svc.encoder_reject_count++;
+      svc.saturated_total++;
+      e = 0.0f;
+    }
+  } else if (Abs(e) > ENCODER_INNOVATION_LIMIT_RAD) {
+    // (b) イノベーション過大: 0/2π遷移中のグリッチかもしれないし、ロータが
+    //     急停止して推定が本当にずれたのかもしれない。1サンプルでは区別できない。
+    //     グリッチは短いので、まず ENCODER_GLITCH_MAX サンプルだけ様子を見る。
+    //     それでも続くならグリッチではないので棄却をやめ、e を全量PLLに通して
+    //     観測に再ロックさせる。ここを打ち切らないと上記の自走から戻れない。
+    if (svc.encoder_glitch_count < ENCODER_GLITCH_MAX) {
+      svc.encoder_glitch_count++;
+      svc.glitch_total++;
+      e = 0.0f;
+    }
+  } else {
+    // 観測と推定が一致している = ロックしている
+    svc.encoder_reject_count = 0;
+    svc.encoder_glitch_count = 0;
+  }
 
-  // 低速域ではエンコーダのノイズが効くのでローパスをかける。
-  // 高速域(50rad/s超)ではフィルタの遅れのほうが害になるので素通しにする。
-  float abs_speed = Abs(svc.angular_speed);
-  float enc_lpf = (abs_speed <= 50.0f)
-                      ? Constrain((50.0f - abs_speed) * K_ENC_LPF, 0.0f, 0.75f)
-                      : 0.0f;
+  // --- PLL本体 ---
+  // 速度推定(積分パス)に入れるイノベーションは「ロック中のみ」制限する。
+  //
+  //   ロック中: 残っているイノベーションは継ぎ目の段差(校正誤差)や外挿の誤差で
+  //     あって本物の回転ではない。全量を積分に入れると1回転ごとに速度スパイクに
+  //     なるので制限する。比例パスは無制限なので角度は素早く追いつき、段差は
+  //     「角度の補正」として吸収される。
+  //   再取得中: 制限してはいけない。dω̂/dt が PLL_KI × 制限値 で頭打ちになり、
+  //     手で急停止させたときの減速に追従できず、脱調状態から戻れなくなる。
+  //
+  // 上のゲート(b)が「グリッチではない = 推定が本当にずれている」と判定した状態
+  // (glitch_count が上限に張り付いている) が、そのまま再取得中の判定になる。
+  bool reacquiring = (svc.encoder_glitch_count >= ENCODER_GLITCH_MAX);
+  float e_speed = reacquiring
+                      ? e
+                      : Constrain(e, -PLL_SPEED_ERROR_LIMIT_RAD, PLL_SPEED_ERROR_LIMIT_RAD);
 
-  svc.mech_theta = FOC_NormalizeRadians(svc.mech_theta + diff * (1.0f - enc_lpf));
-}
+  svc.angular_speed += PLL_KI * e_speed * CURRENT_LOOP_DT;
+  svc.mech_theta = FOC_NormalizeRadians(
+      svc.mech_theta + (svc.angular_speed + PLL_KP * e) * CURRENT_LOOP_DT);
 
-static inline void BLDC_CalculateAngularSpeed(void) {
-  static float pre_theta = 0;
-
-  // 0と2πの境目を跨いだ場合の補正込みで角度差を求める
-  float delta_theta = FOC_AngleDiff(svc.mech_theta, pre_theta);
-  pre_theta = svc.mech_theta;
-
-  float speed = delta_theta * (1.0f / SPEED_CALC_DT);
-  svc.angular_speed = speed * SPEED_LPF_INV + svc.angular_speed * SPEED_LPF;  // ローパスフィルタ
+  // 採用したイノベーションのピークを記録する (調査用)。
+  // これが継ぎ目の段差の大きさそのものなので、校正の善し悪しが直接見える。
+  float abs_e = Abs(e);
+  if (abs_e > svc.max_innovation) svc.max_innovation = abs_e;
 }
 
 static inline void BLDC_CalculateAngularAccel(void) {
@@ -259,7 +348,9 @@ static void BLDC_CurrentLoop(void) {
   }
 
   if (!svc.enable) {
-    // 全相デューティ0.5。線間電圧0なので電流は流れない。
+    // 出力を切ってフリーランさせる。
+    // ここで全相デューティ0.5にすると3相短絡になり、回転中は制動電流が流れてしまう。
+    BLDC_SetOutputEnable(false);
     svc.vd = 0;
     svc.vq = 0;
     svc.id = 0;
@@ -270,7 +361,7 @@ static void BLDC_CurrentLoop(void) {
     FOC_PI_Reset(&svc.iq_pi);
     svc.speed_pid.integral = 0;
     svc.position_pid.integral = 0;
-    BLDC_WritePwm(0.5f, 0.5f, 0.5f);
+    BLDC_WritePwm(0.5f, 0.5f, 0.5f);  // 再開時に中性から始まるようCCRは戻しておく
     return;
   }
 
@@ -304,6 +395,7 @@ static void BLDC_CurrentLoop(void) {
   float du, dv, dw;
   FOC_SVPWM(v_alpha, v_beta, svc.supply_volt, &du, &dv, &dw);
   BLDC_WritePwm(du, dv, dw);
+  BLDC_SetOutputEnable(true);  // コーストから復帰する
 }
 
 // ADC1(PWM同期の電流計測)の変換完了割り込み。これが20kHzの制御ループ本体。
@@ -311,16 +403,12 @@ static void BLDC_CurrentLoop(void) {
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
   if (hadc->Instance != ADC1) return;
 
-  static uint16_t speed_cnt = 0;
   static uint16_t accel_cnt = 0;
   static uint16_t outer_cnt = 0;
 
+  // 機械角と角速度はオブザーバが20kHzで同時に更新する (分周しない)
   BLDC_UpdateEncoder(*svc.encoder_val_ptr);
 
-  if (++speed_cnt >= SPEED_CALC_DIV) {
-    speed_cnt = 0;
-    BLDC_CalculateAngularSpeed();
-  }
   if (++accel_cnt >= ACCEL_CALC_DIV) {
     accel_cnt = 0;
     BLDC_CalculateAngularAccel();
@@ -338,7 +426,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 // ---------------------------------------------------------------------------
 
 // エンコーダの最大/最小値と電気角のオフセットを実測してフラッシュに保存する
-static void BLDC_SetEncoder(uint16_t* encoder_val) {
+static void BLDC_SetEncoder(volatile uint16_t* encoder_val) {
   svc.encoder_offset_theta = 0;  // オフセット計測前は0で初期化
   svc.max_encoder_val = 0;
   svc.min_encoder_val = MAX_ADC_VAL;
@@ -352,23 +440,77 @@ static void BLDC_SetEncoder(uint16_t* encoder_val) {
     BLDC_OpenLoopDrive(0.15f, phase);
     HAL_Delay(1);
   }
+
+  // 盲点(レール飽和で角度が読めない区間)の幅を測る。
+  // 等速で回しながら「レール付近に張り付いていたサンプルの割合」を数えると、
+  // 等速なので時間の割合＝機械角の割合になり、そのまま盲点の角度幅が求まる。
+  //   ADC値 [min, max] が実際にカバーするのは 2π ではなく 2π - 盲点幅。
+  //   この差を無視すると θ_meas が引き伸ばされ、継ぎ目に段差ができる
+  //   (BLDC_UpdateEncoderScale のコメント参照)。
+  // 上と同じ速度・同じ駆動条件で回すこと。3000ms で約13回転するので、
+  // 半端な回転ぶんの誤差は 1/13 程度に収まる。
+  uint32_t sat_samples = 0;
+  for (uint16_t i = 0; i < 3000; i++) {
+    phase += 0.2f;
+    uint16_t v = *encoder_val;
+    if (v <= svc.min_encoder_val + ENCODER_EDGE_MARGIN_LSB ||
+        v >= svc.max_encoder_val - ENCODER_EDGE_MARGIN_LSB) {
+      sat_samples++;
+    }
+    BLDC_OpenLoopDrive(0.15f, phase);
+    HAL_Delay(1);
+  }
+  svc.encoder_dead_zone = TWO_PI_F * (float)sat_samples / 3000.0f;
+
+  // 測れなかった/明らかにおかしい場合は補正なし(従来どおり)に落とす。
+  // 盲点が1周の1/4もあるようならエンコーダか磁石の取り付けを疑うべき。
+  if (!(svc.encoder_dead_zone >= 0.0f && svc.encoder_dead_zone < TWO_PI_F * 0.25f)) {
+    svc.encoder_dead_zone = 0.0f;
+  }
+
   BLDC_UpdateEncoderScale();  // これ以降 BLDC_UpdateEncoder が使えるようになる
 
-  // 電気角度0の位置にロータを引き込んで、そのときの機械角をオフセットとする
+  // 電気角度0の位置にロータを引き込んで、そのときの機械角をオフセットとする。
+  // これを電気角1回転ぶんずつ位置をずらしながら POLE_PAIRS 回くり返して平均する。
+  //
+  // 測定点は機械角で 2π/POLE_PAIRS ずつ離れているが、そのまま平均してよい。
+  //   測定値 v_k = (θ0 + k・2π/P) mod 2π   (k = 0..P-1)
+  //   Σv_k = P・θ0 + (2π/P)・P(P-1)/2 - 2π・M   (M: 2πを跨いだ回数)
+  //   平均 = θ0 + (2π/P)・((P-1)/2 - M)
+  // つまり平均は θ0 と 2π/P の整数倍しか違わない。電気角は機械角を P 倍して
+  // 2π で折り返すので、2π/P のずれは電気角では 2π のずれ = 同一。よって等価。
+  // ただしこの相殺は「各測定値が等間隔かつ同じ誤差を持つ」ことが前提なので、
+  // 特定の周回だけ誤差が乗ると成り立たなくなる (下の encoder_primed 参照)。
   float offset_sum = 0;
   for (uint8_t i = 0; i < POLE_PAIRS; i++) {
-    float theta_sum = 0;
     BLDC_OpenLoopDrive(0.15f, 0);
     HAL_Delay(200);
     BLDC_OpenLoopDrive(0.3f, 0);
     HAL_Delay(100);
+
+    // 直前の位相送りでロータは 2π/POLE_PAIRS ≒ 0.9rad 動いている。
+    // オブザーバは CURRENT_LOOP_DT (50µs) 前提のゲインなのに、この校正ループは
+    // HAL_Delay(1) で回るため実時間では20倍ゆっくりしか追従しない。さらに
+    // 0.9rad はイノベーション上限を超えるので観測が棄却され続けてしまう。
+    // 張り直さずに測ると追従中のランプが平均に入り、オフセットが
+    // 0.2rad(機械角) ≒ 70°(電気角) もずれる。
+    svc.encoder_primed = false;
+    BLDC_UpdateEncoder(*encoder_val);
+
+    // 整定位置がたまたま 0/2π の境目にあっても平均が壊れないよう、
+    // 1点目からの差分 (-π〜+π に正規化済み) で平均する。
+    float base = svc.mech_theta;
+    float diff_sum = 0;
     for (uint16_t j = 0; j < 200; j++) {
       BLDC_UpdateEncoder(*encoder_val);
-      theta_sum += svc.mech_theta;
+      diff_sum += FOC_AngleDiff(svc.mech_theta, base);
       HAL_Delay(1);
     }
-    offset_sum += theta_sum * 0.005f;
+    offset_sum += FOC_NormalizeRadians(base + diff_sum * 0.005f);
 
+    // 電気角をおよそ1回転ぶん送って、次の測定点までロータを進める。
+    // 6.2rad で止めても、次のループ頭で phase=0 (≡2π) に引き込まれるので
+    // 結果として正確に電気角1回転ぶん進む。
     phase = 0;
     for (uint16_t j = 0; j < (uint16_t)(TWO_PI * 10); j++) {
       phase += 0.1f;
@@ -378,16 +520,20 @@ static void BLDC_SetEncoder(uint16_t* encoder_val) {
   }
   svc.encoder_offset_theta = offset_sum / POLE_PAIRS;
 
-  printf("(Measure)max_encoder_val: %lu, min_encoder_val: %lu, encoder_offset_theta: %.6f\n",
+  printf("(Measure)max: %lu, min: %lu, offset: %.6f rad, dead_zone: %.4f rad (%.2f°, 1周の%.1f%%)\n",
          (unsigned long)svc.max_encoder_val,
          (unsigned long)svc.min_encoder_val,
-         svc.encoder_offset_theta);
+         svc.encoder_offset_theta,
+         svc.encoder_dead_zone,
+         (double)(svc.encoder_dead_zone * 57.29578f),
+         (double)(svc.encoder_dead_zone * 100.0f / TWO_PI_F));
 
-  BLDCFlashData write_data = {svc.max_encoder_val, svc.min_encoder_val, svc.encoder_offset_theta};
+  BLDCFlashData write_data = {BLDC_FLASH_MAGIC, svc.max_encoder_val, svc.min_encoder_val,
+                              svc.encoder_offset_theta, svc.encoder_dead_zone};
   Flash_WriteData(FLASH_USER_START_ADDR, &write_data, sizeof(write_data));
 }
 
-void BLDC_Init(bool do_set_encoder, uint16_t* encoder_val) {
+void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val) {
   printf("BLDC_Init\n");
 
   svc.encoder_val_ptr = encoder_val;
@@ -401,6 +547,11 @@ void BLDC_Init(bool do_set_encoder, uint16_t* encoder_val) {
   PwmOut_Init(&w_pwm, &htim1, TIM_CHANNEL_3);
   BLDC_WritePwm(0.5f, 0.5f, 0.5f);
 
+  // MOE=0 のときに出力ピンをHi-Zではなくアイドルレベル(Low)に固定する。
+  // CubeMXの既定 (TIM_OSSI_DISABLE) のままだとピンが浮いてゲートドライバの入力が
+  // 不定になり、コーストにならない。tim.c は再生成で上書きされるのでここで設定する。
+  TIM1->BDTR |= TIM_BDTR_OSSI;
+
   // 電流センシング(TIM1同期ADC)を開始。TIM1が動いてから呼ぶ必要がある。
   CurrentSense_Init();
 
@@ -413,36 +564,42 @@ void BLDC_Init(bool do_set_encoder, uint16_t* encoder_val) {
   // フラッシュから読み込み
   BLDCFlashData read_data;
   Flash_ReadData(FLASH_USER_START_ADDR, &read_data, sizeof(read_data));
-  printf("(From Flash)max_encoder_val: %lu, min_encoder_val: %lu, encoder_offset_theta: %.6f\n",
+  printf("(From Flash)max: %lu, min: %lu, offset: %.6f rad, dead_zone: %.4f rad\n",
          (unsigned long)read_data.max_encoder_val,
          (unsigned long)read_data.min_encoder_val,
-         read_data.encoder_offset_theta);
+         read_data.encoder_offset_theta,
+         read_data.encoder_dead_zone);
 
   svc.max_encoder_val = read_data.max_encoder_val;
   svc.min_encoder_val = read_data.min_encoder_val;
   svc.encoder_offset_theta = read_data.encoder_offset_theta;
+  svc.encoder_dead_zone = read_data.encoder_dead_zone;
 
-  // 未校正のフラッシュ(消去状態は全ビット1)を読むと max == min になり、
-  // 機械角の計算で0除算してNaNが伝播してしまうので弾いておく。
-  if (svc.max_encoder_val <= svc.min_encoder_val || svc.max_encoder_val > MAX_ADC_VAL ||
-      !(svc.encoder_offset_theta > -TWO_PI_F && svc.encoder_offset_theta < TWO_PI_F)) {
+  // 未校正のフラッシュ(消去状態は全ビット1)や旧フォーマットのデータを読むと、
+  // max == min による0除算や、盲点幅にゴミが入って角度が狂う。マジックナンバーと
+  // 範囲チェックの両方で弾く。NaN も落とせるよう不等号は肯定形で書くこと。
+  if (read_data.magic != BLDC_FLASH_MAGIC ||
+      svc.max_encoder_val <= svc.min_encoder_val || svc.max_encoder_val > MAX_ADC_VAL ||
+      !(svc.encoder_offset_theta > -TWO_PI_F && svc.encoder_offset_theta < TWO_PI_F) ||
+      !(svc.encoder_dead_zone >= 0.0f && svc.encoder_dead_zone < TWO_PI_F * 0.25f)) {
     printf("BLDC: エンコーダ校正値が不正です。スイッチを押しながら再起動して校正してください。\n");
     svc.min_encoder_val = 0;
     svc.max_encoder_val = MAX_ADC_VAL;
     svc.encoder_offset_theta = 0.0f;
+    svc.encoder_dead_zone = 0.0f;
   }
   BLDC_UpdateEncoderScale();
 
   // --- 制御器のゲイン ---
   // 外側ループの出力は「Iq指令 [A]」。電圧制御だった頃とは単位が違うので再調整が必要。
-  svc.speed_pid.kp = 0.1f;
-  svc.speed_pid.ki = 0.2f;
+  svc.speed_pid.kp = 0.2f;
+  svc.speed_pid.ki = 0.4f;
   svc.speed_pid.kd = 0;
   svc.speed_pid.d_term = 0;
   svc.speed_pid.d_lpf = 0.0f;
   svc.speed_pid.output_limit = MAX_CURRENT;
 
-  svc.position_pid.kp = 10;
+  svc.position_pid.kp = 5;
   svc.position_pid.ki = 10;
   svc.position_pid.kd = 0.2f;
   svc.position_pid.d_term = 0;
@@ -466,6 +623,10 @@ void BLDC_Init(bool do_set_encoder, uint16_t* encoder_val) {
   svc.encoder_primed = false;
   BLDC_UpdateEncoder(*svc.encoder_val_ptr);
   printf("BLDC: mech_theta = %.3f rad で開始\n", svc.mech_theta);
+
+  // 指令が来るまでは出力を切っておく (enable = false と状態を合わせる)。
+  // 電流センサのゼロ点校正まではPWMを出しておく必要があるので、ここまで来てから切る。
+  BLDC_SetOutputEnable(false);
 
   // ここまで来たら20kHzの制御ループ(ADC変換完了割り込み)を回し始める
   CurrentSense_EnableInterrupt();
@@ -535,3 +696,15 @@ void BLDC_ClearOvercurrent(void) {
 
 float BLDC_GetPeakCurrent(void) { return svc.peak_current; }
 void BLDC_ResetPeakCurrent(void) { svc.peak_current = 0.0f; }
+
+void BLDC_GetEncoderStats(BLDCEncoderStats* stats) {
+  stats->saturated = svc.saturated_total;
+  stats->glitch = svc.glitch_total;
+  stats->max_innovation = svc.max_innovation;
+}
+
+void BLDC_ResetEncoderStats(void) {
+  svc.saturated_total = 0;
+  svc.glitch_total = 0;
+  svc.max_innovation = 0.0f;
+}
