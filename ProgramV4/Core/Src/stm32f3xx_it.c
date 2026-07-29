@@ -22,6 +22,7 @@
 #include "stm32f3xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "bldc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -209,11 +210,19 @@ void SysTick_Handler(void)
 void DMA1_Channel1_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
-
+  // これが20kHzのFOC電流ループの入口。HAL_DMA_IRQHandler の外側で測ることで、
+  // HALのディスパッチ (HAL_DMA_IRQHandler → ADC_DMAConvCplt → コールバック) を
+  // 含めた本当の割り込み時間が分かる。
+#if PROFILE_ISR
+  ProfilePeriod_Mark(&bldc_prof_period);
+  Profile_Begin(&bldc_prof_irq);
+#endif
   /* USER CODE END DMA1_Channel1_IRQn 0 */
   HAL_DMA_IRQHandler(&hdma_adc1);
   /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
-
+#if PROFILE_ISR
+  Profile_End(&bldc_prof_irq);
+#endif
   /* USER CODE END DMA1_Channel1_IRQn 1 */
 }
 

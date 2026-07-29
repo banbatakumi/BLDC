@@ -20,6 +20,9 @@ DigitalIn SW;
 Timer serial_send_timer;
 Timer serial_recv_timer;
 Timer status_print_timer;
+#if PROFILE_ISR
+Timer profile_print_timer;
+#endif
 
 Serial uart2;
 
@@ -76,8 +79,9 @@ void Setup() {
 
   // BLDCの初期化。PWM出力・電流センシング・20kHzの制御ループがここで立ち上がる。
   // スイッチを押しながら起動するとエンコーダの校正を行う。
-  BLDC_Init(DigitalIn_Read(&SW), &adc_val[0]);
-  BLDC_SetSupplyVolt(supply_volt);  // 変調率の計算に使うのでBLDC_Initの後に渡す
+  // 母線電圧は BLDC_Init に渡す。校正もこの中で走るので、実際の電圧を
+  // 知らないまま測ると モータ定数が母線のずれの比だけ狂う (bldc.c 参照)。
+  BLDC_Init(DigitalIn_Read(&SW), &adc_val[0], supply_volt);
   PwmOut_Write(&LED2, 0);
 
   // Serialの初期化
@@ -93,6 +97,11 @@ void Setup() {
   Timer_Reset(&serial_recv_timer);
   Timer_Init(&status_print_timer);
   Timer_Reset(&status_print_timer);
+#if PROFILE_ISR
+  Timer_Init(&profile_print_timer);
+  Timer_Reset(&profile_print_timer);
+  BLDC_ResetIsrProfile();  // BLDC_Init 中に溜まったぶんを捨てて測定開始点を揃える
+#endif
 }
 
 // 異常を赤LED(LED4)の点滅回数で知らせる。点滅の間は青・緑を消して
@@ -122,16 +131,42 @@ void PrintStatus() {
   BLDCEncoderStats enc;
   BLDC_GetEncoderStats(&enc);
 
+  // Vq の内訳 (FF分) も出す。フィードフォワードが正しく効いていれば、速度が
+  // 上がるほど FF が Vq の大半を占め、PIは残差だけを相手にする。
+  // **符号を間違えると FF が Vq と逆向きに出る**ので、ここを見れば一目で分かる。
+  //
+  // **Vd は電気角が合っているかの判定に使う。**
+  // 角度が合っていれば、d軸に必要な電圧は干渉項だけなので Vd ≈ −ω_e·L·Iq で
+  // ほぼゼロになる。推定角が真の角から δ ずれていると、逆起電力がd軸に漏れて
+  // Vd ≈ −ω_e·ψm·sin δ が現れる。つまり **Vd の大きさがそのまま角度ずれの証拠**。
   printf(
-      "Iq:%+6.2f/%+6.2fA  Id:%+6.2fA  Vq:%+5.2f/%5.2fV  peak:%5.2fA  %6.1frad/s"
+      "Iq:%+6.2f/%+6.2fA  Id:%+6.2fA  Vd:%+5.2fV  Vq:%+5.2f(FF%+5.2f)/%5.2fV"
+      "  peak:%5.2fA  %6.1frad/s"
       "  sat:%4lu glt:%4lu emax:%.4frad  %4.1fV %2.0fC\n",
-      BLDC_GetIq(), BLDC_GetTargetIq(), BLDC_GetId(),
-      BLDC_GetVq(), supply_volt * MAX_MODULATION_RATIO,
+      BLDC_GetIq(), BLDC_GetTargetIq(), BLDC_GetId(), BLDC_GetVd(),
+      BLDC_GetVq(), BLDC_GetVqFF(), supply_volt * MAX_MODULATION_RATIO,
       BLDC_GetPeakCurrent(), BLDC_GetAngularSpeed(),
       (unsigned long)enc.saturated, (unsigned long)enc.glitch, enc.max_innovation,
       supply_volt, temp);
   BLDC_ResetPeakCurrent();   // 次の区間のピークを測るためリセット
   BLDC_ResetEncoderStats();  // sat/glt/emax はこの表示区間あたりの値
+}
+
+// 20kHz制御ループの実行時間を定期表示する。
+// 制御周期を上げる/処理を足す前の余裕の確認に使う。
+// PROFILE_ISR / PROFILE_PRINT_INTERVAL_S を 0 にすると丸ごと消える。
+void PrintProfile() {
+#if PROFILE_ISR
+  if (PROFILE_PRINT_INTERVAL_S <= 0) return;
+
+  // CPU使用率と実測レートは「合計サイクル数 ÷ 実経過時間」で出すので、
+  // 設定値ではなく実際に経過した時間を渡す。
+  float elapsed = Timer_Read(&profile_print_timer);
+  if (elapsed < PROFILE_PRINT_INTERVAL_S) return;
+  Timer_Reset(&profile_print_timer);
+
+  BLDC_PrintIsrProfile(elapsed);
+#endif
 }
 
 void GetSensors() {
@@ -248,6 +283,7 @@ void MainApp() {
     GetSensors();
     SendSerial();
     PrintStatus();
+    PrintProfile();
 
     if (temp > TEMP_LIMIT || is_overheat == true) {
       printf("Overheat! Temperature: %.2f°C, Supply Voltage: %.2fV\n", temp, supply_volt);
@@ -310,9 +346,9 @@ void MainApp() {
       // } else if (mode == 4) {
       //   BLDC_BrakeControl(brake_current);  // ブレーキ
       // }
-      BLDC_PositionControl(0);  // 位置制御
-      // BLDC_TorqueControl(2);  // トルク制御
-      // BLDC_AngularSpeedControl(150);  // 角速度制御
+      // BLDC_PositionControl(0);  // 位置制御
+      BLDC_TorqueControl(0.5);  // トルク制御
+      // BLDC_AngularSpeedControl(60);  // 角速度制御
 
       // 状態の表示。正常なので赤は消し、青2つでq軸電流の大きさをバーグラフにする
       // (LED1が0→100%、そこから先をLED2が0→100%で引き継ぐ)。

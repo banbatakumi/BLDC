@@ -11,6 +11,7 @@
 #include "foc.h"
 #include "main.h"
 #include "mymath.h"
+#include "profile.h"
 #include "pwm_out.h"
 
 // センサ付きベクトル制御 (FOC)
@@ -43,7 +44,10 @@ typedef enum {
 // フラッシュに保存する校正値。
 // 項目を追加/変更したら BLDC_FLASH_MAGIC も変えること。旧フォーマットのデータを
 // 新フォーマットとして読むと、追加した項目にゴミが入って静かに誤動作する。
-#define BLDC_FLASH_MAGIC 0x424C4432UL  // "BLD2"
+//
+// BLD3 でモータの電気的パラメータ (R, L, ψm, 角度遅れ) を追加した。
+// これらは config.h の既定値ではなく、スイッチを押しながら起動して実測した値を使う。
+#define BLDC_FLASH_MAGIC 0x424C4433UL  // "BLD3"
 
 typedef struct {
   uint32_t magic;              // BLDC_FLASH_MAGIC。フォーマット判定用
@@ -51,6 +55,10 @@ typedef struct {
   uint32_t min_encoder_val;    // エンコーダーの最小値
   float encoder_offset_theta;  // エンコーダーのオフセット値 [rad]
   float encoder_dead_zone;     // レール飽和で角度が読めない区間の幅 [rad]
+  float motor_r;               // 相抵抗 [Ω]
+  float motor_l;               // 相インダクタンス [H]
+  float motor_psi;             // 永久磁石の鎖交磁束 [Wb]
+  float angle_delay;           // 電気角の実効遅れ [s]
 } BLDCFlashData;
 
 // 過電流保護が働いた瞬間の状態。原因の切り分けに使う。
@@ -77,8 +85,11 @@ typedef struct {
   float output_limit;
 } PIDController;
 
-// encoder_val は ADC2 の DMA が非同期に書き換えるので volatile であること
-void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val);
+// encoder_val は ADC2 の DMA が非同期に書き換えるので volatile であること。
+// supply_volt は**実測した母線電圧**を渡すこと。SVPWM の電圧→デューティ変換に使うので、
+// ここが実際と違うと「指令した電圧」と「実際に加わる電圧」の比がそのままずれ、
+// 校正で測るモータ定数がその比のぶん狂う。
+void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val, float supply_volt);
 
 // app から呼ぶセンサ入力
 void BLDC_SetSupplyVolt(float supply_volt);
@@ -100,6 +111,7 @@ float BLDC_GetIq(void);                     // q軸電流 [A]
 float BLDC_GetTargetIq(void);               // q軸電流指令 [A]
 float BLDC_GetVd(void);                     // d軸電圧 [V]
 float BLDC_GetVq(void);                     // q軸電圧 [V]
+float BLDC_GetVqFF(void);                   // Vqのうちフィードフォワード分 [V]
 bool BLDC_IsOvercurrent(void);              // 過電流保護が働いたか
 void BLDC_GetTripInfo(BLDCTripInfo* info);  // 保護が働いた瞬間の状態を取得
 void BLDC_ClearOvercurrent(void);           // 過電流保護の解除
@@ -119,5 +131,46 @@ typedef struct {
 // 0.05rad を超えるようなら encoder_scale (min/max) の精度が足りていない。
 void BLDC_GetEncoderStats(BLDCEncoderStats* stats);
 void BLDC_ResetEncoderStats(void);
+
+// ---------------------------------------------------------------------------
+// 20kHz制御ループの実行時間プロファイル (config.h の PROFILE_ISR で有効化)
+// ---------------------------------------------------------------------------
+#if PROFILE_ISR
+// 割り込みハンドラ全体 (HALのディスパッチ込み) と呼び出し周期。
+// DMA1_Channel1_IRQHandler (stm32f3xx_it.c) から直接叩くので extern で公開する。
+// HAL_DMA_IRQHandler の外側で測らないとHALのオーバーヘッドが見えない。
+extern Profile bldc_prof_irq;
+extern ProfilePeriod bldc_prof_period;
+
+// 集計を printf で表示して、最大値と平均をリセットする。
+// elapsed_s には前回の表示からの実経過時間 [s] を渡す (CPU使用率と実測レートに使う)。
+void BLDC_PrintIsrProfile(float elapsed_s);
+
+// 集計を捨てて測定開始点を揃える。表示用タイマを張るのと同時に呼ぶ。
+void BLDC_ResetIsrProfile(void);
+#endif
+
+// ---------------------------------------------------------------------------
+// モータ定数の測定 (制御ループが回り始めてから呼ぶこと)
+// ---------------------------------------------------------------------------
+// スイッチを押しながら起動したときの自動校正から呼ばれるほか、config.h の
+// MEASURE_* を立てると毎回の起動でも走る。測定に成功したら true を返し、
+// 失敗したら理由を printf して false を返す (出力値には触らない)。
+#if MEASURE_MOTOR_RL || MOTOR_AUTO_CALIBRATION
+// PIをバイパスして Vd を直接印加し、L と R を同定する。
+// d軸なのでトルクは出ずロータは動かないが、モータには電流が流れる。
+bool BLDC_MeasureMotorRL(float* out_r, float* out_l);
+#endif
+#if MEASURE_CURRENT_STEP
+// 電流指令にステップを入れて、閉ループが1次系になっているか確認する (表示のみ)。
+void BLDC_MeasureCurrentStep(void);
+#endif
+#if MEASURE_MOTOR_PSI || MOTOR_AUTO_CALIBRATION
+// 逆起電力定数 ψm を同定する。**ロータが実際に回る。**
+bool BLDC_MeasureMotorPsi(float* out_psi);
+// 電気角の実効遅れを同定する。**ロータが実際に回る。**
+// Vd から残差を求めるので、ψm の同定より後に呼ぶこと。
+bool BLDC_MeasureAngleDelay(float* out_delay);
+#endif
 
 #endif  // BLDC_H_
