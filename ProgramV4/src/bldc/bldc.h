@@ -25,9 +25,6 @@
 // app 側は BLDC_SetSupplyVolt() でセンサ値を渡し、BLDC_XxxControl() で
 // 目標値を指示するだけでよい。実際の制御は全て割り込みの中で走る。
 
-#define ACCEL_LPF 0.6f      // 角加速度のローパスフィルタ係数
-#define ACCEL_LPF_INV 0.4f  // (1.0 - ACCEL_LPF) 事前計算値
-
 #define POSITION_DEADBAND_RAD 0.05f        // 位置制御の停止判定誤差 [rad]
 #define POSITION_SETTLE_SPEED_RAD_S 0.05f  // 位置制御の停止判定角速度 [rad/s]
 #define POSITION_INTEGRAL_STOP_RAD 0.05f   // 位置制御で積分を止める誤差 [rad]
@@ -98,13 +95,18 @@ void BLDC_Stop(void);
 void BLDC_AngularSpeedControl(float target_angular_speed);  // [rad/s]
 void BLDC_PositionControl(float target_position);           // [rad]
 void BLDC_TorqueControl(float target_current);              // Iq指令 [A]
+void BLDC_TorqueControlNm(float torque_nm);                 // トルク指令 [N・m] (Ktで換算してIq指令へ)
 void BLDC_BrakeControl(float brake_current);                // 制動電流の大きさ [A]
+void BLDC_BrakeControlNm(float brake_torque_nm);            // 制動トルクの大きさ [N・m] (Ktで換算)
+
+// トルク定数 Kt = 1.5 × POLE_PAIRS × ψm [N・m/A]。
+// ψm はスイッチ校正 (BLDC_MeasureMotorPsi) で実測した値。磁気飽和がない前提の近似。
+float BLDC_GetTorqueConstant(void);
 
 // 状態の取得
 float BLDC_GetMechTheta(void);              // 機械角 [rad]
 float BLDC_GetElecTheta(void);              // 電気角 [rad]
 float BLDC_GetAngularSpeed(void);           // 角速度 [rad/s]
-float BLDC_GetAngularAccel(void);           // 角加速度 [rad/s^2]
 float BLDC_GetId(void);                     // d軸電流 [A]
 float BLDC_GetIq(void);                     // q軸電流 [A]
 float BLDC_GetTargetIq(void);               // q軸電流指令 [A]

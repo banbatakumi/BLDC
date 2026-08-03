@@ -61,7 +61,6 @@ typedef struct {
   float mech_theta;     // 機械角 [rad]
   float elec_theta;     // 電気角 [rad]
   float angular_speed;  // 角速度 [rad/s]
-  float angular_accel;  // 角加速度 [rad/s^2]
 
   float iu, iv;  // 相電流 [A] (W相は Iw = -(Iu+Iv) なので持たない)
   float id, iq;  // dq軸電流 [A]
@@ -289,14 +288,6 @@ static inline void BLDC_UpdateEncoder(uint16_t encoder_val) {
   // これが継ぎ目の段差の大きさそのものなので、校正の善し悪しが直接見える。
   float abs_e = Abs(e);
   if (abs_e > svc.max_innovation) svc.max_innovation = abs_e;
-}
-
-static inline void BLDC_CalculateAngularAccel(void) {
-  static float pre_speed = 0;
-
-  float accel = (svc.angular_speed - pre_speed) * (1.0f / ACCEL_CALC_DT);
-  svc.angular_accel = accel * ACCEL_LPF_INV + svc.angular_accel * ACCEL_LPF;  // ローパスフィルタ
-  pre_speed = svc.angular_speed;
 }
 
 // ---------------------------------------------------------------------------
@@ -633,7 +624,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
   Profile_Begin(&prof_callback);
 #endif
 
-  static uint16_t accel_cnt = 0;
   static uint16_t outer_cnt = 0;
 
   // 機械角と角速度はオブザーバが20kHzで同時に更新する (分周しない)
@@ -641,10 +631,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
   BLDC_UpdateEncoder(*svc.encoder_val_ptr);
   PROF2_END(prof_encoder);
 
-  if (++accel_cnt >= ACCEL_CALC_DIV) {
-    accel_cnt = 0;
-    BLDC_CalculateAngularAccel();
-  }
   if (++outer_cnt >= OUTER_LOOP_DIV) {
     outer_cnt = 0;
     PROF2_BEGIN(prof_outer);
@@ -1570,6 +1556,11 @@ void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val, float supply
   }
   BLDC_UpdateEncoderScale();
 
+  // トルク指令[N・m]の目安をここで出す。ψmは校正ごとに変わるので、
+  // 「Kt = 1.5×P×ψm」も「MAX_CURRENTで出せる最大トルク」もその都度違う。
+  printf("トルク定数 Kt: %.5f N・m/A, 最大トルク(MAX_CURRENT時): %.4f N・m\n",
+         (double)BLDC_GetTorqueConstant(), (double)(BLDC_GetTorqueConstant() * MAX_CURRENT));
+
   // --- 制御器のゲイン ---
   // 外側ループの出力は「Iq指令 [A]」。電圧制御だった頃とは単位が違うので再調整が必要。
   svc.speed_pid.kp = 0.1f;
@@ -1692,9 +1683,20 @@ void BLDC_TorqueControl(float target_current) {
   BLDC_Enable(BLDC_MODE_TORQUE);
 }
 
+// 表面磁石型PMSMのトルク式 T = 1.5×P×ψm×Iq を逆算し、Iq指令へ変換して渡す。
+float BLDC_GetTorqueConstant(void) { return 1.5f * POLE_PAIRS * svc.motor_psi; }
+
+void BLDC_TorqueControlNm(float torque_nm) {
+  BLDC_TorqueControl(torque_nm / BLDC_GetTorqueConstant());
+}
+
 void BLDC_BrakeControl(float brake_current) {
   svc.brake_current = Constrain(brake_current, 0.0f, MAX_CURRENT);
   BLDC_Enable(BLDC_MODE_BRAKE);
+}
+
+void BLDC_BrakeControlNm(float brake_torque_nm) {
+  BLDC_BrakeControl(brake_torque_nm / BLDC_GetTorqueConstant());
 }
 
 float BLDC_GetMechTheta(void) { return svc.mech_theta; }
@@ -1703,7 +1705,6 @@ float BLDC_GetMechTheta(void) { return svc.mech_theta; }
 // 表示・シリアル送信用にここで 0〜2π に畳む。
 float BLDC_GetElecTheta(void) { return FOC_NormalizeRadians(svc.elec_theta); }
 float BLDC_GetAngularSpeed(void) { return svc.angular_speed; }
-float BLDC_GetAngularAccel(void) { return svc.angular_accel; }
 float BLDC_GetId(void) { return svc.id; }
 float BLDC_GetIq(void) { return svc.iq; }
 float BLDC_GetTargetIq(void) { return svc.target_iq; }

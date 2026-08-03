@@ -25,7 +25,7 @@
 
 // printf での状態表示の間隔 [s]。0 で無効 (コンパイル時に丸ごと削除される)。
 // PIDゲインの調整時に 0.5f 程度にすると Iq の追従と電流ピークを確認できる。
-#define STATUS_PRINT_INTERVAL_S 0.5f
+#define STATUS_PRINT_INTERVAL_S 0
 
 // ===========================================================================
 // 実行時間プロファイル (DWTサイクルカウンタ)
@@ -42,7 +42,7 @@
 // プロファイルの表示間隔 [s]。0 で表示しない。
 // 表示は printf (USART1, ブロッキング) なのでメインループだけが待たされる。
 // 制御ループは割り込み優先度0で走っているので影響を受けない。
-#define PROFILE_PRINT_INTERVAL_S 1.0f
+#define PROFILE_PRINT_INTERVAL_S 0
 
 // ===========================================================================
 // PWM / 制御周期
@@ -63,11 +63,9 @@
 
 // 外側ループはADC完了割り込みを分周して回す
 // (角速度は分周せず、20kHzの角度追従オブザーバから直接得る)
-#define OUTER_LOOP_DIV 20   // 速度/位置制御 → 1kHz
-#define ACCEL_CALC_DIV 400  // 角加速度計算 → 50Hz
+#define OUTER_LOOP_DIV 20  // 速度/位置制御 → 1kHz
 
 #define OUTER_LOOP_DT (CURRENT_LOOP_DT * OUTER_LOOP_DIV)
-#define ACCEL_CALC_DT (CURRENT_LOOP_DT * ACCEL_CALC_DIV)
 
 // ---------------------------------------------------------------------------
 // デューティの上限 (センター揃えの肝)

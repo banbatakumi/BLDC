@@ -49,12 +49,15 @@ typedef enum {
   APP_MODE_SPEED,
   APP_MODE_POSITION,
   APP_MODE_TORQUE,
+  APP_MODE_TORQUE_NM,
   APP_MODE_BRAKE,
+  APP_MODE_BRAKE_NM,
 } AppMode;
 
 static AppMode mode = APP_MODE_STOP;
 
-static float target_angular_speed, target_current, target_position, brake_current;
+static float target_angular_speed, target_current, target_position, brake_current,
+    target_torque_nm, target_brake_nm;
 
 void Setup() {
   printf("Hello World\n");
@@ -221,16 +224,18 @@ typedef struct {
 } SerialCommand;
 
 static const SerialCommand SERIAL_COMMANDS[] = {
-    {0xFE, APP_MODE_SPEED, 0.01f, &target_angular_speed},  // 角速度 [rad/s]
-    {0xFD, APP_MODE_POSITION, 0.001f, &target_position},   // 位置 [rad]
-    {0xFC, APP_MODE_TORQUE, 0.001f, &target_current},      // トルク(Iq指令) [A]
-    {0xFB, APP_MODE_BRAKE, 0.001f, &brake_current},        // 制動電流 [A]
+    {0xBA, APP_MODE_SPEED, 0.01f, &target_angular_speed},    // 角速度 [rad/s]
+    {0xBB, APP_MODE_POSITION, 0.001f, &target_position},     // 位置 [rad]
+    {0xBC, APP_MODE_TORQUE, 0.001f, &target_current},        // トルク(Iq指令) [A]
+    {0xBD, APP_MODE_TORQUE_NM, 0.0001f, &target_torque_nm},  // トルク指令 [N・m] (Ktで換算)
+    {0xBE, APP_MODE_BRAKE, 0.001f, &brake_current},          // 制動電流 [A]
+    {0xBF, APP_MODE_BRAKE_NM, 0.0001f, &target_brake_nm},    // 制動トルク [N・m] (Ktで換算)
 };
 #define SERIAL_COMMAND_COUNT (sizeof(SERIAL_COMMANDS) / sizeof(SERIAL_COMMANDS[0]))
 
 static void RecvSerial() {
-  static const uint8_t HEADER = 0xFF;
-  static const uint8_t FOOTER = 0xAA;
+  static const uint8_t HEADER = 0xAA;
+  static const uint8_t FOOTER = 0xFF;
   static const uint8_t DATA_SIZE = 2;
   static uint8_t recv_data[2];
   static uint8_t index = 0;
@@ -279,15 +284,14 @@ static void RecvSerial() {
 static void SendSerial() {
   if (Timer_ReadUs(&serial_send_timer) <= SERIAL_SEND_INTERVAL_US) return;
 
-  static const uint8_t HEADER = 0xFF;
-  static const uint8_t FOOTER = 0xAA;
-  static uint8_t data[12];
+  static const uint8_t HEADER = 0xAA;
+  static const uint8_t FOOTER = 0xFF;
+  static uint8_t data[10];
 
   // **1つの値につき取得は1回だけ。** これらは20kHzの割り込みが書き換えるので、
   // 上位バイトと下位バイトで別々に取得すると違う瞬間の値が混ざる。
   uint16_t theta = (uint16_t)(BLDC_GetMechTheta() * 10000);  // 機械角 [0.1mrad]
   int16_t speed = (int16_t)(BLDC_GetAngularSpeed() * 100);   // 角速度 [0.01rad/s]
-  int16_t accel = (int16_t)(BLDC_GetAngularAccel() * 10);    // 角加速度 [0.1rad/s^2]
   int16_t iq = (int16_t)(BLDC_GetIq() * 1000);               // q軸電流 [mA]
 
   data[0] = HEADER;
@@ -298,11 +302,9 @@ static void SendSerial() {
   data[4] = theta & 0xFF;
   data[5] = (speed >> 8) & 0xFF;
   data[6] = speed & 0xFF;
-  data[7] = (accel >> 8) & 0xFF;
-  data[8] = accel & 0xFF;
-  data[9] = (iq >> 8) & 0xFF;
-  data[10] = iq & 0xFF;
-  data[11] = FOOTER;
+  data[7] = (iq >> 8) & 0xFF;
+  data[8] = iq & 0xFF;
+  data[9] = FOOTER;
 
   Serial_Write(&uart2, data, sizeof(data));  // シリアル送信
   Timer_Reset(&serial_send_timer);
@@ -370,8 +372,14 @@ void MainApp() {
         case APP_MODE_TORQUE:
           BLDC_TorqueControl(target_current);
           break;
+        case APP_MODE_TORQUE_NM:
+          BLDC_TorqueControlNm(target_torque_nm);
+          break;
         case APP_MODE_BRAKE:
           BLDC_BrakeControl(brake_current);
+          break;
+        case APP_MODE_BRAKE_NM:
+          BLDC_BrakeControlNm(target_brake_nm);
           break;
         case APP_MODE_STOP:
         default:
