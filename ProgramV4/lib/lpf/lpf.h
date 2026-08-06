@@ -1,9 +1,10 @@
-#ifndef LPH_H_
-#define LPH_H_
+#ifndef LPF_H_
+#define LPF_H_
 
+// 1次ローパスフィルタ (指数移動平均)
+//   y ← k·y + (1-k)·x     k が大きいほど強くかかる
 typedef struct {
-  float current_val;
-  float prev_val;
+  float value;      // 直近の出力 = 次回の入力にもなる内部状態
   float k_lpf;      // ローパスフィルタ係数
   float k_lpf_inv;  // (1.0 - k_lpf) 事前計算値
 } LPF;
@@ -11,14 +12,12 @@ typedef struct {
 static inline void LPF_Init(LPF* lpf, float k_lpf, float initial_val) {
   lpf->k_lpf = k_lpf;
   lpf->k_lpf_inv = 1.0f - k_lpf;  // 初期化時に事前計算
-  lpf->prev_val = initial_val;
+  lpf->value = initial_val;
 }
 
 static inline float LPF_Update(LPF* lpf, float new_val) {
-  // ローパスフィルタの更新 (最適化版)
-  lpf->current_val = lpf->k_lpf * lpf->prev_val + lpf->k_lpf_inv * new_val;
-  lpf->prev_val = lpf->current_val;
-  return lpf->current_val;
+  lpf->value = lpf->k_lpf * lpf->value + lpf->k_lpf_inv * new_val;
+  return lpf->value;
 }
 
-#endif  // LPH_H_
+#endif  // LPF_H_
