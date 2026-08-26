@@ -25,7 +25,7 @@
 // app 側は BLDC_SetSupplyVolt() でセンサ値を渡し、BLDC_XxxControl() で
 // 目標値を指示するだけでよい。実際の制御は全て割り込みの中で走る。
 
-#define POSITION_DEADBAND_RAD 0.05f        // 位置制御の停止判定誤差 [rad]
+#define POSITION_DEADBAND_RAD 0.025f       // 位置制御の停止判定誤差 [rad]
 #define POSITION_SETTLE_SPEED_RAD_S 0.05f  // 位置制御の停止判定角速度 [rad/s]
 #define POSITION_INTEGRAL_STOP_RAD 0.05f   // 位置制御で積分を止める誤差 [rad]
 
@@ -128,8 +128,8 @@ void BLDC_SetSupplyVolt(float supply_volt);
 void BLDC_SetLimits(float torque_limit_nm);
 
 // 実際に適用している制限値。上位へのエコーバックと表示に使う。
-float BLDC_GetTorqueLimitNm(void);   // [N・m]
-float BLDC_GetMaxTorqueNm(void);     // MD 側の絶対上限 = Kt × MAX_CURRENT [N・m]
+float BLDC_GetTorqueLimitNm(void);  // [N・m]
+float BLDC_GetMaxTorqueNm(void);    // MD 側の絶対上限 = Kt × MAX_CURRENT [N・m]
 
 // app から呼ぶ指令
 void BLDC_Stop(void);

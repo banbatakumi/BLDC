@@ -246,7 +246,7 @@ _Static_assert(CURRENT_SENSE_TRIG_ADVANCE > 0 && CURRENT_SENSE_TRIG_ADVANCE < PW
 // ===========================================================================
 #define POLE_PAIRS 7              // 極対数 (磁石の数/2)
 #define MAX_ANGULAR_SPEED 150.0f  // 最大角速度 [rad/s]
-#define MAX_ANGULAR_ACCEL 100.0f  // 最大角加速度 [rad/s^2]
+#define MAX_ANGULAR_ACCEL 150.0f  // 最大角加速度 [rad/s^2]
 
 // ===========================================================================
 // 角度追従オブザーバ (2次PLL)
@@ -324,8 +324,8 @@ _Static_assert(CURRENT_SENSE_TRIG_ADVANCE > 0 && CURRENT_SENSE_TRIG_ADVANCE < PW
 //   - プロトコルの torque_limit は u8 × 0.001 = 0.255 N・m 天井 (= 13.1A 相当)。
 //     ここを超えると上位から上限を指定しきれなくなる
 //   - FET (SSM6K819R ×6) とシャント (1206 5mΩ) の発熱。温度は TEMP_LIMIT で見ている
-#define MAX_CURRENT 10.0f          // Id/Iq指令の上限 [A] → 最大トルク = Kt × 10 = 0.195 N・m
-#define OVERCURRENT_LIMIT 12.5f    // 過電流保護のしきい値 [A] (MAX_CURRENT の 1.25倍)
+#define MAX_CURRENT 10.0f        // Id/Iq指令の上限 [A] → 最大トルク = Kt × 10 = 0.195 N・m
+#define OVERCURRENT_LIMIT 15.0f  // 過電流保護のしきい値 [A] (MAX_CURRENT の 1.25倍)
 
 // 連続して何サンプルしきい値を超えたら保護を発動するか。
 // 1サンプル(50µs)だけのノイズで誤検出しないためのデバウンス。

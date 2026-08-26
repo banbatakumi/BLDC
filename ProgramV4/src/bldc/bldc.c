@@ -568,8 +568,8 @@ static void BLDC_InitOuterGains(void) {
   svc.speed_pid.d_lpf = 0.0f;
   svc.speed_pid.output_limit = 0.0f;
 
-  svc.position_pid.kp = 7.5f;
-  svc.position_pid.ki = 15.0f;
+  svc.position_pid.kp = 15.0f;
+  svc.position_pid.ki = 20.0f;
   svc.position_pid.kd = 0.05f;
   svc.position_pid.d_term = 0;
   svc.position_pid.d_lpf = 0.8f;
@@ -685,9 +685,10 @@ void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val, float supply
   // 校正 (BLDC_MeasureSteadyPoint) が一時的に開けているので、必ずここで戻す。
   // これ以降、上位から指令フレームで制限値を受け取るまでモータは動かない。
   BLDC_SetLimits(0.0f);
-  printf("BLDC: トルク上限 0 で開始 (上位からの指令待ち)。MD側の上限は %.3f N・m"
-         " / 速度は %.0f rad/s で頭打ち\n",
-         (double)BLDC_GetMaxTorqueNm(), (double)MAX_ANGULAR_SPEED);
+  printf(
+      "BLDC: トルク上限 0 で開始 (上位からの指令待ち)。MD側の上限は %.3f N・m"
+      " / 速度は %.0f rad/s で頭打ち\n",
+      (double)BLDC_GetMaxTorqueNm(), (double)MAX_ANGULAR_SPEED);
 }
 
 // ---------------------------------------------------------------------------
