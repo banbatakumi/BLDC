@@ -248,6 +248,23 @@ _Static_assert(CURRENT_SENSE_TRIG_ADVANCE > 0 && CURRENT_SENSE_TRIG_ADVANCE < PW
 #define MAX_ANGULAR_SPEED 150.0f  // 最大角速度 [rad/s]
 #define MAX_ANGULAR_ACCEL 150.0f  // 最大角加速度 [rad/s^2]
 
+// ブレーキモードの境界層幅 [rad/s]。
+// 理想的には target_iq = -brake_current * sign(angular_speed) の一定トルクにしたいが、
+// sign() は v=0 で不連続なため、角速度推定のわずかなノイズや振動だけで
+// +brake_current ⇔ -brake_current を高速に往復するチャタリング(バンバン発振)を起こす。
+// sign() の代わりに tanh(angular_speed / BRAKE_BOUNDARY_SPEED_RAD_S) を使い、
+// 境界層内だけ滑らかに0へ遷移させて発振を防ぐ (sliding mode制御のboundary layer法)。
+// この値より十分速い速度域ではほぼ一定の制動電流になる。
+#define BRAKE_BOUNDARY_SPEED_RAD_S 20.0f
+
+// ブレーキモードの不感帯 [rad/s]。
+// tanh は v=0 でも傾きが 1/BRAKE_BOUNDARY_SPEED_RAD_S でゼロにならないため、
+// 静止付近では速度推定のわずかな揺らぎがそのまま微小トルクとして出力され続け、
+// 符号反転を繰り返す細かい振動(ディザ)の原因になる。この速度未満ではトルクを
+// 完全に0にして打ち切る。値は POSITION_SETTLE_SPEED_RAD_S (bldc.h) と同じ
+// 「実質静止とみなせる速度」の考え方で選んでいる。
+#define BRAKE_DEADBAND_SPEED_RAD_S 2.0f
+
 // ===========================================================================
 // 角度追従オブザーバ (2次PLL)
 // ===========================================================================
@@ -271,7 +288,7 @@ _Static_assert(CURRENT_SENSE_TRIG_ADVANCE > 0 && CURRENT_SENSE_TRIG_ADVANCE < PW
 // 補足: 大きな周波数誤差からの引き込み(ロータを手で急停止させた場合など)は
 // PLL_KP がおよその上限になる。PLL_KP ≥ MAX_ANGULAR_SPEED を満たしていれば、
 // どの運転速度からでも即座に再ロックできる。
-#define PLL_OMEGA_N 1000.0f
+#define PLL_OMEGA_N 900.0f
 #define PLL_KP (2.0f * PLL_OMEGA_N)         // 2ζω_n [1/s]
 #define PLL_KI (PLL_OMEGA_N * PLL_OMEGA_N)  // ω_n²  [1/s²]
 

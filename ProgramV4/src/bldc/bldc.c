@@ -1,3 +1,5 @@
+#include <math.h>  // tanhf (ブレーキの境界層)
+
 #include "bldc_internal.h"
 
 // このファイルは20kHz制御ループ本体 (PWM出力・角度追従オブザーバ・電流PI・
@@ -170,8 +172,22 @@ static void BLDC_OuterLoop(void) {
       break;
 
     case BLDC_MODE_BRAKE:
-      // 回転方向と逆向きの電流を流す。速度が落ちるほど電流も減らす。
-      svc.target_iq = svc.brake_current * Constrain(svc.angular_speed * -0.05f, -1.0f, 1.0f);
+      // 回転方向と逆向きの電流を流す。理想は sign(angular_speed) による一定トルクだが、
+      // sign() は v=0 で不連続なため、速度推定のわずかな揺らぎだけで正負の電流を
+      // 高速に往復するチャタリング(バンバン発振)を起こす。tanh で境界層
+      // (BRAKE_BOUNDARY_SPEED_RAD_S) 内だけ滑らかに0へ落とすことでこれを防ぐ
+      // (sliding mode制御のboundary layer法)。境界層より速い速度域ではほぼ
+      // brake_current 一定 (= 摩擦ブレーキに近い特性) になる。
+      //
+      // ただし tanh は v=0 でも傾きがゼロにならないため、静止付近では速度推定の
+      // わずかな揺らぎがそのまま微小トルクとして出続け、細かい振動(ディザ)になる。
+      // 実質静止とみなせる速度未満ではトルクを完全に切って打ち切る
+      // (POSITION_SETTLE_SPEED_RAD_S と同じ考え方)。
+      if (Abs(svc.angular_speed) < BRAKE_DEADBAND_SPEED_RAD_S) {
+        svc.target_iq = 0.0f;
+      } else {
+        svc.target_iq = -svc.brake_current * tanhf(svc.angular_speed / BRAKE_BOUNDARY_SPEED_RAD_S);
+      }
       break;
 
     case BLDC_MODE_STOP:
