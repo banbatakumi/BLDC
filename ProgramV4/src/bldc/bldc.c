@@ -777,7 +777,8 @@ void BLDC_TorqueControl(float target_current) {
 
 // トルク指令 [N・m] を Kt で割って Iq指令 [A] に直す。
 void BLDC_TorqueControlNm(float torque_nm) {
-  BLDC_TorqueControl(torque_nm / BLDC_GetTorqueConstant());
+  float kt = BLDC_GetTorqueConstant();
+  BLDC_TorqueControl((kt > 1e-6f) ? (torque_nm / kt) : 0.0f);
 }
 
 void BLDC_BrakeControl(float brake_current) {
@@ -786,7 +787,8 @@ void BLDC_BrakeControl(float brake_current) {
 }
 
 void BLDC_BrakeControlNm(float brake_torque_nm) {
-  BLDC_BrakeControl(brake_torque_nm / BLDC_GetTorqueConstant());
+  float kt = BLDC_GetTorqueConstant();
+  BLDC_BrakeControl((kt > 1e-6f) ? (brake_torque_nm / kt) : 0.0f);
 }
 
 float BLDC_GetMechTheta(void) { return svc.mech_theta; }

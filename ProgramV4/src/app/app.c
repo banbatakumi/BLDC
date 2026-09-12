@@ -1,3 +1,7 @@
+// serial.h の HAL_UART_RxHalfCpltCallback/RxCpltCallback をこの.cファイルでのみ実体化する。
+// (main.c も app.h 経由で serial.h をインクルードするが、Serial_Init/Read はここでしか
+//  呼ばないので、多重定義を避けつつ状態も一貫させられる。詳細は serial.h のコメント参照)
+#define SERIAL_DEFINE_DMA_CALLBACKS
 #include "app.h"
 
 // 基板上のLEDの色と役割
@@ -341,7 +345,7 @@ static void SendSerial(void) {
              (is_voltage_out_of_range << 1) | (active_command != NULL);
   f.temperature = (uint8_t)Constrain(temp, 0.0f, 255.0f);  // u8 の範囲外を折り返さない
   f.theta = (uint16_t)(BLDC_GetMechTheta() * 10000);       // 機械角 [0.1mrad]
-  f.speed = (int16_t)(BLDC_GetAngularSpeed() * 100);       // 角速度 [0.01rad/s]
+  f.speed = (int16_t)Constrain(BLDC_GetAngularSpeed() * 100, -327.67f, 327.67f);  // 角速度 [0.01rad/s]、i16 の範囲外を折り返さない
   f.iq = (int16_t)(BLDC_GetIq() * 1000);                   // q軸電流 [mA]
 
   // **受信値そのままではなく、MD が実際に適用している値**を返す。

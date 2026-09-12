@@ -27,10 +27,22 @@ static inline HAL_StatusTypeDef Flash_WriteData(uint32_t address, const void *da
             return HAL_ERROR;
       }
 
-      // 4バイトずつ書き込み
-      const uint32_t *p = (const uint32_t *)data;
-      for (size_t i = 0; i < (size + 3) / 4; i++) {
-            if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, address + i * 4, p[i]) != HAL_OK) {
+      // 4バイトずつ書き込み。size が4の倍数でない端数分は、data の先を読み過ぎない
+      // よう一旦ローカルバッファへコピーしてから渡す。
+      const uint8_t *src = (const uint8_t *)data;
+      size_t wordCount = (size + 3) / 4;
+      for (size_t i = 0; i < wordCount; i++) {
+            uint32_t word;
+            size_t offset = i * 4;
+            size_t remain = size - offset;
+            if (remain >= 4) {
+                  memcpy(&word, src + offset, 4);
+            } else {
+                  uint8_t tail[4] = {0};
+                  memcpy(tail, src + offset, remain);
+                  memcpy(&word, tail, 4);
+            }
+            if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, address + offset, word) != HAL_OK) {
                   HAL_FLASH_Lock();
                   return HAL_ERROR;
             }
