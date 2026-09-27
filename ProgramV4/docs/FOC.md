@@ -27,6 +27,7 @@ HAL_ADC_ConvCpltCallback()   [bldc.c]
   │                                       → 機械角と角速度を同時に更新
   ├─ BLDC_CalculateAngularAccel()   50 Hz
   ├─ BLDC_OuterLoop()             1 kHz : 速度/位置PID → Iq指令 [A]
+  ├─ BLDC_DirectIqLoop()         20 kHz : トルク/制動/停止モードのIq指令 (指令の素通し)
   └─ BLDC_CurrentLoop()          20 kHz :
         電流取得 → 過電流判定 → 電気角 sin/cos
         → Clarke → Park → Id/Iq の PI 制御

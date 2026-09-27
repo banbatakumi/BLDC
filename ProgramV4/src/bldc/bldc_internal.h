@@ -72,6 +72,7 @@ typedef struct {
   float mech_theta;     // 機械角 [rad]
   float elec_theta;     // 電気角 [rad]
   float angular_speed;  // 角速度 [rad/s]
+  float brake_direction;  // 制動電流に掛ける係数 (-1〜1)。外側ループ(1kHz)が速度から更新する
 
   float iu, iv;  // 相電流 [A] (W相は Iw = -(Iu+Iv) なので持たない)
   float id, iq;  // dq軸電流 [A]

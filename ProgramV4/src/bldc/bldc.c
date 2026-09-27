@@ -111,6 +111,48 @@ static inline float BLDC_PIDControl(PIDController* pid, float error, float dt, b
   return output;
 }
 
+// 制動電流に掛ける係数 (-1〜1)。
+// 回転方向と逆向きの電流を流す。理想は sign(angular_speed) による一定トルクだが、
+// sign() は v=0 で不連続なため、速度推定のわずかな揺らぎだけで正負の電流を
+// 高速に往復するチャタリング(バンバン発振)を起こす。tanh で境界層
+// (BRAKE_BOUNDARY_SPEED_RAD_S) 内だけ滑らかに0へ落とすことでこれを防ぐ
+// (sliding mode制御のboundary layer法)。境界層より速い速度域ではほぼ
+// brake_current 一定 (= 摩擦ブレーキに近い特性) になる。
+//
+// ただし tanh は v=0 でも傾きがゼロにならないため、静止付近では速度推定の
+// わずかな揺らぎがそのまま微小トルクとして出続け、細かい振動(ディザ)になる。
+// 実質静止とみなせる速度未満ではトルクを完全に切って打ち切る
+// (POSITION_SETTLE_SPEED_RAD_S と同じ考え方)。
+static float BLDC_BrakeDirection(float angular_speed) {
+  if (Abs(angular_speed) < BRAKE_DEADBAND_SPEED_RAD_S) return 0.0f;
+  return -tanhf(angular_speed / BRAKE_BOUNDARY_SPEED_RAD_S);
+}
+
+// PIDを通らないモード (トルク・制動・停止) のIq指令を作り、上限で飽和させる。
+// 上位の指令をそのまま流すだけなので、1kHzの外側ループに載せると指令の反映が
+// 最大1ms遅れるだけで得るものが無い。そのため割り込みから20kHzで毎周期呼ぶ
+// (外側ループと同じ処理を通すため、BLDC_OuterLoop からもこれを呼ぶ)。
+static void BLDC_DirectIqLoop(float iq_limit) {
+  float target_iq;
+  switch (svc.mode) {
+    case BLDC_MODE_TORQUE:
+      target_iq = svc.target_current;
+      break;
+    case BLDC_MODE_BRAKE:
+      target_iq = svc.brake_current * svc.brake_direction;
+      break;
+    case BLDC_MODE_STOP:
+    default:
+      target_iq = 0.0f;
+      break;
+  }
+  svc.target_iq = Constrain(target_iq, -iq_limit, iq_limit);
+}
+
+static bool BLDC_IsDirectIqMode(BLDCMode mode) {
+  return mode != BLDC_MODE_SPEED && mode != BLDC_MODE_POSITION;
+}
+
 // 外側ループ (1kHz)。各モードに応じてq軸電流指令を作る。
 static void BLDC_OuterLoop(void) {
   // 上位から指定された制限値をローカルに取る。
@@ -125,6 +167,10 @@ static void BLDC_OuterLoop(void) {
   // (据え切りでラックエンドに当たり続けても積分が育たない = 電流を流しっぱなしにしない)
   svc.speed_pid.output_limit = iq_limit;
   svc.position_pid.output_limit = iq_limit;
+
+  // 制動の向きと強さの係数は速度から決まるので、tanhf を20kHzで回さずここ (1kHz) で更新する。
+  // モードによらず毎周期更新しておき、制動モードへ切り替わった直後も新しい値を使えるようにする
+  svc.brake_direction = BLDC_BrakeDirection(svc.angular_speed);
 
   switch (svc.mode) {
     case BLDC_MODE_SPEED: {
@@ -168,36 +214,14 @@ static void BLDC_OuterLoop(void) {
     }
 
     case BLDC_MODE_TORQUE:
-      svc.target_iq = svc.target_current;
-      break;
-
     case BLDC_MODE_BRAKE:
-      // 回転方向と逆向きの電流を流す。理想は sign(angular_speed) による一定トルクだが、
-      // sign() は v=0 で不連続なため、速度推定のわずかな揺らぎだけで正負の電流を
-      // 高速に往復するチャタリング(バンバン発振)を起こす。tanh で境界層
-      // (BRAKE_BOUNDARY_SPEED_RAD_S) 内だけ滑らかに0へ落とすことでこれを防ぐ
-      // (sliding mode制御のboundary layer法)。境界層より速い速度域ではほぼ
-      // brake_current 一定 (= 摩擦ブレーキに近い特性) になる。
-      //
-      // ただし tanh は v=0 でも傾きがゼロにならないため、静止付近では速度推定の
-      // わずかな揺らぎがそのまま微小トルクとして出続け、細かい振動(ディザ)になる。
-      // 実質静止とみなせる速度未満ではトルクを完全に切って打ち切る
-      // (POSITION_SETTLE_SPEED_RAD_S と同じ考え方)。
-      if (Abs(svc.angular_speed) < BRAKE_DEADBAND_SPEED_RAD_S) {
-        svc.target_iq = 0.0f;
-      } else {
-        svc.target_iq = -svc.brake_current * tanhf(svc.angular_speed / BRAKE_BOUNDARY_SPEED_RAD_S);
-      }
-      break;
-
     case BLDC_MODE_STOP:
     default:
-      svc.target_iq = 0;
-      break;
+      BLDC_DirectIqLoop(iq_limit);
+      return;
   }
 
-  // 最終的なIq指令の飽和。PIDを通らないトルクモード・制動モードにも効かせるため、
-  // モードによらずここで必ず通す。iq_limit は MAX_CURRENT でクランプ済み。
+  // 最終的なIq指令の飽和。iq_limit は MAX_CURRENT でクランプ済み。
   svc.target_iq = Constrain(svc.target_iq, -iq_limit, iq_limit);
   // target_id は電流ループ側で決める (1kHzのここで決めると、ステップ応答測定の
   // ステップ位置が最大1msぶれてしまう)
@@ -453,6 +477,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     PROF2_BEGIN(prof_outer);
     BLDC_OuterLoop();
     PROF2_END(prof_outer);
+  } else if (BLDC_IsDirectIqMode(svc.mode)) {
+    // トルク・制動・停止は上位の指令を素通しするだけなので、分周せずに毎周期反映する
+    BLDC_DirectIqLoop(svc.iq_limit);
   }
 
   PROF2_BEGIN(prof_current);
