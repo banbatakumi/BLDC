@@ -1,20 +1,16 @@
-// serial.h の HAL_UART_RxCpltCallback をこの.cファイルでのみ実体化する。
-// (main.c も app.h 経由で serial.h をインクルードするが、Serial_Init/Read はここでしか
-//  呼ばないので、多重定義を避けつつ状態も一貫させられる。詳細は serial.h のコメント参照)
+// serial.h の HAL_UART_RxCpltCallback をこの.cファイルでのみ実体化する (多重定義の回避。serial.h 参照)
 #define SERIAL_DEFINE_DMA_CALLBACKS
 #include "app.h"
 
-// 基板上のLEDの色と役割
-//   LED1/LED2 (青)  : 起動シーケンスの進捗 → 運転中は負荷(Iq)のバーグラフ
-//   LED3      (緑)  : 正常。初期化完了と、シリアルでコマンドを受け取っている間の点灯
-//   LED4      (赤)  : 異常。点滅回数で種別 (1回:過熱 2回:電圧異常 3回:過電流)
+// LED1/LED2 (青): 起動の進捗 → 運転中は負荷(Iq)のバーグラフ
+// LED3 (緑): 初期化完了と、コマンド受信中の点灯
+// LED4 (赤): 異常。点滅回数で種別 (1回:過熱 2回:電圧異常 3回:過電流)
 static PwmOut LED1;
 static PwmOut LED2;
 static PwmOut LED3;
 static PwmOut LED4;
 static DigitalIn SW;
 
-// 赤LEDの点滅回数でエラー種別を知らせる。異常時は他の色を消して赤だけにする。
 #define ERROR_BLINK_OVERHEAT 1
 #define ERROR_BLINK_VOLTAGE 2
 #define ERROR_BLINK_OVERCURRENT 3
@@ -31,9 +27,7 @@ static Serial uart2;
 static LPF supply_volt_lpf;
 static LPF temp_lpf;
 
-// ADC2の値を格納する配列 (エンコーダ, 電圧, 温度)。
-// DMAが非同期に書き換えるので volatile 必須。これが無いと、下の
-// 「値が入るまで待つ」ループが最適化で無限ループになりうる。
+// ADC2の値 (エンコーダ, 電圧, 温度)。DMAが書き換えるので volatile 必須。
 static volatile uint16_t adc_val[3];
 #define ADC_ENCODER 0
 #define ADC_SUPPLY_VOLT 1
@@ -47,20 +41,20 @@ static bool sw_state;
 
 static bool is_overheat;
 static bool is_voltage_out_of_range;
+static bool is_voltage_pending;       // 範囲外を検出して猶予時間を計測中
+static uint32_t voltage_out_since_ms;  // 範囲外になった時刻 (HAL_GetTick)
 
-// 実際に適用しているトルク制限 (バイト表現のまま持つ)。状態フレームでエコーバックする。
-// **起動時は 0 = 上限0。** 制限値を受け取るまでモータは動かない。
+// 実際に適用しているトルク制限 (バイト表現)。状態フレームでエコーバックする。起動時は 0 = 動かない。
 static uint8_t applied_torque_limit;
 
-// 破棄したフレームの数 (通信品質の確認用)。printf の状態表示に出る。
-static uint32_t rx_crc_error_count;     // CRC不一致で捨てた数
-static uint32_t rx_unknown_mode_count;  // CRCは合ったがモードヘッダが未知だった数
+// 破棄したフレームの数 (printf の状態表示用)
+static uint32_t rx_crc_error_count;     // CRC不一致
+static uint32_t rx_unknown_mode_count;  // CRCは合ったがモードヘッダが未知
 
 void Setup(void) {
   printf("Hello World\n");
   printf("SystemCoreClock = %ld\n", SystemCoreClock);
 
-  // LEDの初期化
   PwmOut_Init(&LED1, &htim2, TIM_CHANNEL_1);
   PwmOut_Init(&LED2, &htim2, TIM_CHANNEL_2);
   PwmOut_Init(&LED3, &htim3, TIM_CHANNEL_1);
@@ -72,28 +66,23 @@ void Setup(void) {
 
   DigitalIn_Init(&SW, GPIOA, GPIO_PIN_12);
 
-  // ADC2(エンコーダ・電圧・温度)のDMA開始
   HAL_ADC_Start_DMA(&hadc2, (uint32_t*)&adc_val, ADC_CHANNEL_COUNT);
   for (uint8_t i = 0; i < ADC_CHANNEL_COUNT; i++) {
-    while (!(adc_val[i] > 0));  // ADCの値が代入されるまで待つ
+    while (!(adc_val[i] > 0));  // 値が入るまで待つ
   }
 
   printf("ADC_DMA start\n");
   PwmOut_Write(&LED1, 0);
 
-  // ローパスフィルタの初期化。電源電圧は実測値を初期値にする。
   supply_volt = adc_val[ADC_SUPPLY_VOLT] * ADC2VOLT * 10.0f;
   LPF_Init(&supply_volt_lpf, 0.9, supply_volt);
   LPF_Init(&temp_lpf, 0.99, 30);
 
-  // BLDCの初期化。PWM出力・電流センシング・20kHzの制御ループがここで立ち上がる。
-  // スイッチを押しながら起動するとエンコーダの校正を行う。
-  // 母線電圧は BLDC_Init に渡す。校正もこの中で走るので、実際の電圧を
-  // 知らないまま測ると モータ定数が母線のずれの比だけ狂う (bldc.c 参照)。
+  // PWM出力・電流センシング・20kHz制御ループが立ち上がる。スイッチ押下で起動すると校正を行う。
+  // 校正中の電圧換算に使うので、実測の母線電圧を渡す。
   BLDC_Init(DigitalIn_Read(&SW), &adc_val[ADC_ENCODER], supply_volt);
   PwmOut_Write(&LED2, 0);
 
-  // Serialの初期化
   Serial_Init(&uart2, &huart2, 256);
 
   PwmOut_Write(&LED3, 1);  // 初期化完了 (緑)
@@ -105,15 +94,14 @@ void Setup(void) {
   Timer_Init(&status_print_timer);
 #if PROFILE_ISR
   Timer_Init(&profile_print_timer);
-  BLDC_ResetIsrProfile();  // BLDC_Init 中に溜まったぶんを捨てて測定開始点を揃える
+  BLDC_ResetIsrProfile();
 #endif
 }
 
 // ---------------------------------------------------------------------------
 // 状態表示 (printf)
 // ---------------------------------------------------------------------------
-// 電流の実測値を定期表示する。ゲイン調整と過電流のしきい値決めに使う。
-// STATUS_PRINT_INTERVAL_S を 0 にすると無効。
+// 電流などを定期表示する (ゲイン調整・過電流しきい値の決定用)。STATUS_PRINT_INTERVAL_S = 0 で無効。
 static void PrintStatus(void) {
   if (STATUS_PRINT_INTERVAL_S <= 0) return;
   if (Timer_Read(&status_print_timer) < STATUS_PRINT_INTERVAL_S) return;
@@ -122,14 +110,9 @@ static void PrintStatus(void) {
   BLDCEncoderStats enc;
   BLDC_GetEncoderStats(&enc);
 
-  // Vq の内訳 (FF分) も出す。フィードフォワードが正しく効いていれば、速度が
-  // 上がるほど FF が Vq の大半を占め、PIは残差だけを相手にする。
-  // **符号を間違えると FF が Vq と逆向きに出る**ので、ここを見れば一目で分かる。
-  //
-  // **Vd は電気角が合っているかの判定に使う。**
-  // 角度が合っていれば、d軸に必要な電圧は干渉項だけなので Vd ≈ −ω_e·L·Iq で
-  // ほぼゼロになる。推定角が真の角から δ ずれていると、逆起電力がd軸に漏れて
-  // Vd ≈ −ω_e·ψm·sin δ が現れる。つまり **Vd の大きさがそのまま角度ずれの証拠**。
+  // Vq(FF...) はFF分。符号が正しければ FF は Vq と同符号で、速度とともに大半を占める。
+  // Vd は電気角が合っているかの指標。合っていれば Vd ≈ −ω_e·L·Iq でほぼ0、
+  // δ ずれていると Vd ≈ −ω_e·ψm·sin δ が現れる。
   printf(
       "Iq:%+6.2f/%+6.2fA  Id:%+6.2fA  Vd:%+5.2fV  Vq:%+5.2f(FF%+5.2f)/%5.2fV"
       "  peak:%5.2fA  %6.1frad/s"
@@ -142,19 +125,15 @@ static void PrintStatus(void) {
       supply_volt, temp,
       (double)(applied_torque_limit * SERIAL_TORQUE_LIMIT_SCALE),
       (unsigned long)rx_crc_error_count, (unsigned long)rx_unknown_mode_count);
-  BLDC_ResetPeakCurrent();   // 次の区間のピークを測るためリセット
-  BLDC_ResetEncoderStats();  // sat/glt/emax はこの表示区間あたりの値
+  BLDC_ResetPeakCurrent();   // peak, sat/glt/emax は表示区間ごとの値
+  BLDC_ResetEncoderStats();
 }
 
-// 20kHz制御ループの実行時間を定期表示する。
-// 制御周期を上げる/処理を足す前の余裕の確認に使う。
-// PROFILE_ISR / PROFILE_PRINT_INTERVAL_S を 0 にすると丸ごと消える。
+// 20kHz制御ループの実行時間を定期表示する (PROFILE_ISR / PROFILE_PRINT_INTERVAL_S = 0 で削除)
 static void PrintProfile(void) {
 #if PROFILE_ISR
   if (PROFILE_PRINT_INTERVAL_S <= 0) return;
 
-  // CPU使用率と実測レートは「合計サイクル数 ÷ 実経過時間」で出すので、
-  // 設定値ではなく実際に経過した時間を渡す。
   float elapsed = Timer_Read(&profile_print_timer);
   if (elapsed < PROFILE_PRINT_INTERVAL_S) return;
   Timer_Reset(&profile_print_timer);
@@ -169,15 +148,14 @@ static void PrintProfile(void) {
 static void GetSensors(void) {
   // 電源電圧の変換(分圧で1/10にしている)
   supply_volt = adc_val[ADC_SUPPLY_VOLT] * ADC2VOLT * 10.0f;
-  supply_volt = LPF_Update(&supply_volt_lpf, supply_volt);  // ローパスフィルタを適用
-  BLDC_SetSupplyVolt(supply_volt);                          // 変調率の計算に使うのでBLDCへ渡す
+  supply_volt = LPF_Update(&supply_volt_lpf, supply_volt);
+  BLDC_SetSupplyVolt(supply_volt);
 
   // MCP9700T/HTT温度センサの変換 (0.5V が 0°C、10mV/°C)
   float temp_voltage = adc_val[ADC_TEMP] * ADC2VOLT;
   temp = (temp_voltage - 0.5f) * 100.0f;
-  temp = LPF_Update(&temp_lpf, temp);  // ローパスフィルタを適用
+  temp = LPF_Update(&temp_lpf, temp);
 
-  // スイッチ
   sw_state = DigitalIn_Read(&SW);
 }
 
@@ -185,11 +163,8 @@ static void GetSensors(void) {
 // シリアル受信
 // ---------------------------------------------------------------------------
 // フレームの並びは serial_protocol.h を参照 (6バイト固定長 + CRC-8/AUTOSAR)。
-//
-// モードごとに「どのヘッダか」「どんな単位か」「どのBLDC APIを呼ぶか」を
-// 別々の if 連鎖で何度も書いていたので、表にまとめた。
-// モードを増やすときはこの表に1行足すだけでよい。
-// **スケールは上位側と対で決まっている。勝手に変えないこと。**
+// モードごとのヘッダ・単位・呼ぶBLDC APIを表にまとめてある。モードを増やすときは1行足す。
+// スケールは上位側と対で決まっているので勝手に変えないこと。
 typedef struct {
   uint8_t header;        // モードヘッダ
   float scale;           // 受信した int16 に掛ける係数
@@ -206,26 +181,18 @@ static const SerialCommand SERIAL_COMMANDS[] = {
 };
 #define SERIAL_COMMAND_COUNT (sizeof(SERIAL_COMMANDS) / sizeof(SERIAL_COMMANDS[0]))
 
-// いま実行中の指令。**NULL = 停止モード** (起動直後・通信断・過電流ラッチ)。
-// 目標値を「モードごとの変数」ではなく1つに持てるのは、受信フレームが常に
-// 「モード + その1つの指令値」で完結しているため。モードが変われば前の値は
-// もう使わないので、取っておく理由がない。
+// いま実行中の指令。NULL = 停止モード (起動直後・通信断・過電流ラッチ)。
+// 受信フレームが常に「モード + 1つの指令値」で完結しているので、目標値は1つでよい。
 static const SerialCommand* active_command;
 static float target_value;
 
-// 受信したトルク制限を「MD が実際に適用する値」に落として BLDC へ渡す。
-//
-// **比較をバイトのまま行うのが肝。** 一度 float にしてから min を取り、
-// エコーバックのためにバイトへ戻すと、丸めで受信値と1LSBずれることがある。
-// 上位から見ると「20 を送ったのに 19 が返ってきた」となり、制限が効いているのか
-// 通信が化けたのか区別できなくなる。バイト領域なら往復が必ず完全一致する。
-//
-// MD 側の絶対上限は Kt×MAX_CURRENT。ψm (校正値) 次第で変わるので実行時に計算する。
-// 速度に上位から指定する制限は無い (MAX_ANGULAR_SPEED は bldc.c 側の固定保護)。
+// 受信したトルク制限を MD が実際に適用する値に落として BLDC へ渡す。
+// 比較はバイトのまま行う (floatで min を取ると丸めで1LSBずれ、エコーバックと一致しなくなる)。
+// MD 側の絶対上限は Kt×MAX_CURRENT で、ψm (校正値) に依存するので実行時に計算する。
 static void ApplyLimits(uint8_t rx_torque_limit) {
   float hw_torque = BLDC_GetMaxTorqueNm() / SERIAL_TORQUE_LIMIT_SCALE;
 
-  // 切り捨て。上限を1LSBでも上回る値をエコーしないため。
+  // 切り捨て (上限を1LSBでも上回る値をエコーしないため)
   uint8_t hw_torque_byte = (hw_torque >= 255.0f) ? 255 : (uint8_t)hw_torque;
 
   applied_torque_limit = (rx_torque_limit < hw_torque_byte) ? rx_torque_limit : hw_torque_byte;
@@ -233,23 +200,18 @@ static void ApplyLimits(uint8_t rx_torque_limit) {
   BLDC_SetLimits(applied_torque_limit * SERIAL_TORQUE_LIMIT_SCALE);
 }
 
-// 受け取った6バイトの解釈結果。
-// **「CRCが合わない」と「CRCは合ったが知らないモード」を必ず分けること。**
-// 前者は同期がずれている可能性があるので詰め直しが要るが、後者はフレーム境界は
-// 正しく取れているので詰め直してはいけない。カウンタも別にしないと、
-// 通信品質 (CRCエラー) と上位の設定ミス (未対応モード) の区別がつかなくなる。
+// 受け取った6バイトの解釈結果。「CRC不一致」(同期ずれの可能性があり詰め直しが要る) と
+// 「CRCは合ったが未知のモード」(境界は正しいので詰め直さない) は分けて数える。
 typedef enum {
-  FRAME_ACCEPTED,      // 受理して指令に反映した
-  FRAME_BAD_CRC,       // ヘッダかCRCが不一致 → 同期がずれているかもしれない
-  FRAME_UNKNOWN_MODE,  // CRCは通ったが、この MD が知らないモードヘッダ
+  FRAME_ACCEPTED,
+  FRAME_BAD_CRC,
+  FRAME_UNKNOWN_MODE,
 } FrameResult;
 
 static FrameResult AcceptFrame(const uint8_t* frame) {
   SerialRxFrame f;
   if (!SerialProtocol_Decode(frame, &f)) return FRAME_BAD_CRC;
 
-  // モードヘッダを表から引く。CRCが通っているので化けではなく、
-  // 上位が未対応のモードを送ってきたということ。
   const SerialCommand* command = NULL;
   for (uint8_t i = 0; i < SERIAL_COMMAND_COUNT; i++) {
     if (SERIAL_COMMANDS[i].header == f.mode) {
@@ -262,19 +224,15 @@ static FrameResult AcceptFrame(const uint8_t* frame) {
   active_command = command;
   target_value = f.setpoint * command->scale;
 
-  // **制限値は指令と同じフレームに載っている (CANopen の RxPDO 相当)。**
-  // 1フレームが常に完結した状態を表すので、取りこぼしてもMDがリセットしても
-  // 次のフレームで復元される。設定値の同期という問題自体が起きない。
+  // 制限値は指令と同じフレームに載っているので、取りこぼしやMDのリセットも次のフレームで復元される
   ApplyLimits(f.torque_limit);
 
-  PwmOut_Write(&LED3, 0.25);  // 緑点灯 = コマンドを受信できている
+  PwmOut_Write(&LED3, 0.25);  // 緑点灯 = 受信できている
   Timer_Reset(&serial_recv_timer);
   return FRAME_ACCEPTED;
 }
 
-// 停止モードへ落とす。制限値も 0 に戻す。
-// 通信が切れた後で再開するときは、必ず新しい制限値を受け取ってから
-// 動き出してほしいため (起動直後と同じ状態にそろえる)。
+// 停止モードへ落とす。再開時に新しい制限値を受け取ってから動くよう、制限値も 0 に戻す。
 static void EnterStopMode(void) {
   active_command = NULL;
   applied_torque_limit = 0;
@@ -288,7 +246,7 @@ static void RecvSerial(void) {
   for (uint8_t budget = SERIAL_RX_BYTES_PER_CALL; budget > 0 && Serial_Available(&uart2); budget--) {
     frame[len++] = Serial_Read(&uart2);
 
-    // 先頭は必ず 0xAA。違えばそのバイトは捨てて次を待つ。
+    // 先頭は 0xAA。違えば捨てる
     if (len == 1) {
       if (frame[0] != SERIAL_HEADER) len = 0;
       continue;
@@ -297,35 +255,28 @@ static void RecvSerial(void) {
 
     FrameResult result = AcceptFrame(frame);
     if (result != FRAME_BAD_CRC) {
-      // 受理できた、または「CRCは通ったが知らないモード」。どちらもフレーム境界は
-      // 正しく取れているので、次の6バイトをそのまま次のフレームとして読めばよい。
+      // 受理、または未知モード。どちらも境界は正しいので次の6バイトをそのまま読む
       if (result == FRAME_UNKNOWN_MODE) rx_unknown_mode_count++;
       len = 0;
       continue;
     }
 
-    // **破棄する。前回の指令値と制限値をそのまま保持する。**
-    // 誤った値で制御するより、1周期古い正しい値を使う方が安全。
+    // 破棄して前回の指令値と制限値を保持する (誤った値より1周期古い正しい値の方が安全)
     rx_crc_error_count++;
 
-    // 再同期。バイト落ちで同期がずれると、フレームの途中に居るのに
-    // 「6バイト読んだ」と判定してしまう。捨てたバッファの中の次の 0xAA を
-    // 先頭に詰め直せば、本物のフレーム境界を1バイトも読み飛ばさずに拾い直せる。
-    // (単に len = 0 に戻すと、この中にあった本物のヘッダごと捨ててしまい、
-    //  復帰が1フレーム余計に遅れる)
+    // 再同期: バッファ内の次の 0xAA を先頭に詰め直す (len = 0 だと中にある本物のヘッダごと捨て、復帰が遅れる)
     uint8_t next = 1;
     while (next < SERIAL_RX_FRAME_SIZE && frame[next] != SERIAL_HEADER) next++;
     len = (uint8_t)(SERIAL_RX_FRAME_SIZE - next);
     memmove(frame, &frame[next], len);
   }
 
-  // 一定時間まともなフレームが来ない場合は停止モードにする。
-  // **上位はこれを停止手段として使っている。**
+  // 一定時間フレームが来なければ停止モードにする (上位はこれを停止手段として使っている)
   if (Timer_Read(&serial_recv_timer) > SERIAL_TIMEOUT_S) {
     EnterStopMode();
-    PwmOut_Write(&LED3, 0);  // 通信が途切れたので緑を消す
+    PwmOut_Write(&LED3, 0);
     Serial_Reset(&uart2);
-    len = 0;  // 途中まで溜まっていたフレームも捨てる
+    len = 0;
     Timer_Reset(&serial_recv_timer);
   }
 }
@@ -338,33 +289,28 @@ static void SendSerial(void) {
 
   static uint8_t data[SERIAL_TX_FRAME_SIZE];
 
-  // **1つの値につき取得は1回だけ。** これらは20kHzの割り込みが書き換えるので、
-  // 上位バイトと下位バイトで別々に取得すると違う瞬間の値が混ざる。
+  // 20kHz割り込みが書き換える値なので、1つの値につき取得は1回だけにする
   SerialTxFrame f;
   f.status = (BLDC_IsOvercurrent() << 3) | (is_overheat << 2) |
              (is_voltage_out_of_range << 1) | (active_command != NULL);
-  f.temperature = (uint8_t)Constrain(temp, 0.0f, 255.0f);  // u8 の範囲外を折り返さない
-  f.theta = (uint16_t)(BLDC_GetMechTheta() * 10000);       // 機械角 [0.1mrad]
-  // 角速度 [0.01rad/s]。クランプは100倍した後の値に掛けるので i16 のレンジ (±32767) で指定する。
-  // 物理量の ±327.67 rad/s をそのまま書くと ±3.28 rad/s で頭打ちになる (以前そうなっていた)
+  f.temperature = (uint8_t)Constrain(temp, 0.0f, 255.0f);
+  f.theta = (uint16_t)(BLDC_GetMechTheta() * 10000);  // 機械角 [0.1mrad]
+  // 角速度 [0.01rad/s]。クランプは100倍後の値なので i16 のレンジで指定する
   f.speed = (int16_t)Constrain(BLDC_GetAngularSpeed() * 100, -32767.0f, 32767.0f);
-  f.iq = (int16_t)(BLDC_GetIq() * 1000);                   // q軸電流 [mA]
+  f.iq = (int16_t)(BLDC_GetIq() * 1000);  // q軸電流 [mA]
 
-  // **受信値そのままではなく、MD が実際に適用している値**を返す。
-  // 上位から「本当に効いている制限」が見えることに意味がある。
+  // 受信値ではなく MD が実際に適用している値を返す
   f.torque_limit = applied_torque_limit;
 
   SerialProtocol_Encode(&f, data);
-  Serial_Write(&uart2, data, sizeof(data));  // シリアル送信
+  Serial_Write(&uart2, data, sizeof(data));
   Timer_Reset(&serial_send_timer);
 }
 
 // ---------------------------------------------------------------------------
 // 異常処理
 // ---------------------------------------------------------------------------
-// 異常を赤LED(LED4)の点滅回数で知らせる。点滅の間は青・緑を消して
-// 「赤だけが点滅している = 異常」と一目で分かるようにする。
-// MainAppのループから毎周期呼ばれるので、1回の呼び出しで1パターンだけ出す。
+// 異常を赤LED(LED4)の点滅回数で知らせる (青・緑は消す)。1回の呼び出しで1パターン出す。
 static void BlinkError(uint8_t blink_count) {
   PwmOut_Write(&LED1, 0);
   PwmOut_Write(&LED2, 0);
@@ -376,26 +322,23 @@ static void BlinkError(uint8_t blink_count) {
     PwmOut_Write(&LED4, 0);
     HAL_Delay(100);
   }
-  HAL_Delay(400);  // パターンの区切り (点滅回数を数えやすくする)
+  HAL_Delay(400);  // パターンの区切り
 }
 
 // ラッチ式の異常処理。復帰条件を満たすまでモータを止め、赤LEDを点滅させ続ける。
-//
-// 復帰条件にヒステリシスを持たせているのは、しきい値ちょうどで
-// 停止と復帰を往復させないため (過熱なら -5°C、電圧なら ±0.5V)。
-// 過熱と電圧異常でまったく同じ形だったのでまとめた。
+// 復帰条件にはヒステリシスを持たせる (過熱なら -5°C、電圧なら SUPPLY_VOLTAGE_RECOVER_HYST)。
 static void LatchFault(bool* latched, bool recovered, uint8_t blink_count) {
-  BLDC_Stop();  // モーターストップ
+  BLDC_Stop();
 
   if (recovered) {
     *latched = false;
-    PwmOut_Write(&LED4, 0);  // 復帰したので赤を消す
+    PwmOut_Write(&LED4, 0);
   } else {
     BlinkError(blink_count);
   }
 }
 
-// 過電流保護が働いた瞬間の状態を一度だけ表示する (原因の切り分け用)。
+// 過電流保護が働いた瞬間の状態を一度だけ表示する
 static void ReportOvercurrentTrip(void) {
   BLDCTripInfo t;
   BLDC_GetTripInfo(&t);
@@ -409,8 +352,7 @@ static void ReportOvercurrentTrip(void) {
          t.mech_theta, t.angular_speed, supply_volt);
 }
 
-// 過電流ラッチ。制御ループ側で既にモーターは止まっている。
-// スイッチを押すまで解除しない。
+// 過電流ラッチ (モータは制御ループ側で停止済み)。スイッチを押すまで解除しない。
 static void HandleOvercurrent(void) {
   static bool trip_reported = false;
 
@@ -425,13 +367,12 @@ static void HandleOvercurrent(void) {
     trip_reported = false;
     BLDC_ResetPeakCurrent();
     BLDC_ClearOvercurrent();
-    Serial_Reset(&uart2);    // 停止中に溜まった受信データを捨てる
-    PwmOut_Write(&LED4, 0);  // 復帰したので赤を消す
+    Serial_Reset(&uart2);  // 停止中に溜まった受信データを捨てる
+    PwmOut_Write(&LED4, 0);
   }
 }
 
-// 異常の検出とラッチ処理をまとめる。異常が続いている間は true を返す
-// (モータはこの中で止めてあるので、呼び出し側は指令の処理を丸ごと飛ばす)。
+// 異常の検出とラッチ処理。異常が続いている間は true を返す (モータは停止済み)。
 static bool HandleFaults(void) {
   if (temp > TEMP_LIMIT || is_overheat) {
     printf("Overheat! Temperature: %.2f°C, Supply Voltage: %.2fV\n", temp, supply_volt);
@@ -440,13 +381,25 @@ static bool HandleFaults(void) {
     return true;
   }
 
-  if (supply_volt > SUPPLY_VOLTAGE_MAX_LIMIT || supply_volt < SUPPLY_VOLTAGE_MIN_LIMIT ||
-      is_voltage_out_of_range) {
+  // 電圧は範囲外が SUPPLY_VOLTAGE_TRIP_DELAY_MS 連続したときだけ停止する (範囲内に戻れば計測をやり直す)
+  bool volt_out = supply_volt > SUPPLY_VOLTAGE_MAX_LIMIT || supply_volt < SUPPLY_VOLTAGE_MIN_LIMIT;
+  if (!is_voltage_out_of_range) {
+    if (!volt_out) {
+      is_voltage_pending = false;
+    } else if (!is_voltage_pending) {
+      is_voltage_pending = true;
+      voltage_out_since_ms = HAL_GetTick();
+    } else if (HAL_GetTick() - voltage_out_since_ms >= SUPPLY_VOLTAGE_TRIP_DELAY_MS) {
+      is_voltage_pending = false;
+      is_voltage_out_of_range = true;
+    }
+  }
+
+  if (is_voltage_out_of_range) {
     printf("Supply voltage out of range: %.2fV, Temperature: %.2f°C\n", supply_volt, temp);
-    is_voltage_out_of_range = true;
     LatchFault(&is_voltage_out_of_range,
-               supply_volt > (SUPPLY_VOLTAGE_MIN_LIMIT + 0.5f) &&
-                   supply_volt < (SUPPLY_VOLTAGE_MAX_LIMIT - 0.5f),
+               supply_volt > (SUPPLY_VOLTAGE_MIN_LIMIT + SUPPLY_VOLTAGE_RECOVER_HYST) &&
+                   supply_volt < (SUPPLY_VOLTAGE_MAX_LIMIT - SUPPLY_VOLTAGE_RECOVER_HYST),
                ERROR_BLINK_VOLTAGE);
     return true;
   }
@@ -462,8 +415,7 @@ static bool HandleFaults(void) {
 // ---------------------------------------------------------------------------
 // メインループ
 // ---------------------------------------------------------------------------
-// 正常時の状態表示。赤は消し、青2つでq軸電流の大きさをバーグラフにする
-// (LED1が0→100%、そこから先をLED2が0→100%で引き継ぐ)。
+// 正常時の表示。青2つでq軸電流のバーグラフ (LED1が0→100%、続きをLED2が引き継ぐ)
 static void UpdateLoadLeds(void) {
   PwmOut_Write(&LED4, 0);
   float iq_ratio = Abs(BLDC_GetIq()) / MAX_CURRENT;
@@ -482,8 +434,6 @@ void MainApp(void) {
 
     RecvSerial();
 
-    // 表から引いた BLDC 側のAPIをそのまま呼ぶ。
-    // active_command == NULL が停止モード。
     if (active_command != NULL) {
       active_command->apply(target_value);
     } else {

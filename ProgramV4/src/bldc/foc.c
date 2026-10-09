@@ -14,9 +14,7 @@ float FOC_LimitVoltageVector(float* vd, float* vq, float v_max) {
 
 // 空間ベクトル変調 (min-max方式)
 //   1. 逆Clarke変換で各相の電圧指令をつくる
-//   2. 3相の最大値と最小値の中点を全相から引く (= 三次高調波の重畳)
-//      線間電圧は変わらないままピーク電圧が √3/2 倍に下がるので、その分だけ
-//      大きな相電圧振幅 (最大 Vdc/√3) を出せるようになる
+//   2. 最大値と最小値の中点を全相から引く (三次高調波重畳。線間電圧はそのままピーク電圧が √3/2 倍になる)
 //   3. デューティ 0.5 を中心に正規化する
 void FOC_SVPWM(float v_alpha, float v_beta, float v_dc, float* du, float* dv, float* dw) {
   if (v_dc < 1.0f) v_dc = 1.0f;  // 0除算防止
@@ -27,7 +25,6 @@ void FOC_SVPWM(float v_alpha, float v_beta, float v_dc, float* du, float* dv, fl
   float vv = -0.5f * v_alpha + (SQRT3 * 0.5f) * v_beta;
   float vw = -0.5f * v_alpha - (SQRT3 * 0.5f) * v_beta;
 
-  // 3相の中点
   float v_max = vu;
   if (vv > v_max) v_max = vv;
   if (vw > v_max) v_max = vw;

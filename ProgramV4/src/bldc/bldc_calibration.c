@@ -1,24 +1,15 @@
 #include "bldc_internal.h"
 
-// エンコーダ/モータ定数の校正・同定。20kHz制御ループ本体 (bldc.c) からは
-// 独立していて、起動時に1回だけ (スイッチ校正時、または config.h の
-// MEASURE_* で個別に有効化したとき) 実行される。
-//
-// 共有する内部状態 (svc, bldc_capture[]) とヘルパー (BLDC_WritePwm など) は
-// bldc_internal.h にある。
+// エンコーダ/モータ定数の校正・同定。起動時に1回だけ (スイッチ校正時、または
+// config.h の MEASURE_* を有効にしたとき) 実行される。共有状態は bldc_internal.h。
 
-// 測定関数はスイッチ校正からも呼ぶので、診断表示が無効でもコンパイルする必要がある。
 #if BLDC_NEED_RL || BLDC_NEED_PSI
-#include <math.h>  // logf / asinf (起動時の同定でしか使わない。ISRからは呼ばない)
+#include <math.h>  // logf / asinf (起動時の同定のみ。ISRからは呼ばない)
 #endif
 
 // 強制転流(オープンループ駆動)。エンコーダ校正でのみ使う。
-//
-// 3相を別々に cos() で作らず、位相の sin/cos を1回だけ引いて加法定理で展開する。
-//   cos(φ ∓ 2π/3) = -0.5·cosφ ± (√3/2)·sinφ
-// これは逆Clarke変換そのものなので、電流ループ側 (FOC_SVPWM) と同じ形になる。
-// FOC_SinCos は入力の範囲を問わない (内部で小数部を取る) ので、
-// 呼び出し側で位相を正規化する必要もない。
+// sin/cos を1回だけ引き、加法定理 cos(φ ∓ 2π/3) = -0.5·cosφ ± (√3/2)·sinφ で3相に展開する。
+// FOC_SinCos は範囲を問わないので位相の正規化は不要。
 static void BLDC_OpenLoopDrive(float amp, float phase) {
   float sin_p, cos_p;
   FOC_SinCos(phase, &sin_p, &cos_p);
@@ -31,13 +22,9 @@ static void BLDC_OpenLoopDrive(float amp, float phase) {
 }
 
 #if BLDC_MEASURING
-// ---------------------------------------------------------------------------
-// ステップ応答測定の共通部分
-// ---------------------------------------------------------------------------
-// 測定を始める前の状態づくり。
-// q軸指令0のトルクモードで出力を有効にし、電流が0に整定するのを待つ。
-// ここを揃えておかないと、ステップ直前の値 (= 記録のサンプル0 = 基準) が
-// 測定ごとに変わってしまう。
+// --- ステップ応答測定の共通部分 ---
+// 測定前の状態づくり。q軸指令0のトルクモードで出力を有効にし、電流が整定するのを待つ
+// (ステップ直前の値 = サンプル0 = 基準を揃えるため)。
 static void BLDC_BeginMeasurement(void) {
   svc.target_id_override = 0.0f;
   svc.target_current = 0.0f;
@@ -46,7 +33,7 @@ static void BLDC_BeginMeasurement(void) {
   HAL_Delay(200);
 }
 
-// 記録したIdの定常値 [A]。後ろ20%の平均 (過渡が完全に終わったところ)。
+// 記録したIdの定常値 [A]。後ろ20%の平均
 static float BLDC_CaptureSteadyState(void) {
   const uint16_t tail = BLDC_CAPTURE_SAMPLES / 5;
   int32_t sum = 0;
@@ -57,11 +44,7 @@ static float BLDC_CaptureSteadyState(void) {
 }
 
 // 63.2%到達点をサンプル単位で返す (0 なら見つからなかった)。
-//
-// **またぐ2点の間を線形補間すること。** 「最初に閾値を超えたサンプル」を
-// そのまま使うと時定数を切り上げる方向に読み、帯域や L を系統的に過小評価する。
-// サンプリングが50µsなので、応答が速いほど誤差が効く。
-// (合成波形での検証: 1000Hzの1次系を 補間なし 796Hz / 補間あり 992Hz と読んだ)
+// またぐ2点を線形補間する (しないと時定数を長く読み、1000Hzの1次系が 796Hz と出る。補間ありは 992Hz)。
 static float BLDC_CaptureTimeTo63(float i_ss, uint16_t* out_index) {
   float thr = i_ss * 0.632f;
   for (uint16_t i = 1; i < BLDC_CAPTURE_SAMPLES; i++) {
@@ -77,7 +60,7 @@ static float BLDC_CaptureTimeTo63(float i_ss, uint16_t* out_index) {
   return 0.0f;
 }
 
-// 波形を表示する。立ち上がりを見たいので前半は1サンプルずつ、後半は間引く。
+// 波形を表示する (前半は1サンプルずつ、後半は間引く)
 static void BLDC_CapturePrint(float i_ss) {
   printf("   t[ms]   Id[A]\n");
   for (uint16_t i = 0; i < BLDC_CAPTURE_SAMPLES; i += (i < 20) ? 1 : 10) {
@@ -97,7 +80,7 @@ static bool BLDC_RunCapture(float step, bool is_voltage) {
   svc.capture_is_voltage = is_voltage;
   svc.capture_state = BLDC_CAPTURE_ARMED;
 
-  // 200サンプル = 10ms。余裕をみて500msで打ち切る。
+  // 記録は10msで終わるので、500msで打ち切る
   uint32_t t0 = HAL_GetTick();
   while (svc.capture_state != BLDC_CAPTURE_DONE && (HAL_GetTick() - t0) < 500) {
   }
@@ -115,16 +98,9 @@ static bool BLDC_RunCapture(float step, bool is_voltage) {
 // ---------------------------------------------------------------------------
 // L と R の同定 (PIをバイパスした電圧ステップ)
 // ---------------------------------------------------------------------------
-// PIを通さず Vd を直接与えるので、応答は制御器の挟まらない素の1次系になる。
-//   i(t) = (V/R)(1 - e^(-t/τ)),  τ = L/R
-//   定常値から R = V / I_ss、63%到達から τ → L = τ·R
-//
-// 電圧を2点 (V と 2V) 振って差を取るのは、デッドタイムによる電圧誤差を
-// 消すため。低側FETと高側FETの切り替わりに 278ns の空白があるぶん、実際に
-// モータへ加わる電圧は指令より一定量小さい (12Vなら約0.067V)。この誤差は
-// 電圧指令の大きさによらずほぼ一定なので、
-//   R = (V2 - V1) / (I2 - I1)
-// とすれば消える。1点だけで R = V/I とすると10%近い誤差が乗る。
+// 応答は素の1次系: i(t) = (V/R)(1 - e^(-t/τ)), τ = L/R。定常値から R、63%到達から L = τ·R。
+// 電圧を2点 (V と 2V) 振って R = (V2 - V1) / (I2 - I1) とし、ほぼ一定のデッドタイム誤差
+// (278ns, 12Vで約0.067V) を消す。1点だと R に10%近い誤差が乗る。
 bool BLDC_MeasureMotorRL(float* out_r, float* out_l) {
   const float v1 = MOTOR_RL_STEP_VOLTS;
   const float v2 = MOTOR_RL_STEP_VOLTS * 2.0f;
@@ -152,11 +128,11 @@ bool BLDC_MeasureMotorRL(float* out_r, float* out_l) {
       i1 = i_ss;
     } else {
       i2 = i_ss;
-      tau = k63 * CURRENT_LOOP_DT;  // 大きいほうがSNRが良いのでこちらのτを使う
+      tau = k63 * CURRENT_LOOP_DT;  // 電流が大きいほうがSNRが良い
       BLDC_CapturePrint(i_ss);
     }
 
-    // 次の測定の前に電流を落として熱を溜めない
+    // 熱を溜めないよう電流を落とす
     svc.vd_override = 0.0f;
     HAL_Delay(100);
     if (svc.rl_aborted) break;
@@ -179,8 +155,8 @@ bool BLDC_MeasureMotorRL(float* out_r, float* out_l) {
     return false;
   }
 
-  float r = (v2 - v1) / (i2 - i1);  // デッドタイム誤差がキャンセルされる
-  float r_naive = v2 / i2;          // 1点だけで出した場合 (比較用)
+  float r = (v2 - v1) / (i2 - i1);
+  float r_naive = v2 / i2;  // 1点だけの場合 (比較用)
 
   printf("  → **MOTOR_R = %.4f** [Ω]  (1点だけなら %.4f。差がデッドタイム誤差)\n",
          (double)r, (double)r_naive);
@@ -189,19 +165,11 @@ bool BLDC_MeasureMotorRL(float* out_r, float* out_l) {
     return false;
   }
 
-  // 測定した63%到達時間には L/R 以外の遅れが2つ混ざっている。
-  // 引かないと L を4割ほど過大評価する。Kp = L·ω_bw なので、そのぶん
-  // 実際の帯域が設計値を超えて位相余裕が削られる。
-  //
-  //   (a) 電流LPFの時定数。svc.id はフィルタ後の電流から計算されている。
-  //       y += a(x-y) の離散極は (1-a) なので τ = -Ts / ln(1-a)。
-  //       a=0.5, Ts=50µs で 72µs。L/R の3割を超える大きさがある。
-  //   (b) 電圧を出してからサンプリングするまでの半周期。
-  //       CCRはプリロード付きなので書いた値は次の周期の頭から効き、電流を拾うのは
-  //       低側ON区間の中央 = その周期の真ん中。よってサンプル n の実際の経過時間は
-  //       (n - 0.5)·Ts であって n·Ts ではない。
-  //
-  // 1次系の縦続なので63%点はおよそ時定数の和になる。この差し引きの誤差は数%。
+  // 63%到達時間には L/R 以外の遅れが2つ混ざっており、引かないと L を4割ほど過大評価する。
+  //   (a) 電流LPFの時定数 τ = -Ts / ln(1-a)  (a=0.5, Ts=50µs で 72µs)
+  //   (b) 電圧を出してからサンプリングするまでの半周期 (CCRはプリロード付きで、電流を拾うのは
+  //       低側ON区間の中央なので、サンプル n の経過時間は (n - 0.5)·Ts)
+  // 1次系の縦続なので63%点は時定数の和にほぼ等しく、差し引きの誤差は数%。
   const float tau_lpf = -CURRENT_LOOP_DT / logf(1.0f - CURRENT_LPF_COEF);
   const float tau_delay = 0.5f * CURRENT_LOOP_DT;
   float tau_lr = tau - tau_lpf - tau_delay;
@@ -238,34 +206,24 @@ bool BLDC_MeasureMotorRL(float* out_r, float* out_l) {
 
 #if BLDC_NEED_PSI
 // ---------------------------------------------------------------------------
-// 逆起電力定数 ψm の同定
+// 鎖交磁束 ψm の同定
 // ---------------------------------------------------------------------------
-// 一定速度の定常状態では dIq/dt = 0 なので
-//   Vq = R·Iq + ω_e·ψm     →     ψm = (Vq - R·Iq) / ω_e
-//
-// 2速度で測って差を取り、デッドタイムなどの一定オフセットを消す:
-//   ψm = ((Vq2 - Vq1) - R(Iq2 - Iq1)) / (ω_e2 - ω_e1)
-//
-// 注: フィードフォワードが有効でも測定は成立する。定常状態で必要な Vq の総量は
-//     ψm の真値だけで決まり、それをPIとFFのどちらが出すかは結果に影響しないため
-//     (FFが足りなければPIが埋め、出しすぎればPIが引く)。
+// 定常状態では dIq/dt = 0 なので Vq = R·Iq + ω_e·ψm。2速度の差を取り、デッドタイム等の
+// 一定オフセットを消す: ψm = ((Vq2 - Vq1) - R(Iq2 - Iq1)) / (ω_e2 - ω_e1)
+// フィードフォワードが有効でも成立する (必要な Vq の総量は ψm の真値だけで決まり、PIとFFの内訳は無関係)。
 
-// 指定速度まで回して整定させ、その定常点の ω_e / Vq / Iq の平均を返す。
-// ψm の同定 (2点) と角度遅れの同定 (1点) の両方から使う。
+// 指定速度まで回して整定させ、定常点の ω_e / Vq / Iq の平均を返す (ψm と角度遅れの同定で共用)。
 static bool BLDC_MeasureSteadyPoint(float target_w, float* out_we, float* out_vq, float* out_iq) {
-  // **校正の間だけ制限を開ける。**
-  // 通常運転の制限値は上位から来るが、校正が走るのは通信が始まる前 (BLDC_Init の中)。
-  // 既定値の 0 のままだと Iq指令が 0 に飽和し、モータが回らないまま
-  // 「指令速度に届いていない」で失敗する。ここで MD 側の絶対上限を自分で入れる。
-  // 閉じるのは BLDC_Init の最後 (校正が全部終わってから)。
+  // 校正は通信開始前 (BLDC_Init 内) に走り、制限値が既定の 0 だとモータが回らないので、
+  // ここで MD 側の絶対上限まで開ける。閉じるのは BLDC_Init の最後。
   BLDC_SetLimits(BLDC_GetMaxTorqueNm());
 
   BLDC_AngularSpeedControl(target_w);
 
-  // 加速度制限 (MAX_ANGULAR_ACCEL) でランプするので、到達 + 整定を待つ
+  // 加速度制限でランプするので、到達と整定を待つ
   HAL_Delay(2500);
 
-  // 500ms 平均。PWMリプルや速度のゆらぎを均す。
+  // 500ms 平均 (リプルや速度のゆらぎを均す)
   const uint16_t n = 500;
   float sum_w = 0.0f, sum_vq = 0.0f, sum_iq = 0.0f;
   for (uint16_t i = 0; i < n; i++) {
@@ -282,7 +240,6 @@ static bool BLDC_MeasureSteadyPoint(float target_w, float* out_we, float* out_vq
   printf("  %.0f rad/s 指令 → 実測 %.1f rad/s (ω_e %.0f), Vq %.3fV, Iq %.3fA\n",
          (double)target_w, (double)w, (double)*out_we, (double)*out_vq, (double)*out_iq);
 
-  // 指令に届いていないと ω_e が想定とずれて ψm が狂う。
   if (Abs(w - target_w) > target_w * 0.2f) {
     printf("  指令速度に届いていない。負荷がかかっているか電圧が足りない。\n");
     return false;
@@ -310,13 +267,12 @@ bool BLDC_MeasureMotorPsi(float* out_psi) {
   }
 
   float psi = ((vq2 - vq1) - svc.motor_r * (iq2 - iq1)) / (we2 - we1);
-  float psi_1pt = (vq2 - svc.motor_r * iq2) / we2;  // 1点だけで出した場合 (比較用)
+  float psi_1pt = (vq2 - svc.motor_r * iq2) / we2;  // 1点だけの場合 (比較用)
 
   printf("  → **MOTOR_PSI = %.6f** [Wb]  (1点だけなら %.6f。差が一定オフセット分)\n",
          (double)psi, (double)psi_1pt);
 
-  // **2点法は「オフセットが2点で同じ」ことが前提。** その前提が崩れていないか確かめる。
-  // 各点から逆算したオフセットが揃っていなければ、消したつもりの誤差が ψm に化けている。
+  // 2点法は「オフセットが2点で同じ」ことが前提なので、各点から逆算して確かめる
   //   Vq = R·Iq + ω_e·ψm + V0  →  V0 = Vq − R·Iq − ω_e·ψm
   float v0_1 = vq1 - svc.motor_r * iq1 - we1 * psi;
   float v0_2 = vq2 - svc.motor_r * iq2 - we2 * psi;
@@ -329,8 +285,7 @@ bool BLDC_MeasureMotorPsi(float* out_psi) {
   }
 
   if (psi > 1e-6f) {
-    // 無負荷での到達速度の目安。実際に回してみた速度と大きく違うなら
-    // どこかが間違っている (符号、極対数、電圧の見積もりなど)。
+    // 無負荷の到達速度の目安 (実際と大きく違えば符号・極対数・電圧を疑う)
     float v_limit = svc.supply_volt * MAX_MODULATION_RATIO;
     printf("  → 逆起電力定数 %.4f V/(rad/s) [電気角]\n", (double)psi);
     printf("  → 電圧上限 %.2fV から無負荷の到達速度は約 %.0f rad/s (機械角) の見込み\n",
@@ -341,21 +296,14 @@ bool BLDC_MeasureMotorPsi(float* out_psi) {
   printf("  ψm が負またはゼロ。Vq の符号か POLE_PAIRS を疑うこと。\n");
   return false;
 }
+
 // ---------------------------------------------------------------------------
 // 電気角の実効遅れの同定
 // ---------------------------------------------------------------------------
-// 推定角が真の角より δ ずれていると、逆起電力が推定d軸に漏れて Vd に現れる:
-//   Vd = R·Id − ω_e·L·Iq + ω_e·ψm·sin δ
-// ここから残差 δ が直接求まる:
+// 推定角が δ ずれると逆起電力が推定d軸に漏れる: Vd = R·Id − ω_e·L·Iq + ω_e·ψm·sin δ
 //   sin δ = (Vd − R·Id + ω_e·L·Iq) / (ω_e·ψm)
-// δ は「いまの補償値で回したときの残り」なので、真の遅れは
-//   t_true = t_いま − δ / ω_e
-//
-// 1回の測定で決まる (反復不要)。実データでの検算:
-//   補償前 t=0,    120 rad/s, Vd=−1.25V → 1.074 ms
-//   補償後 t=1.08ms, 247 rad/s, Vd=+0.01V → 1.077 ms
-//
-// ψm が必要なので、必ず ψm の同定より後に呼ぶこと。
+// δ は現在の補償値で回したときの残りなので、真の遅れは t_true = t_いま − δ / ω_e。
+// 1回の測定で決まる (検算: 補償前 1.074ms、補償後 1.077ms)。ψm が必要なので ψm の同定より後に呼ぶ。
 bool BLDC_MeasureAngleDelay(float* out_delay) {
   const float target_w = ANGLE_DELAY_MEASURE_SPEED;
   printf("[DLY] 電気角の実効遅れの同定 (%.0f rad/s で回す)\n", (double)target_w);
@@ -366,8 +314,7 @@ bool BLDC_MeasureAngleDelay(float* out_delay) {
     return false;
   }
 
-  // Vd と Id は BLDC_MeasureSteadyPoint が拾っていないのでここで平均する。
-  // (速度は既に整定しているので短くてよい)
+  // Vd と Id は BLDC_MeasureSteadyPoint が拾わないのでここで平均する
   const uint16_t n = 300;
   float sum_vd = 0.0f, sum_id = 0.0f;
   for (uint16_t i = 0; i < n; i++) {
@@ -417,23 +364,14 @@ bool BLDC_MeasureAngleDelay(float* out_delay) {
 // 電流ループ(閉ループ)のステップ応答測定
 // ---------------------------------------------------------------------------
 // d軸に電流ステップを入れて Id の応答を記録し、帯域を求める。
-//
-// なぜ d軸なのか:
-//   d軸はロータの磁束方向なので、電流を流してもトルクが出ない。ロータが動かない
-//   ので逆起電力も負荷変動も混ざらず、「電流ループの電気的な応答」だけが取れる。
-//   表面磁石型(SPM)は Ld = Lq でPIゲインも共通なので、結果はq軸にそのまま使える。
-//
-// なぜ測るのか:
-//   Kp を上げてよいかは L 次第で、L が分からないと判断できない。
-//   一方 Kp と Ki を同じ倍率で動かせば帯域は倍率どおりに動く (config.h 参照)。
-//   つまり必要なのは「いまの帯域が何Hzか」という1つの数字だけ。
+// d軸ならトルクが出ず逆起電力も混ざらないので電気的な応答だけが取れ、SPM (Ld = Lq) なので
+// 結果はq軸にそのまま使える。
 static void BLDC_AnalyzeCurrentStep(float step_amps) {
   float i_ss = BLDC_CaptureSteadyState();
 
   printf("[STEP] 電流ループのステップ応答 (Id指令 %.2fA)\n", (double)step_amps);
 
-  // 定常値が指令から大きく外れていたら、そもそも電流が流せていない。
-  // (電源電圧不足、出力が有効になっていない、過電流でラッチ、など)
+  // 定常値が指令から大きく外れていたら電流が流せていない (電源電圧不足・出力無効・過電流ラッチなど)
   if (i_ss < step_amps * 0.5f) {
     printf(
         "  定常値 %.3fA が指令 %.2fA に届いていない。測定は無効。\n"
@@ -445,7 +383,7 @@ static void BLDC_AnalyzeCurrentStep(float step_amps) {
   uint16_t k63;
   float k63f = BLDC_CaptureTimeTo63(i_ss, &k63);
 
-  // ピーク → オーバーシュート。15%を超えていたらゲインが高すぎる。
+  // オーバーシュート (15%超ならゲインが高すぎる)
   int16_t peak = bldc_capture[0];
   for (uint16_t i = 0; i < BLDC_CAPTURE_SAMPLES; i++) {
     if (bldc_capture[i] > peak) peak = bldc_capture[i];
@@ -464,15 +402,9 @@ static void BLDC_AnalyzeCurrentStep(float step_amps) {
 
   float tau = k63f * CURRENT_LOOP_DT;
 
-  // **本当に1次系か検証する。** 1次系なら 2τ で 86.5%、3τ で 95.0% のはず。
-  // 極とゼロが打ち消せていないと応答が速い成分と遅い成分に割れ、
-  // 「速く立ち上がったあと長い尾を引く」形になってここが合わなくなる。
-  // 63%点だけ見て時定数を語ると、その尾を見落として帯域を過大評価する。
-  // **ここも線形補間すること。** τ は整数サンプルとは限らない (63%点自体を
-  // 補間で求めているので当然)。インデックスを切り捨てると交差点の手前の値を
-  // 拾ってしまい、1τ が定義上63%のはずなのに51%と出るような矛盾が起きる。
-  // しかも誤差の大きさが τ の小数部に依存するので、同じ応答でも通ったり
-  // 落ちたりする。判定として成立しない。
+  // 本当に1次系か検証する (1次系なら 2τ で 86.5%、3τ で 95.0%)。極零相殺できていないと
+  // 速い成分と遅い成分に割れて長い尾を引き、63%点だけでは帯域を過大評価する。
+  // τ は整数サンプルとは限らないので、ここも線形補間する (切り捨てると判定が不安定になる)。
   const float frac[3] = {0.632f, 0.865f, 0.950f};
   float dev[3] = {0.0f, 0.0f, 0.0f};
   printf("  1次系との比較:");
@@ -490,17 +422,9 @@ static void BLDC_AnalyzeCurrentStep(float step_amps) {
   }
   printf("\n");
 
-  // 判定の主役は **3τ**。
-  //
-  // 極とゼロが合っていないと応答が速い成分と遅い成分に割れ、3τ になっても
-  // 95% に届かない「長い尾」が残る。これが直したい状態。
-  // 一方 2τ が理想より**高め**に出るのは、ループの中の遅れ (電流LPFと演算遅れ)
-  // のせいで立ち上がりが後ろにずれ、そのぶん τ を長めに読むため。
-  // 遅れは避けられないので、こちらは異常ではない。
-  //
-  // 実測での切り分け:
-  //   壊れていたとき (Kp=0.75): 2τ +17%, **3τ -13%**  ← 尾が残っている
-  //   直したあと            : 2τ  +9%, **3τ  +4%**  ← 尾は無い
+  // 判定の主役は 3τ。極零相殺が合っていないと 3τ でも 95% に届かない尾が残る。
+  // 2τ が高めに出るのはループ内の遅れ (電流LPFと演算遅れ) で τ を長く読むためで、異常ではない。
+  // 実測: 壊れていたとき 2τ +17% / 3τ -13%、直したあと 2τ +9% / 3τ +4%。
   if (dev[2] < -8.0f) {
     printf(
         "  **遅い尾が残っている (3τ で %+.0f%%)。** PIのゼロ点 Ki/Kp が\n"
@@ -514,18 +438,13 @@ static void BLDC_AnalyzeCurrentStep(float step_amps) {
         "  ゲインが高すぎて振動しているか、ループ内の遅れが想定より大きい。\n",
         (double)dev[1]);
   } else {
-    // L の同定と同じく、電圧を出してからサンプリングするまでの半周期を引く。
-    // CCRはプリロード付きなので書いた値は次の周期の頭から効き、電流を拾うのは
-    // 低側ON区間の中央。よってサンプル n の実際の経過時間は (n - 0.5)·Ts。
-    // 引かないと帯域を1割ほど低く読む。
+    // L の同定と同じく半周期を引く (引かないと帯域を1割ほど低く読む)
     float tau_corr = tau - 0.5f * CURRENT_LOOP_DT;
     if (tau_corr <= 0.0f) tau_corr = tau;
     float f_bw = 1.0f / (TWO_PI_F * tau_corr);
     printf("  → 1次系とみなせる。**帯域 約%.0fHz** (狙い %.0fHz, 補正前 %.0fHz)\n",
            (double)f_bw, (double)CURRENT_BW_TARGET_HZ, (double)(1.0f / (TWO_PI_F * tau)));
-    // 比較対象は CURRENT_BW_HZ ではなく CURRENT_BW_TARGET_HZ。
-    // 設計パラメータ自身を目標にすると、実測がそこに届くたびにさらに高い値を
-    // 要求する追いかけっこになる (config.h 参照)。
+    // 基準は CURRENT_BW_TARGET_HZ (config.h 参照)
     printf("  → 狙いに合わせるなら CURRENT_BW_HZ = %.0f (いまは %.0f)\n",
            (double)(CURRENT_BW_HZ * CURRENT_BW_TARGET_HZ / f_bw), (double)CURRENT_BW_HZ);
   }
@@ -543,18 +462,15 @@ static void BLDC_AnalyzeCurrentStep(float step_amps) {
   BLDC_CapturePrint(i_ss);
 }
 
-// 注意: これを呼ぶとモータに電流が流れる。d軸なのでトルクは出ない**はず**だが、
-// エンコーダ校正がずれているとトルクが出てロータが動く。校正が済んでいることと、
-// ロータが自由に回っても安全な状態であることを確認してから使うこと。
+// 注意: モータに電流が流れる。d軸なのでトルクは出ないはずだが、エンコーダ校正がずれていると
+// ロータが動く。校正済みで、ロータが自由に回っても安全な状態で使うこと。
 void BLDC_MeasureCurrentStep(void) {
   const float step_amps = Constrain(CURRENT_STEP_AMPS, 0.0f, MAX_CURRENT);
 
-  // q軸は0のまま、d軸だけを動かす
-  BLDC_BeginMeasurement();
+  BLDC_BeginMeasurement();  // q軸は0のまま、d軸だけを動かす
 
   bool ok = BLDC_RunCapture(step_amps, false);
 
-  // 必ず電流を切ってから戻る
   svc.target_id_override = 0.0f;
   BLDC_Stop();
 
@@ -562,20 +478,20 @@ void BLDC_MeasureCurrentStep(void) {
 }
 #endif  // MEASURE_CURRENT_STEP
 
-// エンコーダの最大/最小値と電気角のオフセットを実測してフラッシュに保存する
+// エンコーダの最大/最小値・盲点幅・電気角のオフセットを実測する (保存は BLDC_SaveCalibration)
 void BLDC_SetEncoder(volatile uint16_t* encoder_val) {
-  svc.encoder_offset_theta = 0;  // オフセット計測前は0で初期化
+  svc.encoder_offset_theta = 0;
   svc.max_encoder_val = 0;
   svc.min_encoder_val = MAX_ADC_VAL;
 
-  // 強制転流でロータを等速で回しながら測る。2周とも**同じ速度・同じ駆動条件**で
-  // 回すこと (盲点幅は「時間の割合＝機械角の割合」として求めるため)。
+  // 強制転流で等速に回しながら測る。盲点幅は「時間の割合＝機械角の割合」として求めるので、
+  // 2周とも同じ速度・同じ駆動条件で回すこと。
   const uint16_t SWEEP_SAMPLES = 3000;  // HAL_Delay(1) なので3秒 = 約13回転
   const float DRIVE_AMP = 0.15f;        // 強制転流の変調振幅 (回すのに使う)
   const float HOLD_AMP = 0.3f;          // 位置を引き込んで保持するときの振幅
   const float SWEEP_STEP = 0.2f;        // 1サンプルあたりの電気角の進み [rad]
 
-  // 1周目: エンコーダー出力の最大値・最小値を取得する
+  // 1周目: 最大値・最小値を取得する
   float phase = 0;
   for (uint16_t i = 0; i < SWEEP_SAMPLES; i++) {
     phase += SWEEP_STEP;
@@ -585,13 +501,8 @@ void BLDC_SetEncoder(volatile uint16_t* encoder_val) {
     HAL_Delay(1);
   }
 
-  // 2周目: 盲点(レール飽和で角度が読めない区間)の幅を測る。
-  // 等速で回しながら「レール付近に張り付いていたサンプルの割合」を数えると、
-  // 等速なので時間の割合＝機械角の割合になり、そのまま盲点の角度幅が求まる。
-  //   ADC値 [min, max] が実際にカバーするのは 2π ではなく 2π - 盲点幅。
-  //   この差を無視すると θ_meas が引き伸ばされ、継ぎ目に段差ができる
-  //   (BLDC_UpdateEncoderScale のコメント参照)。
-  // 約13回転するので、半端な回転ぶんの誤差は 1/13 程度に収まる。
+  // 2周目: 盲点(レール飽和で角度が読めない区間)の幅を、飽和していたサンプルの割合から求める。
+  // 無視すると継ぎ目に段差ができる (BLDC_UpdateEncoderScale 参照)。約13回転なので端数誤差は 1/13 程度。
   uint32_t sat_samples = 0;
   for (uint16_t i = 0; i < SWEEP_SAMPLES; i++) {
     phase += SWEEP_STEP;
@@ -601,25 +512,18 @@ void BLDC_SetEncoder(volatile uint16_t* encoder_val) {
   }
   svc.encoder_dead_zone = TWO_PI_F * (float)sat_samples / (float)SWEEP_SAMPLES;
 
-  // 測れなかった/明らかにおかしい場合は補正なし(従来どおり)に落とす。
-  // 盲点が1周の1/4もあるようならエンコーダか磁石の取り付けを疑うべき。
+  // 異常値 (盲点が1周の1/4以上 = エンコーダか磁石の取り付けを疑う) は補正なしにする
   if (!(svc.encoder_dead_zone >= 0.0f && svc.encoder_dead_zone < TWO_PI_F * 0.25f)) {
     svc.encoder_dead_zone = 0.0f;
   }
 
-  BLDC_UpdateEncoderScale();  // これ以降 BLDC_UpdateEncoder が使えるようになる
+  BLDC_UpdateEncoderScale();  // これ以降 BLDC_UpdateEncoder が使える
 
-  // 電気角度0の位置にロータを引き込んで、そのときの機械角をオフセットとする。
-  // これを電気角1回転ぶんずつ位置をずらしながら POLE_PAIRS 回くり返して平均する。
-  //
-  // 測定点は機械角で 2π/POLE_PAIRS ずつ離れているが、そのまま平均してよい。
-  //   測定値 v_k = (θ0 + k・2π/P) mod 2π   (k = 0..P-1)
-  //   Σv_k = P・θ0 + (2π/P)・P(P-1)/2 - 2π・M   (M: 2πを跨いだ回数)
-  //   平均 = θ0 + (2π/P)・((P-1)/2 - M)
-  // つまり平均は θ0 と 2π/P の整数倍しか違わない。電気角は機械角を P 倍して
-  // 2π で折り返すので、2π/P のずれは電気角では 2π のずれ = 同一。よって等価。
-  // ただしこの相殺は「各測定値が等間隔かつ同じ誤差を持つ」ことが前提なので、
-  // 特定の周回だけ誤差が乗ると成り立たなくなる (下の encoder_primed 参照)。
+  // 電気角0の位置にロータを引き込み、そのときの機械角をオフセットとする。
+  // 電気角1回転ぶんずつ位置をずらしながら POLE_PAIRS 回くり返して平均する。
+  // 測定点は機械角で 2π/P ずつ離れるが、平均は θ0 と 2π/P の整数倍しか違わず、
+  // 電気角では 2π/P のずれ = 2π のずれ = 同一なので、そのまま平均してよい
+  // (各測定値が等間隔で同じ誤差を持つことが前提)。
   float offset_sum = 0;
   for (uint8_t i = 0; i < POLE_PAIRS; i++) {
     BLDC_OpenLoopDrive(DRIVE_AMP, 0);
@@ -627,17 +531,13 @@ void BLDC_SetEncoder(volatile uint16_t* encoder_val) {
     BLDC_OpenLoopDrive(HOLD_AMP, 0);
     HAL_Delay(100);
 
-    // 直前の位相送りでロータは 2π/POLE_PAIRS ≒ 0.9rad 動いている。
-    // オブザーバは CURRENT_LOOP_DT (50µs) 前提のゲインなのに、この校正ループは
-    // HAL_Delay(1) で回るため実時間では20倍ゆっくりしか追従しない。さらに
-    // 0.9rad はイノベーション上限を超えるので観測が棄却され続けてしまう。
-    // 張り直さずに測ると追従中のランプが平均に入り、オフセットが
-    // 0.2rad(機械角) ≒ 70°(電気角) もずれる。
+    // ロータは直前の位相送りで約0.9rad動いている。オブザーバは50µs前提で、この校正ループ
+    // (HAL_Delay(1)) では追従が20倍遅く、イノベーション上限も超えて棄却され続ける。
+    // 張り直さないと追従中のランプが平均に入り、オフセットが約70°(電気角) ずれる。
     svc.encoder_primed = false;
     BLDC_UpdateEncoder(*encoder_val);
 
-    // 整定位置がたまたま 0/2π の境目にあっても平均が壊れないよう、
-    // 1点目からの差分 (-π〜+π に正規化済み) で平均する。
+    // 0/2π の境目で壊れないよう、1点目からの差分で平均する
     float base = svc.mech_theta;
     float diff_sum = 0;
     for (uint16_t j = 0; j < 200; j++) {
@@ -647,9 +547,7 @@ void BLDC_SetEncoder(volatile uint16_t* encoder_val) {
     }
     offset_sum += FOC_NormalizeRadians(base + diff_sum * 0.005f);
 
-    // 電気角をおよそ1回転ぶん送って、次の測定点までロータを進める。
-    // 6.2rad で止めても、次のループ頭で phase=0 (≡2π) に引き込まれるので
-    // 結果として正確に電気角1回転ぶん進む。
+    // 電気角を約1回転送って次の測定点へ進める (次のループ頭で phase=0 ≡ 2π に引き込まれるので端数は問題ない)
     phase = 0;
     for (uint16_t j = 0; j < (uint16_t)(TWO_PI_F * 10.0f); j++) {
       phase += 0.1f;
@@ -666,16 +564,10 @@ void BLDC_SetEncoder(volatile uint16_t* encoder_val) {
          svc.encoder_dead_zone,
          (double)(svc.encoder_dead_zone * 57.29578f),
          (double)(svc.encoder_dead_zone * 100.0f / TWO_PI_F));
-
-  // フラッシュ書き込みはここではしない。
-  // モータ定数の測定が終わってから、全部まとめて1回で書く (BLDC_SaveCalibration)。
-  // フラッシュはページ単位でしか消せないので、分けて書くと先に書いたほうが消える。
 }
 
 #if MOTOR_AUTO_CALIBRATION
-// 校正値をまとめてフラッシュに保存する。
-// **1回で全項目を書くこと。** Flash_WriteData はページ消去を伴うので、
-// 項目ごとに呼ぶと前に書いたものが消える。
+// 校正値をまとめてフラッシュに保存する。ページ消去を伴うので、必ず1回で全項目を書くこと。
 void BLDC_SaveCalibration(void) {
   BLDCFlashData d = {BLDC_FLASH_MAGIC,
                      svc.max_encoder_val,
@@ -694,8 +586,7 @@ void BLDC_SaveCalibration(void) {
 }
 #endif  // MOTOR_AUTO_CALIBRATION
 
-// 電流PIのゲインを、いまの L と R から計算し直す。
-// L と R を実測したあとに必ず呼ぶこと。
+// 電流PIのゲインを、いまの L と R から計算し直す (L,R を実測したら必ず呼ぶ)
 void BLDC_UpdateCurrentGains(void) {
   svc.id_pi.kp = CURRENT_PI_KP_FROM(svc.motor_l);
   svc.id_pi.ki = CURRENT_PI_KI_FROM(svc.motor_r);
@@ -708,15 +599,8 @@ void BLDC_UpdateCurrentGains(void) {
 }
 
 #if MOTOR_AUTO_CALIBRATION
-// モータ定数の自動測定。制御ループが回り始めてから呼ぶこと。
-//
-// 順番に意味がある:
-//   1. R,L → PIをバイパスして測るのでゲイン不要。ここで測ってゲインを決める
-//   2. ψm  → 速度制御で回すのでゲインが要る。1の後
-//   3. 遅れ → Vd から求めるので ψm が要る。2の後
-//
-// どれか失敗しても、そこまでに取れた値は活かして続ける
-// (失敗した項目は既定値かフラッシュの旧値のまま)。
+// モータ定数の自動測定 (制御ループが回り始めてから呼ぶ)。順序の理由は config.h の MOTOR_AUTO_CALIBRATION。
+// 失敗した項目は既定値のまま続行する。
 void BLDC_CalibrateMotor(void) {
   float r, l, psi, delay;
 
@@ -725,7 +609,7 @@ void BLDC_CalibrateMotor(void) {
   if (BLDC_MeasureMotorRL(&r, &l)) {
     svc.motor_r = r;
     svc.motor_l = l;
-    BLDC_UpdateCurrentGains();  // 以降の測定はこのゲインで走る
+    BLDC_UpdateCurrentGains();
   } else {
     printf("[CAL] R,L の測定に失敗。既定値のまま続行する\n");
   }
@@ -748,15 +632,9 @@ void BLDC_CalibrateMotor(void) {
 }
 #endif  // MOTOR_AUTO_CALIBRATION
 
-// フラッシュに保存した校正値を読み出して適用する。
-//
-// 未校正のフラッシュ(消去状態は全ビット1)や旧フォーマットのデータを読むと、
-// max == min による0除算や、盲点幅にゴミが入って角度が狂う。マジックナンバーと
-// 範囲チェックの両方で弾く。NaN も落とせるよう不等号は肯定形で書くこと。
-//
-// エンコーダとモータ定数は別々に検証する。エンコーダ側が壊れていてもモータ定数は
-// 使えることがあるが、逆に「もっともらしいゴミ」を掴むと制御が静かに劣化するので
-// モータ定数のほうは範囲を厳しめに見る。
+// フラッシュの校正値を検証して適用する。未校正 (全ビット1) や旧フォーマットを
+// マジックナンバーと範囲チェックで弾く (NaN も落とせるよう不等号は肯定形で書く)。
+// エンコーダとモータ定数は別々に検証し、「もっともらしいゴミ」を避けるためモータ定数は範囲を厳しめにする。
 void BLDC_LoadFlashCalibration(void) {
   BLDCFlashData d;
   Flash_ReadData(FLASH_USER_START_ADDR, &d, sizeof(d));
@@ -801,9 +679,7 @@ void BLDC_LoadFlashCalibration(void) {
   }
 }
 
-// 起動時の診断表示 (校正とは別。config.h の MEASURE_* で個別に有効化)。
-// 制御ループが回り始めてからでないと測れないので、呼ぶ場所を動かさないこと。
-// 全部 0 なら空関数になり、リンカが丸ごと落とす。
+// 起動時の診断 (config.h の MEASURE_*)。制御ループが回り始めてからでないと測れない。
 void BLDC_RunStartupMeasurements(void) {
 #if MEASURE_MOTOR_RL
   {

@@ -16,35 +16,20 @@
 
 // センサ付きベクトル制御 (FOC)
 //
-// 制御の流れ:
-//   TIM1(20kHz) → PWM同期でADC1がU/V相電流を1点サンプリング
+//   TIM1(20kHz) 同期で ADC1 が U/V相電流をサンプリング
 //     → DMA転送完了割り込み (20kHz, 電流ループ)
-//         Clarke変換 → Park変換 → 電流PI制御 → 逆Park変換 → SVPWM → PWM出力
-//     → 20回に1回 (1kHz) 外側ループ (速度制御 / 位置制御) がIq指令を更新
+//         Clarke → Park → 電流PI → 逆Park → SVPWM → PWM出力
+//     → 20回に1回 (1kHz) 外側ループ (速度/位置制御) が Iq指令を更新
 //
-// app 側は BLDC_SetSupplyVolt() でセンサ値を渡し、BLDC_XxxControl() で
-// 目標値を指示するだけでよい。実際の制御は全て割り込みの中で走る。
+// app は BLDC_SetSupplyVolt() でセンサ値を渡し、BLDC_XxxControl() で目標値を指示するだけでよい。
 
-#define POSITION_DEADBAND_RAD 0.025f       // 位置制御の停止判定誤差 [rad]
-#define POSITION_SETTLE_SPEED_RAD_S 0.05f  // 位置制御の停止判定角速度 [rad/s]
-#define POSITION_INTEGRAL_STOP_RAD 0.05f   // 位置制御で積分を止める誤差 [rad]
+#define POSITION_DEADBAND_RAD 0.015f       // 位置制御の停止判定誤差 [rad]
+#define POSITION_SETTLE_SPEED_RAD_S 0.03f  // 位置制御の停止判定角速度 [rad/s]
+#define POSITION_INTEGRAL_STOP_RAD 0.015f  // 位置制御で積分を止める誤差 [rad]
 
-// 位置制御は**目標角との偏差をそのまま PID に入れる素の構成**。
-// 内部に位置指令のランプ (速度制限) は持たない。
-//
-// 以前は「位置指令を speed_limit の速さでしか動かさない」ランプを挟み、さらに
-// ランプが実位置から離れすぎないよう引き戻していた。速度制限を撤廃した結果
-// この機構は成立しなくなった。ランプが即座に目標へ飛ぶので毎周期 引き戻しが効き、
-// 偏差が引き戻し幅に張り付いて **出力が kp × 引き戻し幅 = 1.5A の定数**になり、
-// torque_limit を上げても効かないモータになってしまう。
-//
-// **いま拘束中の保持トルクを決めるのは torque_limit そのもの。**
-// ラックエンドに当て続けると上限いっぱいの電流が流れ続けるので、
-// 「焼かない電流」を選ぶ責任は上位の torque_limit に移っている。
-//
-// ワインドアップ対策は BLDC_PIDControl のバックカリキュレーションが担う。
-// 偏差の入力元が実位置との差だけになったので、拘束されても偏差は物理的に
-// ±π を超えず、以前のように「青天井に育つ」経路そのものが無い。
+// 位置制御は目標角との偏差をそのまま PID に入れる素の構成 (位置指令のランプや速度制限は持たない)。
+// 拘束中の保持トルクは torque_limit で決まるので、ラックエンド等に当て続けても焼かない電流を
+// 選ぶ責任は上位の torque_limit にある。ワインドアップは BLDC_PIDControl のバックカリキュレーションが抑える。
 
 typedef enum {
   BLDC_MODE_STOP = 0,  // 停止 (全相デューティ0.5)
@@ -55,11 +40,8 @@ typedef enum {
 } BLDCMode;
 
 // フラッシュに保存する校正値。
-// 項目を追加/変更したら BLDC_FLASH_MAGIC も変えること。旧フォーマットのデータを
-// 新フォーマットとして読むと、追加した項目にゴミが入って静かに誤動作する。
-//
+// 項目を追加/変更したら BLDC_FLASH_MAGIC も変えること (旧データを新フォーマットで読むと誤動作する)。
 // BLD3 でモータの電気的パラメータ (R, L, ψm, 角度遅れ) を追加した。
-// これらは config.h の既定値ではなく、スイッチを押しながら起動して実測した値を使う。
 #define BLDC_FLASH_MAGIC 0x424C4433UL  // "BLD3"
 
 typedef struct {
@@ -98,36 +80,23 @@ typedef struct {
   float output_limit;
 } PIDController;
 
-// encoder_val は ADC2 の DMA が非同期に書き換えるので volatile であること。
-// supply_volt は**実測した母線電圧**を渡すこと。SVPWM の電圧→デューティ変換に使うので、
-// ここが実際と違うと「指令した電圧」と「実際に加わる電圧」の比がそのままずれ、
-// 校正で測るモータ定数がその比のぶん狂う。
+// encoder_val は ADC2 の DMA が非同期に書き換えるので volatile。
+// supply_volt は実測した母線電圧を渡すこと。SVPWM の電圧→デューティ変換に使うので、
+// 実際と違うと指令電圧と実電圧の比がずれ、校正で測るモータ定数も狂う。
 void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val, float supply_volt);
 
-// app から呼ぶセンサ入力
 void BLDC_SetSupplyVolt(float supply_volt);
 
-// ---------------------------------------------------------------------------
-// 上位から指定される制限値
-// ---------------------------------------------------------------------------
-// 指令フレームごとに (1kHz で) 呼ばれる。渡した値は次の外側ループから効く。
-//
-//   torque_limit_nm : トルク (= Iq) 指令の飽和値 [N・m]
-//                     **全モードに効く唯一の制限。** 速度ループ・位置ループでは
-//                     出力制限そのものになるので、**飽和中は積分のアンチワインド
-//                     アップがこの値を基準に効く。** PIDを通らないトルクモード・
-//                     制動モードには最終段のクランプとして効く。
-//
-// MD 側の絶対上限 (Kt × MAX_CURRENT) でクランプされる。
-// 負の値は 0 に丸める。**0 は「制限なし」ではなく「動かない」**。
-// 起動直後は 0 なので、上位から制限値を受け取るまでモータは回らない。
-//
-// **速度は上位が指令値そのもので決める。** MD 側に速度の飽和は置かない
-// (置くと同じ量を2箇所で作ることになる)。唯一の例外が MAX_ANGULAR_SPEED で、
-// これは上位から変えられない MD 固定のハード保護。
+// 上位から指定される制限値。指令フレームごと (1kHz) に呼ばれ、次の外側ループから効く。
+//   torque_limit_nm : トルク (= Iq) 指令の飽和値 [N・m]。全モードに効く唯一の制限。
+//                     速度/位置ループでは出力制限 (アンチワインドアップの基準) になり、
+//                     トルク/ブレーキモードでは最終段のクランプになる。
+// MD 側の絶対上限 (Kt × MAX_CURRENT) でクランプされ、負の値は 0 に丸める。
+// 0 は「制限なし」ではなく「動かない」。起動直後は 0 で、受信するまでモータは回らない。
+// 速度の制限は持たない (MAX_ANGULAR_SPEED は上位から変えられないハード保護)。
 void BLDC_SetLimits(float torque_limit_nm);
 
-// 実際に適用している制限値。上位へのエコーバックと表示に使う。
+// 実際に適用している制限値 (上位へのエコーバックと表示用)
 float BLDC_GetTorqueLimitNm(void);  // [N・m]
 float BLDC_GetMaxTorqueNm(void);    // MD 側の絶対上限 = Kt × MAX_CURRENT [N・m]
 
@@ -140,8 +109,7 @@ void BLDC_TorqueControlNm(float torque_nm);                 // トルク指令 [
 void BLDC_BrakeControl(float brake_current);                // 制動電流の大きさ [A]
 void BLDC_BrakeControlNm(float brake_torque_nm);            // 制動トルクの大きさ [N・m] (Ktで換算)
 
-// トルク定数 Kt = 1.5 × POLE_PAIRS × ψm [N・m/A]。
-// ψm はスイッチ校正 (BLDC_MeasureMotorPsi) で実測した値。磁気飽和がない前提の近似。
+// トルク定数 Kt = 1.5 × POLE_PAIRS × ψm [N・m/A] (ψm は校正値、磁気飽和なしの近似)
 float BLDC_GetTorqueConstant(void);
 
 // 状態の取得
@@ -158,60 +126,52 @@ bool BLDC_IsOvercurrent(void);              // 過電流保護が働いたか
 void BLDC_GetTripInfo(BLDCTripInfo* info);  // 保護が働いた瞬間の状態を取得
 void BLDC_ClearOvercurrent(void);           // 過電流保護の解除
 
-// 相電流ピークの記録。実際にどこまで電流が振れているかを確認するのに使う。
+// 相電流ピークの記録
 float BLDC_GetPeakCurrent(void);
 void BLDC_ResetPeakCurrent(void);
 
-// 角度追従オブザーバの調査用データ。エンコーダの継ぎ目で何が起きているかが分かる。
+// 角度追従オブザーバの調査用データ
 typedef struct {
   uint32_t saturated;    // 飽和で棄却したサンプル数 (AS5600の出力がレールに張り付いた)
   uint32_t glitch;       // イノベーション過大で棄却したサンプル数 (遷移グリッチ等)
   float max_innovation;  // 採用したイノベーションのピーク [rad]
 } BLDCEncoderStats;
 
-// max_innovation が継ぎ目の段差の大きさそのもの。0.01rad 程度なら校正は良好で、
-// 0.05rad を超えるようなら encoder_scale (min/max) の精度が足りていない。
+// max_innovation は継ぎ目の段差の大きさ。0.01rad 程度なら校正は良好、
+// 0.05rad を超えるなら encoder_scale (min/max) の精度不足。
 void BLDC_GetEncoderStats(BLDCEncoderStats* stats);
 void BLDC_ResetEncoderStats(void);
 
-// ---------------------------------------------------------------------------
 // 20kHz制御ループの実行時間プロファイル (config.h の PROFILE_ISR で有効化)
-// ---------------------------------------------------------------------------
 #if PROFILE_ISR
 // 割り込みハンドラ全体 (HALのディスパッチ込み) と呼び出し周期。
-// DMA1_Channel1_IRQHandler (stm32f3xx_it.c) から直接叩くので extern で公開する。
-// HAL_DMA_IRQHandler の外側で測らないとHALのオーバーヘッドが見えない。
+// stm32f3xx_it.c の DMA1_Channel1_IRQHandler から直接叩くため extern で公開する。
 extern Profile bldc_prof_irq;
 extern ProfilePeriod bldc_prof_period;
 
-// 集計を printf で表示して、最大値と平均をリセットする。
-// elapsed_s には前回の表示からの実経過時間 [s] を渡す (CPU使用率と実測レートに使う)。
+// 集計を表示して最大値と平均をリセットする。elapsed_s は前回表示からの経過時間 [s]。
 void BLDC_PrintIsrProfile(float elapsed_s);
 
-// 集計を捨てて測定開始点を揃える。表示用タイマを張るのと同時に呼ぶ。
+// 集計を捨てて測定開始点を揃える
 void BLDC_ResetIsrProfile(void);
 #endif
 
-// ---------------------------------------------------------------------------
-// モータ定数の測定 (制御ループが回り始めてから呼ぶこと)
-// ---------------------------------------------------------------------------
-// スイッチを押しながら起動したときの自動校正から呼ばれるほか、config.h の
-// MEASURE_* を立てると毎回の起動でも走る。測定に成功したら true を返し、
-// 失敗したら理由を printf して false を返す (出力値には触らない)。
+// モータ定数の測定 (制御ループが回り始めてから呼ぶ)。
+// スイッチ校正と config.h の MEASURE_* から呼ばれる。成功で true、
+// 失敗は理由を printf して false (出力値には触らない)。
 #if MEASURE_MOTOR_RL || MOTOR_AUTO_CALIBRATION
-// PIをバイパスして Vd を直接印加し、L と R を同定する。
-// d軸なのでトルクは出ずロータは動かないが、モータには電流が流れる。
+// PIをバイパスして Vd を直接印加し、L と R を同定する (ロータは動かないが電流は流れる)
+
 bool BLDC_MeasureMotorRL(float* out_r, float* out_l);
 #endif
 #if MEASURE_CURRENT_STEP
-// 電流指令にステップを入れて、閉ループが1次系になっているか確認する (表示のみ)。
+// 電流指令にステップを入れて、閉ループが1次系になっているか確認する (表示のみ)
 void BLDC_MeasureCurrentStep(void);
 #endif
 #if MEASURE_MOTOR_PSI || MOTOR_AUTO_CALIBRATION
-// 逆起電力定数 ψm を同定する。**ロータが実際に回る。**
+// 鎖交磁束 ψm を同定する (ロータが回る)
 bool BLDC_MeasureMotorPsi(float* out_psi);
-// 電気角の実効遅れを同定する。**ロータが実際に回る。**
-// Vd から残差を求めるので、ψm の同定より後に呼ぶこと。
+// 電気角の実効遅れを同定する (ロータが回る)。ψm の同定より後に呼ぶこと。
 bool BLDC_MeasureAngleDelay(float* out_delay);
 #endif
 

@@ -7,8 +7,7 @@
 #include "mymath.h"
 #include "tim.h"
 
-// ADC値 → 電流 [A] : Vout = REF + I * Rshunt * Gain より I = (Vout - REF) / (Rshunt * Gain)
-// CURRENT_SIGN は配線上の向きを合わせるための符号 (config.h 参照)
+// ADC値 → 電流 [A] : I = (Vout - REF) / (Rshunt * Gain)。CURRENT_SIGN は配線上の向き (config.h 参照)
 #define ADC2CURRENT_ABS (ADC2VOLT / (SHUNT_RESISTANCE * CURRENT_AMP_GAIN))
 #define ADC2CURRENT (CURRENT_SIGN * ADC2CURRENT_ABS)
 
@@ -18,25 +17,15 @@ static volatile uint16_t adc_val[2];
 static float offset_v = CURRENT_REF_ADC;
 static float offset_u = CURRENT_REF_ADC;
 
-// 電流センシングADC1をPWM同期トリガで初期化する
-//
-// ローサイドシャントは「低側FETがONの区間」しか正しい電流が流れない。
-// TIM1は**センター揃え**(アップダウンカウント)なので、PWM1モードでは
-//   CNT < CCR で高側ON  → 高側ONの区間はカウンタの谷 (CNT=0) を中心に広がる
-//   CNT >= CCR で低側ON → 低側ONの区間は**カウンタ頂点 (CNT=PWM_ARR) を中心**に広がる
-// つまり頂点が低側ON区間のちょうど真ん中。ここでサンプリングすると、
-// 三角波状の電流リプルの平均値 = その周期の平均電流がそのまま取れる
-// (エッジ揃えで区間の端をつまんでいた頃はリプルの分だけ偏りがあった)。
-//
+// 電流センシングADC1をPWM同期トリガで初期化する。
+// ローサイドシャントは低側FETがONの区間しか電流が流れない。TIM1はセンター揃えなので
+// 低側ON区間はカウンタ頂点 (CNT=PWM_ARR) を中心に広がり、頂点付近でサンプリングすると
+// その周期の平均電流が取れる。
 // TIM1_CH4 を PWM2 モードにして CCR4 = PWM_ARR - CURRENT_SENSE_TRIG_ADVANCE に置くと、
-// **上りでその位置を通過するとき1回だけ** OC4REF が立ち上がる
-// (下りでは立ち下がるので、1周期にトリガは1回)。
-// これをTRGO2に出し、ADC1の外部トリガ(TIM1_TRGO2)として使う。
-//
-// 平均ではなくPWM周期ごとの1点サンプリングであり、この変換完了割り込みが
-// そのまま20kHzの電流制御ループのタイミングになる。
+// 上りの通過時だけ OC4REF が立ち上がる (1周期に1回)。これを TRGO2 → ADC1外部トリガにする。
+// この変換完了割り込みが20kHz電流制御ループのタイミングになる。
 void CurrentSense_Init(void) {
-  // TIM1_CH4 コンペア設定 (OC4REF生成用。CH4に出力ピンは無いが内部REFは生成される)
+  // TIM1_CH4 コンペア設定 (OC4REF生成用。出力ピンは無いが内部REFは生成される)
   TIM_OC_InitTypeDef oc = {0};
   oc.OCMode = TIM_OCMODE_PWM2;  // CNT>=CCR4 でOC4REF=High(立ち上がりでトリガ)
   oc.Pulse = PWM_ARR - CURRENT_SENSE_TRIG_ADVANCE;
@@ -61,7 +50,7 @@ void CurrentSense_Init(void) {
   if (HAL_ADC_Init(&hadc1) != HAL_OK) {
     printf("ADC1 re-init failed!\n");
   }
-  // 変換チャンネル列を再設定 (IN1=SENSEB(V相) rank1, IN2=SENSEC(U相) rank2)
+  // 変換チャンネル列 (IN1=SENSEB(V相) rank1, IN2=SENSEC(U相) rank2)
   ADC_ChannelConfTypeDef sc = {0};
   sc.SingleDiff = ADC_SINGLE_ENDED;
   sc.SamplingTime = ADC_SAMPLETIME_61CYCLES_5;
@@ -82,28 +71,15 @@ void CurrentSense_Init(void) {
     printf("ADC1 DMA start failed!\n");
   }
 
-  // ハーフ転送完了(HT)割り込みを止める。
-  //
-  // DMAは転送数の半分で HT、全部で TC の2種類の割り込みを出す。ここは2変換なので
-  // 1変換目の完了でHTが立ってしまい、PWM1周期あたり**2回**割り込みが入っていた。
-  // HAL_ADC_Start_DMA が XferHalfCpltCallback に ADC_DMAHalfConvCplt を繋ぐので、
-  // 中身が空の HAL_ADC_ConvHalfCpltCallback を呼ぶためだけに毎回 1µs 使っていた
-  // (実測: 20000回/秒 × 1.04µs = CPUの2%)。しかもHT処理中にTCが立つので、
-  // 制御ループの起動がそのぶん後ろにずれる。
-  //
-  // HAL_DMA_IRQHandler のHT処理は CCR の HTIE を見てから走るので、
-  // このビットを落とせば発生しなくなる。TC側の処理には影響しない。
-  // (hadc1.DMA_Handle は HAL_ADC_Start_DMA が繋いだ hdma_adc1 そのもの。
-  //  adc.h が hdma_adc1 を公開していないのでこちら経由で触る)
+  // ハーフ転送完了(HT)割り込みを止める。2変換なので1変換目でHTが立ち、空のコールバックのために
+  // 毎周期 約1µs (CPU 2%) を使い、制御ループの起動も遅らせていた。TC側には影響しない。
+  // (hdma_adc1 は adc.h で公開されていないので hadc1.DMA_Handle 経由で触る)
   __HAL_DMA_DISABLE_IT(hadc1.DMA_Handle, DMA_IT_HT);
 
-  // ADC2(エンコーダ・電圧・温度)は連続変換なのでDMA完了割り込みが高頻度で入る。
-  // 値はDMAが勝手に更新してくれるので割り込みは不要。20kHzの制御ループを
-  // 邪魔しないように止めておく。
+  // ADC2(エンコーダ・電圧・温度)は連続変換で完了割り込みが高頻度に入る。値はDMAが更新するので止める
   HAL_NVIC_DisableIRQ(DMA1_Channel2_IRQn);
 
-  // 制御ループ(ADC1のDMA完了)を最優先にする。SysTickとUARTのDMAは1段下げて、
-  // 制御周期のジッタを抑える。
+  // 制御ループ(ADC1のDMA完了)を最優先にし、SysTickとUARTのDMAは下げてジッタを抑える
   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
   HAL_NVIC_SetPriority(SysTick_IRQn, 1, 0);
   HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 2, 0);  // USART1_TX

@@ -8,15 +8,12 @@
 #define INV_SQRT3 0.5773502691896258f  // 1/√3
 #define SQRT3 1.7320508075688772f
 
-// mymath.h の PI / TWO_PI は double リテラルなので、単精度FPUしか持たない
-// Cortex-M4 では式全体がソフトウェアの倍精度演算に落ちてしまう。
-// 20kHzの割り込みの中ではこちらの float 版を使うこと。
+// mymath.h の PI / TWO_PI は double リテラルで、単精度FPUのCortex-M4ではソフト倍精度演算になる。
+// 20kHz割り込み内では float 版を使うこと。
 #define PI_F 3.14159265f
 #define TWO_PI_F 6.28318531f
 
-// Cortex-M4F の VSQRT.F32 を直接使う平方根。
-// libm の sqrtf は errno と NaN の面倒を見るぶん関数呼び出しが2段挟まるので、
-// 20kHzの制御ループでは1命令で済むこちらを使う。
+// VSQRT.F32 を直接使う平方根 (libm の sqrtf は errno 処理で関数呼び出しが2段挟まる)
 static inline float FOC_Sqrt(float x) {
   float result;
   __asm volatile("vsqrt.f32 %0, %1" : "=t"(result) : "t"(x));
@@ -38,10 +35,8 @@ static inline float FOC_AngleDiff(float a, float b) {
   return diff;
 }
 
-// CMSIS-DSP の sin テーブル (512点 + 端の1点 = 513点)。
-// mymath.h の Sin/Cos は1度刻みのテーブルなのでFOCのPark変換には粗すぎる。
-// arm_math.h はヘッダが巨大なので、必要な宣言だけをここに書く
-// (float32_t == float, FAST_MATH_TABLE_SIZE == 512)。
+// CMSIS-DSP の sin テーブル (512点 + 端の1点)。mymath.h の Sin/Cos は1度刻みで粗すぎる。
+// arm_math.h は巨大なので宣言だけここに書く。
 #define FOC_SIN_TABLE_SIZE 512
 extern const float sinTable_f32[FOC_SIN_TABLE_SIZE + 1];
 
@@ -65,19 +60,11 @@ static inline float FOC_PI_Update(PIController* pi, float error, float dt) {
   return Constrain(output, -pi->output_limit, pi->output_limit);
 }
 
-// 電気角の sin と cos をまとめて計算する。
-//
-// arm_sin_f32 と arm_cos_f32 を別々に呼ぶと、同じ引数に対して
-// 「x/2π の小数部を取る」範囲縮約が2回走り、関数呼び出しも2回になる。
-// cos は sin のテーブルを 1/4 周期 (512点中128点) ずらして引いたものなので、
-// 縮約と補間係数を1回で済ませれば両方いっぺんに取れる。
-//
-// **入力の範囲は任意でよい。** 内部で小数部を取るので、呼ぶ前に 0〜2π へ
-// 正規化してはいけない。FOC_NormalizeRadians は while ループなので、
-// 電気角 (機械角 × 極対数 = 最大44rad) を渡すと平均3〜4回まわって完全に無駄になる。
+// 電気角の sin と cos をまとめて計算する (範囲縮約と補間係数を共有できる)。
+// 入力の範囲は任意。内部で小数部を取るので、事前に正規化しないこと (while ループの無駄になる)。
 static inline void FOC_SinCos(float theta, float* sin_t, float* cos_t) {
   float in = theta * (1.0f / TWO_PI_F);
-  in -= (float)(int32_t)in;   // 小数部 (0方向への切り捨てなので負なら負のまま)
+  in -= (float)(int32_t)in;   // 小数部 (負のまま)
   if (in < 0.0f) in += 1.0f;  // [0,1) に折り返す
 
   float findex = in * (float)FOC_SIN_TABLE_SIZE;
@@ -85,13 +72,12 @@ static inline void FOC_SinCos(float theta, float* sin_t, float* cos_t) {
   float frac = findex - (float)index;
   index &= (FOC_SIN_TABLE_SIZE - 1);
 
-  // 線形補間。a + f(b-a) は (1-f)a + fb と同じだが乗算が1回少ない。
+  // 線形補間
   float s0 = sinTable_f32[index];
   float s1 = sinTable_f32[index + 1];
   *sin_t = s0 + frac * (s1 - s0);
 
-  // cos(θ) = sin(θ + π/2)。π/2 はテーブル1周512点の1/4 = 128点ぶん。
-  // 整数点ぶんのずらしなので補間係数 frac はそのまま使い回せる。
+  // cos(θ) = sin(θ + π/2)。128点ずらすだけなので frac を使い回せる
   uint32_t ci = (index + (FOC_SIN_TABLE_SIZE / 4)) & (FOC_SIN_TABLE_SIZE - 1);
   float c0 = sinTable_f32[ci];
   float c1 = sinTable_f32[ci + 1];
