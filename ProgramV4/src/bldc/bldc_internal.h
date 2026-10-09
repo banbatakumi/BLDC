@@ -40,6 +40,7 @@ typedef struct {
   float motor_psi;    // 永久磁石の鎖交磁束 [Wb]
   float angle_delay;  // 電気角の実効遅れ [s]
 
+  bool encoder_calibrated;        // エンコーダの校正値が有効か (フラッシュから読めた / このセッションで測った)
   bool encoder_primed;            // 機械角をエンコーダ実測値で初期化済みか
   uint16_t encoder_reject_count;  // 飽和域で連続して棄却した回数
   uint16_t encoder_glitch_count;  // イノベーション過大で連続して棄却した回数

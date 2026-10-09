@@ -183,7 +183,9 @@ static void BLDC_Coast(void) {
   svc.id = 0;
   svc.iq = 0;
   svc.target_iq = 0;
-  svc.speed_ramp = 0;
+  // 速度指令のランプは現在の角速度から始める (0 から始めると、回っている状態で速度モードに
+  // 入った瞬間に「目標0」との偏差で逆向きのトルクが出る)
+  svc.speed_ramp = svc.angular_speed;
   // 再開1周期目に微分項が飛ばないよう、位置PIDの prev_error をいまの偏差で初期化する
   svc.position_pid.prev_error = FOC_AngleDiff(svc.target_position, svc.mech_theta);
   svc.position_pid.d_term = 0;
@@ -221,7 +223,11 @@ static void BLDC_CurrentLoop(void) {
     svc.overcurrent_count = 0;
   }
 
-  if (!svc.enable) {
+  // 過電流ラッチ中は enable に関わらず必ず出力を切る。BLDC_Enable (メインループ) が
+  // is_overcurrent を確認してから enable = true を書くまでの間にここのトリップが割り込むと
+  // enable が真に戻るが、トリップは一度しか発動しないので、enable だけを見ていると
+  // ラッチ表示のまま駆動が続く
+  if (!svc.enable || svc.is_overcurrent) {
     BLDC_Coast();
     return;
   }
@@ -490,6 +496,30 @@ static void BLDC_InitProfiler(void) {
 }
 #endif
 
+// 電流センサのゼロ点校正。全相デューティ0.5 は3相短絡なので、ロータが回っていると
+// (惰行中に駆動電源を入れ直したときなど) 逆起電力による電流が流れ、その平均がゼロ点に混ざる。
+// 校正の前後でエンコーダの生値が動いていたらやり直す (短絡制動で減速するので待てば止まる)。
+// 上限まで繰り返しても止まらなければ、最後の測定値を警告つきで採用する
+// (理論値 CURRENT_REF_ADC は個体差が大きく、回転中の測定値よりも外れうるため使わない)
+static void BLDC_CalibrateCurrentZero(void) {
+  for (uint8_t attempt = 1;; attempt++) {
+    int32_t before = *svc.encoder_val_ptr;
+    CurrentSense_Calibrate();
+    int32_t moved = (int32_t)*svc.encoder_val_ptr - before;
+    if (moved < 0) moved = -moved;
+    if (moved > MAX_ADC_VAL / 2) moved = MAX_ADC_VAL - moved;  // 0/2π の継ぎ目をまたいだ
+    if (moved <= CURRENT_CALIB_MAX_ENCODER_MOVE_LSB) return;
+
+    if (attempt >= CURRENT_CALIB_MAX_ATTEMPTS) {
+      printf("CurrentSense: 警告 ロータが止まらないままゼロ点を校正した (エンコーダ %ld LSB 移動)\n",
+             (long)moved);
+      return;
+    }
+    printf("CurrentSense: ロータが回っている (エンコーダ %ld LSB 移動)。ゼロ点校正をやり直す\n",
+           (long)moved);
+  }
+}
+
 void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val, float supply_volt) {
   printf("BLDC_Init\n");
 
@@ -516,6 +546,7 @@ void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val, float supply
   if (do_set_encoder) {
     printf("BLDC_SetEncoder\n");
     BLDC_SetEncoder(encoder_val);
+    svc.encoder_calibrated = true;
     printf("(Measured) このセッションの校正値を使う\n");
   } else {
     BLDC_LoadFlashCalibration();
@@ -531,7 +562,7 @@ void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val, float supply
   // 電流センサのゼロ点校正 (全相デューティ0.5で電流が流れない状態で行う)
   BLDC_WritePwm(0.5f, 0.5f, 0.5f);
   HAL_Delay(200);
-  CurrentSense_Calibrate();
+  BLDC_CalibrateCurrentZero();
 
   // 制御ループを回す前に機械角を実測値で確定させる
   svc.encoder_primed = false;
@@ -607,6 +638,9 @@ static inline void BLDC_Enable(BLDCMode mode) {
   if (svc.mode != mode) {
     svc.position_pid.prev_error = FOC_AngleDiff(svc.target_position, svc.mech_theta);
     svc.position_pid.d_term = 0;
+    // 速度モードも現在の角速度から始める (ランプ・積分を他モードから持ち越さない)
+    svc.speed_ramp = svc.angular_speed;
+    svc.speed_pid.integral = 0;
   }
   svc.mode = mode;
   svc.enable = true;
@@ -656,6 +690,7 @@ float BLDC_GetVq(void) { return svc.vq; }
 // Vq のうちフィードフォワード分。符号が逆だと Vq と逆向きに出るので、実装ミスの確認に使う
 float BLDC_GetVqFF(void) { return svc.vq_ff; }
 bool BLDC_IsOvercurrent(void) { return svc.is_overcurrent; }
+bool BLDC_IsEncoderCalibrated(void) { return svc.encoder_calibrated; }
 void BLDC_GetTripInfo(BLDCTripInfo* info) { *info = svc.trip; }
 
 void BLDC_ClearOvercurrent(void) {

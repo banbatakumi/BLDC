@@ -15,6 +15,7 @@
 #include "serial.h"
 #include "serial_protocol.h"
 #include "timer.h"
+#include "watchdog.h"
 
 // app は外部との入出力 (シリアル通信・LED・スイッチ・保護判定) を担当する。
 // モーター制御そのものは src/bldc 側の20kHz割り込みの中で完結している。

@@ -123,6 +123,9 @@ float BLDC_GetVd(void);                     // d軸電圧 [V]
 float BLDC_GetVq(void);                     // q軸電圧 [V]
 float BLDC_GetVqFF(void);                   // Vqのうちフィードフォワード分 [V]
 bool BLDC_IsOvercurrent(void);              // 過電流保護が働いたか
+// エンコーダの校正値が有効か。偽のときは既定値 (オフセット0) で動いており電気角が合っていない
+// ので、app は上位の制限値を受け付けない (= 動かさない)
+bool BLDC_IsEncoderCalibrated(void);
 void BLDC_GetTripInfo(BLDCTripInfo* info);  // 保護が働いた瞬間の状態を取得
 void BLDC_ClearOvercurrent(void);           // 過電流保護の解除
 

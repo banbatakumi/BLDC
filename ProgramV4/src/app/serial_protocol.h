@@ -24,7 +24,8 @@
 //
 // --- 送信フレーム (MD → 上位): 11バイト固定長 ---
 //   0    : 0xAA          ヘッダ
-//   1    : status        bit3:過電流 bit2:過熱 bit1:電源電圧異常 bit0:動作中
+//   1    : status        bit4:エンコーダ未校正 bit3:過電流 bit2:過熱 bit1:電源電圧異常 bit0:指令あり
+//                        (SERIAL_STATUS_BIT_*。bit0 は「受理済みの指令を実行中」で、回転中かどうかではない)
 //   2    : temperature   u8  × 1 degC
 //   3-4  : theta         u16 BE × 0.0001 rad
 //   5-6  : speed         i16 BE × 0.01 rad/s
@@ -37,6 +38,14 @@
 
 #define SERIAL_RX_FRAME_SIZE 6
 #define SERIAL_TX_FRAME_SIZE 11
+
+// 状態フレームの status のビット位置。異常系はすべて「1 = 異常」。
+// bit4 は 2026-10 に追加した (それ以前のファームは常に 0 = 校正済みと読める)
+#define SERIAL_STATUS_BIT_COMMANDED 0     // 受理済みの指令を実行中 (停止モードでない)
+#define SERIAL_STATUS_BIT_VOLTAGE 1       // 電源電圧が範囲外
+#define SERIAL_STATUS_BIT_OVERHEAT 2      // 過熱
+#define SERIAL_STATUS_BIT_OVERCURRENT 3   // 過電流ラッチ
+#define SERIAL_STATUS_BIT_UNCALIBRATED 4  // エンコーダ未校正 (制限値を受け付けず動かない)
 
 // トルク制限のスケール。受信・エコーバック・上限との比較で必ずこれを使うこと。
 // u8 で全域に届くには「最大トルク / 255」以上が必要。このモータは

@@ -44,6 +44,10 @@ static bool is_voltage_out_of_range;
 static bool is_voltage_pending;       // 範囲外を検出して猶予時間を計測中
 static uint32_t voltage_out_since_ms;  // 範囲外になった時刻 (HAL_GetTick)
 
+static bool fault_active;             // 前の周に異常 (過熱・電圧・過電流) が続いていたか
+static uint32_t fault_since_ms;       // 異常に入った時刻 (点滅パターンの起点)
+static uint32_t fault_print_ms;       // 異常の内容を最後に printf した時刻
+
 // 実際に適用しているトルク制限 (バイト表現)。状態フレームでエコーバックする。起動時は 0 = 動かない。
 static uint8_t applied_torque_limit;
 
@@ -181,7 +185,7 @@ static const SerialCommand SERIAL_COMMANDS[] = {
 };
 #define SERIAL_COMMAND_COUNT (sizeof(SERIAL_COMMANDS) / sizeof(SERIAL_COMMANDS[0]))
 
-// いま実行中の指令。NULL = 停止モード (起動直後・通信断・過電流ラッチ)。
+// いま実行中の指令。NULL = 停止モード (起動直後・通信断・異常中)。
 // 受信フレームが常に「モード + 1つの指令値」で完結しているので、目標値は1つでよい。
 static const SerialCommand* active_command;
 static float target_value;
@@ -194,6 +198,10 @@ static void ApplyLimits(uint8_t rx_torque_limit) {
 
   // 切り捨て (上限を1LSBでも上回る値をエコーしないため)
   uint8_t hw_torque_byte = (hw_torque >= 255.0f) ? 255 : (uint8_t)hw_torque;
+
+  // エンコーダ未校正のまま電流を流すと電気角が合わず、指令と無関係な向きに回る。
+  // 上限 0 のまま動かさない (エコーバックも 0 になるので上位は制限値の不一致として検知できる)
+  if (!BLDC_IsEncoderCalibrated()) hw_torque_byte = 0;
 
   applied_torque_limit = (rx_torque_limit < hw_torque_byte) ? rx_torque_limit : hw_torque_byte;
 
@@ -239,45 +247,51 @@ static void EnterStopMode(void) {
   BLDC_SetLimits(0.0f);
 }
 
-static void RecvSerial(void) {
-  static uint8_t frame[SERIAL_RX_FRAME_SIZE];
-  static uint8_t len = 0;
+// 組み立て中の受信フレーム (異常からの復帰時に捨てられるよう、関数の外に置く)
+static uint8_t rx_frame[SERIAL_RX_FRAME_SIZE];
+static uint8_t rx_len = 0;
 
+// 受信をやり直す。溜まっているバイトと組み立て途中のフレームを捨て、無通信タイムアウトも測り直す
+static void RestartReceive(void) {
+  Serial_Reset(&uart2);
+  rx_len = 0;
+  Timer_Reset(&serial_recv_timer);
+}
+
+static void RecvSerial(void) {
   for (uint8_t budget = SERIAL_RX_BYTES_PER_CALL; budget > 0 && Serial_Available(&uart2); budget--) {
-    frame[len++] = Serial_Read(&uart2);
+    rx_frame[rx_len++] = Serial_Read(&uart2);
 
     // 先頭は 0xAA。違えば捨てる
-    if (len == 1) {
-      if (frame[0] != SERIAL_HEADER) len = 0;
+    if (rx_len == 1) {
+      if (rx_frame[0] != SERIAL_HEADER) rx_len = 0;
       continue;
     }
-    if (len < SERIAL_RX_FRAME_SIZE) continue;
+    if (rx_len < SERIAL_RX_FRAME_SIZE) continue;
 
-    FrameResult result = AcceptFrame(frame);
+    FrameResult result = AcceptFrame(rx_frame);
     if (result != FRAME_BAD_CRC) {
       // 受理、または未知モード。どちらも境界は正しいので次の6バイトをそのまま読む
       if (result == FRAME_UNKNOWN_MODE) rx_unknown_mode_count++;
-      len = 0;
+      rx_len = 0;
       continue;
     }
 
     // 破棄して前回の指令値と制限値を保持する (誤った値より1周期古い正しい値の方が安全)
     rx_crc_error_count++;
 
-    // 再同期: バッファ内の次の 0xAA を先頭に詰め直す (len = 0 だと中にある本物のヘッダごと捨て、復帰が遅れる)
+    // 再同期: バッファ内の次の 0xAA を先頭に詰め直す (rx_len = 0 だと中にある本物のヘッダごと捨て、復帰が遅れる)
     uint8_t next = 1;
-    while (next < SERIAL_RX_FRAME_SIZE && frame[next] != SERIAL_HEADER) next++;
-    len = (uint8_t)(SERIAL_RX_FRAME_SIZE - next);
-    memmove(frame, &frame[next], len);
+    while (next < SERIAL_RX_FRAME_SIZE && rx_frame[next] != SERIAL_HEADER) next++;
+    rx_len = (uint8_t)(SERIAL_RX_FRAME_SIZE - next);
+    memmove(rx_frame, &rx_frame[next], rx_len);
   }
 
-  // 一定時間フレームが来なければ停止モードにする (上位はこれを停止手段として使っている)
+  // 一定時間フレームが来なければ停止モードにする (通信断の保険)
   if (Timer_Read(&serial_recv_timer) > SERIAL_TIMEOUT_S) {
     EnterStopMode();
     PwmOut_Write(&LED3, 0);
-    Serial_Reset(&uart2);
-    len = 0;
-    Timer_Reset(&serial_recv_timer);
+    RestartReceive();
   }
 }
 
@@ -291,8 +305,11 @@ static void SendSerial(void) {
 
   // 20kHz割り込みが書き換える値なので、1つの値につき取得は1回だけにする
   SerialTxFrame f;
-  f.status = (BLDC_IsOvercurrent() << 3) | (is_overheat << 2) |
-             (is_voltage_out_of_range << 1) | (active_command != NULL);
+  f.status = (!BLDC_IsEncoderCalibrated() << SERIAL_STATUS_BIT_UNCALIBRATED) |
+             (BLDC_IsOvercurrent() << SERIAL_STATUS_BIT_OVERCURRENT) |
+             (is_overheat << SERIAL_STATUS_BIT_OVERHEAT) |
+             (is_voltage_out_of_range << SERIAL_STATUS_BIT_VOLTAGE) |
+             ((active_command != NULL) << SERIAL_STATUS_BIT_COMMANDED);
   f.temperature = (uint8_t)Constrain(temp, 0.0f, 255.0f);
   f.theta = (uint16_t)(BLDC_GetMechTheta() * 10000);  // 機械角 [0.1mrad]
   // 角速度 [0.01rad/s]。クランプは100倍後の値なので i16 のレンジで指定する
@@ -310,25 +327,40 @@ static void SendSerial(void) {
 // ---------------------------------------------------------------------------
 // 異常処理
 // ---------------------------------------------------------------------------
-// 異常を赤LED(LED4)の点滅回数で知らせる (青・緑は消す)。1回の呼び出しで1パターン出す。
+// 異常を赤LED(LED4)の点滅回数で知らせる (青・緑は消す)。100ms 点灯 + 100ms 消灯を
+// blink_count 回、そのあと 400ms 空ける。
+// 待たずに、異常に入ってからの経過時間で点灯/消灯を決める。以前は HAL_Delay で待っていたため
+// 異常中は状態フレームが約1Hzに落ち、上位が異常ビットを知るのが 0.6〜1.0秒遅れていた
 static void BlinkError(uint8_t blink_count) {
   PwmOut_Write(&LED1, 0);
   PwmOut_Write(&LED2, 0);
   PwmOut_Write(&LED3, 0);
 
-  for (uint8_t i = 0; i < blink_count; i++) {
-    PwmOut_Write(&LED4, 1);
-    HAL_Delay(100);
-    PwmOut_Write(&LED4, 0);
-    HAL_Delay(100);
-  }
-  HAL_Delay(400);  // パターンの区切り
+  uint32_t blink_ms = (uint32_t)blink_count * 200u;
+  uint32_t t = (HAL_GetTick() - fault_since_ms) % (blink_ms + 400u);
+  PwmOut_Write(&LED4, (t < blink_ms && (t % 200u) < 100u) ? 1 : 0);
+}
+
+// 異常が続いている間の printf を間引く (ブロッキングなので毎周出すと状態フレームが遅れる)。
+// 異常に入った周と、以後 FAULT_PRINT_INTERVAL_MS ごとに true を返す
+static bool FaultPrintDue(void) {
+  uint32_t now = HAL_GetTick();
+  if (fault_active && now - fault_print_ms < FAULT_PRINT_INTERVAL_MS) return false;
+  fault_print_ms = now;
+  return true;
+}
+
+// 異常中に共通の処置。モータを止め、受理済みの指令と制限値も捨てる (状態フレームの
+// 「指令あり」ビットと制限値のエコーが落ちるので、上位からも止まっていることが分かる)
+static void StopForFault(void) {
+  BLDC_Stop();
+  EnterStopMode();
 }
 
 // ラッチ式の異常処理。復帰条件を満たすまでモータを止め、赤LEDを点滅させ続ける。
 // 復帰条件にはヒステリシスを持たせる (過熱なら -5°C、電圧なら SUPPLY_VOLTAGE_RECOVER_HYST)。
 static void LatchFault(bool* latched, bool recovered, uint8_t blink_count) {
-  BLDC_Stop();
+  StopForFault();
 
   if (recovered) {
     *latched = false;
@@ -352,22 +384,22 @@ static void ReportOvercurrentTrip(void) {
          t.mech_theta, t.angular_speed, supply_volt);
 }
 
-// 過電流ラッチ (モータは制御ループ側で停止済み)。スイッチを押すまで解除しない。
+// 過電流ラッチ。スイッチを押すまで解除しない。
+// 制御ループ側もラッチ中は出力を切るが、こちらでも明示的に止める (enable を偽に戻す)
 static void HandleOvercurrent(void) {
   static bool trip_reported = false;
 
+  StopForFault();
   if (!trip_reported) {
     trip_reported = true;
     ReportOvercurrentTrip();
   }
-  active_command = NULL;
   BlinkError(ERROR_BLINK_OVERCURRENT);
 
-  if (sw_state) {  // スイッチを押すと復帰
+  if (sw_state) {  // スイッチを押すと復帰 (受信のやり直しは MainApp の復帰処理で行う)
     trip_reported = false;
     BLDC_ResetPeakCurrent();
     BLDC_ClearOvercurrent();
-    Serial_Reset(&uart2);  // 停止中に溜まった受信データを捨てる
     PwmOut_Write(&LED4, 0);
   }
 }
@@ -375,7 +407,9 @@ static void HandleOvercurrent(void) {
 // 異常の検出とラッチ処理。異常が続いている間は true を返す (モータは停止済み)。
 static bool HandleFaults(void) {
   if (temp > TEMP_LIMIT || is_overheat) {
-    printf("Overheat! Temperature: %.2f°C, Supply Voltage: %.2fV\n", temp, supply_volt);
+    if (FaultPrintDue()) {
+      printf("Overheat! Temperature: %.2f°C, Supply Voltage: %.2fV\n", temp, supply_volt);
+    }
     is_overheat = true;
     LatchFault(&is_overheat, temp < (TEMP_LIMIT - 5), ERROR_BLINK_OVERHEAT);
     return true;
@@ -396,7 +430,9 @@ static bool HandleFaults(void) {
   }
 
   if (is_voltage_out_of_range) {
-    printf("Supply voltage out of range: %.2fV, Temperature: %.2f°C\n", supply_volt, temp);
+    if (FaultPrintDue()) {
+      printf("Supply voltage out of range: %.2fV, Temperature: %.2f°C\n", supply_volt, temp);
+    }
     LatchFault(&is_voltage_out_of_range,
                supply_volt > (SUPPLY_VOLTAGE_MIN_LIMIT + SUPPLY_VOLTAGE_RECOVER_HYST) &&
                    supply_volt < (SUPPLY_VOLTAGE_MAX_LIMIT - SUPPLY_VOLTAGE_RECOVER_HYST),
@@ -424,13 +460,32 @@ static void UpdateLoadLeds(void) {
 }
 
 void MainApp(void) {
+  // ブロッキングする初期化・校正 (Setup) がすべて終わってから起動する
+  Watchdog_Start(WATCHDOG_TIMEOUT_MS);
+
   while (1) {
+    Watchdog_Refresh();
+
     GetSensors();
     SendSerial();
     PrintStatus();
     PrintProfile();
 
-    if (HandleFaults()) continue;
+    // 異常中も上の SendSerial は回り続け、状態フレーム (異常ビット) を通常の周期で返す。
+    // 指令は受け取らない (受信バッファは溜まるに任せ、復帰時に捨てる)
+    if (!fault_active) fault_since_ms = HAL_GetTick();
+    bool faulted = HandleFaults();
+    if (faulted) {
+      fault_active = true;
+      continue;
+    }
+    if (fault_active) {
+      // 異常から復帰した。異常の間に届いていた指令や、異常の前に受理していた指令で
+      // 動き出さないよう、すべて捨てて新しいフレームを待つ
+      fault_active = false;
+      EnterStopMode();
+      RestartReceive();
+    }
 
     RecvSerial();
 

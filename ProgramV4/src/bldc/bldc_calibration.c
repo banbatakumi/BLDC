@@ -650,6 +650,7 @@ void BLDC_LoadFlashCalibration(void) {
                   (d.motor_psi > 1e-5f && d.motor_psi < 1.0f) &&
                   (d.angle_delay >= 0.0f && d.angle_delay < 0.01f);
 
+  svc.encoder_calibrated = enc_ok;
   if (enc_ok) {
     svc.max_encoder_val = d.max_encoder_val;
     svc.min_encoder_val = d.min_encoder_val;

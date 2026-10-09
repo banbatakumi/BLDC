@@ -90,7 +90,9 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-
+  // 3相出力を切ってコーストさせる (MOE=0 で出力ピンはアイドルレベル Low)。何もしないと TIM1 が
+  // 最後のデューティを出し続ける。このあとメインループが止まるのでウォッチドッグがリセットする
+  TIM1->BDTR &= ~TIM_BDTR_MOE;
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
