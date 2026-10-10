@@ -475,7 +475,7 @@ static void BLDC_InitOuterGains(void) {
   svc.speed_pid.output_limit = 0.0f;
 
   svc.position_pid.kp = 15.0f;
-  svc.position_pid.ki = 25.0f;
+  svc.position_pid.ki = 30.0f;
   svc.position_pid.kd = 0.05f;
   svc.position_pid.d_term = 0;
   svc.position_pid.d_lpf = 0.8f;

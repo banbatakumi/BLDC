@@ -23,9 +23,9 @@
 //
 // app は BLDC_SetSupplyVolt() でセンサ値を渡し、BLDC_XxxControl() で目標値を指示するだけでよい。
 
-#define POSITION_DEADBAND_RAD 0.015f       // 位置制御の停止判定誤差 [rad]
-#define POSITION_SETTLE_SPEED_RAD_S 0.03f  // 位置制御の停止判定角速度 [rad/s]
-#define POSITION_INTEGRAL_STOP_RAD 0.015f  // 位置制御で積分を止める誤差 [rad]
+#define POSITION_DEADBAND_RAD 0.01f        // 位置制御の停止判定誤差 [rad]
+#define POSITION_SETTLE_SPEED_RAD_S 0.02f  // 位置制御の停止判定角速度 [rad/s]
+#define POSITION_INTEGRAL_STOP_RAD 0.01f   // 位置制御で積分を止める誤差 [rad]
 
 // 位置制御は目標角との偏差をそのまま PID に入れる素の構成 (位置指令のランプや速度制限は持たない)。
 // 拘束中の保持トルクは torque_limit で決まるので、ラックエンド等に当て続けても焼かない電流を
@@ -113,16 +113,16 @@ void BLDC_BrakeControlNm(float brake_torque_nm);            // 制動トルク�
 float BLDC_GetTorqueConstant(void);
 
 // 状態の取得
-float BLDC_GetMechTheta(void);              // 機械角 [rad]
-float BLDC_GetElecTheta(void);              // 電気角 [rad]
-float BLDC_GetAngularSpeed(void);           // 角速度 [rad/s]
-float BLDC_GetId(void);                     // d軸電流 [A]
-float BLDC_GetIq(void);                     // q軸電流 [A]
-float BLDC_GetTargetIq(void);               // q軸電流指令 [A]
-float BLDC_GetVd(void);                     // d軸電圧 [V]
-float BLDC_GetVq(void);                     // q軸電圧 [V]
-float BLDC_GetVqFF(void);                   // Vqのうちフィードフォワード分 [V]
-bool BLDC_IsOvercurrent(void);              // 過電流保護が働いたか
+float BLDC_GetMechTheta(void);     // 機械角 [rad]
+float BLDC_GetElecTheta(void);     // 電気角 [rad]
+float BLDC_GetAngularSpeed(void);  // 角速度 [rad/s]
+float BLDC_GetId(void);            // d軸電流 [A]
+float BLDC_GetIq(void);            // q軸電流 [A]
+float BLDC_GetTargetIq(void);      // q軸電流指令 [A]
+float BLDC_GetVd(void);            // d軸電圧 [V]
+float BLDC_GetVq(void);            // q軸電圧 [V]
+float BLDC_GetVqFF(void);          // Vqのうちフィードフォワード分 [V]
+bool BLDC_IsOvercurrent(void);     // 過電流保護が働いたか
 // エンコーダの校正値が有効か。偽のときは既定値 (オフセット0) で動いており電気角が合っていない
 // ので、app は上位の制限値を受け付けない (= 動かさない)
 bool BLDC_IsEncoderCalibrated(void);
