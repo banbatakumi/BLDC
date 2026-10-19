@@ -63,7 +63,7 @@ MEMORY
 {
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 12K
 CCMRAM (xrw)      : ORIGIN = 0x10000000, LENGTH = 4K
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 64K
+FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 62K  /* last 2KB (0x0800F800) is the calibration page (lib/flash/flash.h) */
 }
 
 /* Define output sections */

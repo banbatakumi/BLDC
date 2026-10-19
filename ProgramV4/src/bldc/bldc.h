@@ -39,21 +39,29 @@ typedef enum {
   BLDC_MODE_BRAKE,     // ブレーキ
 } BLDCMode;
 
-// フラッシュに保存する校正値。
+// フラッシュに保存する校正値。スイッチ校正が**全部成功したときだけ**1回で書く。
 // 項目を追加/変更したら BLDC_FLASH_MAGIC も変えること (旧データを新フォーマットで読むと誤動作する)。
-// BLD3 でモータの電気的パラメータ (R, L, ψm, 角度遅れ) を追加した。
-#define BLDC_FLASH_MAGIC 0x424C4433UL  // "BLD3"
+// BLD3 で電気的パラメータ、BLD4 で慣性 J、BLD5 で補正テーブル・回転方向・J/Kt・摩擦・電流帯域を追加し、
+// 既定値を廃止した (未校正なら駆動しない)。
+#define BLDC_FLASH_MAGIC 0x424C4435UL  // "BLD5"
 
 typedef struct {
   uint32_t magic;              // BLDC_FLASH_MAGIC。フォーマット判定用
-  uint32_t max_encoder_val;    // エンコーダーの最大値
-  uint32_t min_encoder_val;    // エンコーダーの最小値
-  float encoder_offset_theta;  // エンコーダーのオフセット値 [rad]
+  uint16_t max_encoder_val;    // エンコーダの上側レール [LSB]
+  uint16_t min_encoder_val;    // エンコーダの下側レール [LSB]
+  uint16_t encoder_margin;     // レール判定の幅 [LSB] (静止ノイズから決める)
+  int16_t encoder_dir;         // +1: ADC値の増加 = 電気角の正方向 / -1: 逆
+  float encoder_offset_theta;  // 電気角0に対する機械角のオフセット [rad]
   float encoder_dead_zone;     // レール飽和で角度が読めない区間の幅 [rad]
   float motor_r;               // 相抵抗 [Ω]
   float motor_l;               // 相インダクタンス [H]
   float motor_psi;             // 永久磁石の鎖交磁束 [Wb]
   float angle_delay;           // 電気角の実効遅れ [s]
+  float j_per_kt;              // J/Kt [A·s²/rad] (速度ループのゲインとFF)
+  float friction_current;      // 摩擦トルクを打ち消す電流 [A]
+  float current_bw_hz;         // 電流PIの設計帯域 [Hz] (実測が CURRENT_BW_TARGET_HZ になる値)
+  int16_t encoder_lut[ENCODER_LUT_SIZE];  // 角度の補正テーブル [2π/65536 rad]
+  uint32_t checksum;           // 上の全ワードの和 (補正テーブルは範囲検査できないため)
 } BLDCFlashData;
 
 // 過電流保護が働いた瞬間の状態。原因の切り分けに使う。
@@ -80,10 +88,11 @@ typedef struct {
   float output_limit;
 } PIDController;
 
-// encoder_val は ADC2 の DMA が非同期に書き換えるので volatile。
+// encoder_buf は ADC2 の DMA が非同期に書き換えるバッファの先頭 (エンコーダ ENCODER_ADC_SAMPLES 個)。
 // supply_volt は実測した母線電圧を渡すこと。SVPWM の電圧→デューティ変換に使うので、
 // 実際と違うと指令電圧と実電圧の比がずれ、校正で測るモータ定数も狂う。
-void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val, float supply_volt);
+// do_calibrate が真ならスイッチ校正 (config.h) を行い、成功すればフラッシュに保存する。
+void BLDC_Init(bool do_calibrate, volatile uint16_t* encoder_buf, float supply_volt);
 
 void BLDC_SetSupplyVolt(float supply_volt);
 
@@ -123,9 +132,9 @@ float BLDC_GetVd(void);            // d軸電圧 [V]
 float BLDC_GetVq(void);            // q軸電圧 [V]
 float BLDC_GetVqFF(void);          // Vqのうちフィードフォワード分 [V]
 bool BLDC_IsOvercurrent(void);     // 過電流保護が働いたか
-// エンコーダの校正値が有効か。偽のときは既定値 (オフセット0) で動いており電気角が合っていない
-// ので、app は上位の制限値を受け付けない (= 動かさない)
-bool BLDC_IsEncoderCalibrated(void);
+// エンコーダとモータ定数の校正値がそろっているか。偽のときは電気角もゲインも決まっていない
+// ので、app は上位の制限値を受け付けない (= 動かさない)。既定値は持たない
+bool BLDC_IsCalibrated(void);
 void BLDC_GetTripInfo(BLDCTripInfo* info);  // 保護が働いた瞬間の状態を取得
 void BLDC_ClearOvercurrent(void);           // 過電流保護の解除
 
@@ -141,7 +150,7 @@ typedef struct {
 } BLDCEncoderStats;
 
 // max_innovation は継ぎ目の段差の大きさ。0.01rad 程度なら校正は良好、
-// 0.05rad を超えるなら encoder_scale (min/max) の精度不足。
+// 0.05rad を超えるなら補正テーブル・盲点幅の精度不足。
 void BLDC_GetEncoderStats(BLDCEncoderStats* stats);
 void BLDC_ResetEncoderStats(void);
 
@@ -157,25 +166,6 @@ void BLDC_PrintIsrProfile(float elapsed_s);
 
 // 集計を捨てて測定開始点を揃える
 void BLDC_ResetIsrProfile(void);
-#endif
-
-// モータ定数の測定 (制御ループが回り始めてから呼ぶ)。
-// スイッチ校正と config.h の MEASURE_* から呼ばれる。成功で true、
-// 失敗は理由を printf して false (出力値には触らない)。
-#if MEASURE_MOTOR_RL || MOTOR_AUTO_CALIBRATION
-// PIをバイパスして Vd を直接印加し、L と R を同定する (ロータは動かないが電流は流れる)
-
-bool BLDC_MeasureMotorRL(float* out_r, float* out_l);
-#endif
-#if MEASURE_CURRENT_STEP
-// 電流指令にステップを入れて、閉ループが1次系になっているか確認する (表示のみ)
-void BLDC_MeasureCurrentStep(void);
-#endif
-#if MEASURE_MOTOR_PSI || MOTOR_AUTO_CALIBRATION
-// 鎖交磁束 ψm を同定する (ロータが回る)
-bool BLDC_MeasureMotorPsi(float* out_psi);
-// 電気角の実効遅れを同定する (ロータが回る)。ψm の同定より後に呼ぶこと。
-bool BLDC_MeasureAngleDelay(float* out_delay);
 #endif
 
 #endif  // BLDC_H_

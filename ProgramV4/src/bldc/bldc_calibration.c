@@ -1,81 +1,169 @@
+// このファイルだけサイズ優先で最適化する (ROM が残り約2KB で、PROFILE_ISR を有効にすると入りきらないため。
+// -O2 比で約1.4KB 減)。校正は起動時に1回走るだけなので速度は要らない。20kHz 割り込みの処理
+// (bldc.c / bldc_internal.h のインライン関数) は bldc.c 側でコンパイルされるので -O2 のまま。
+// include より前に置くのは、calib_math.h の計算関数もサイズ優先にするため (ISR が使う
+// CalibMath_LutCorrection は bldc.c の中で -O2 で展開されるので影響しない)。
+// Makefile は CubeMX が再生成するので、ここに書く
+#pragma GCC optimize("Os")
+
+#include <math.h>    // sqrtf / atan2f (起動時の校正のみ。ISRからは呼ばない)
+#include <stddef.h>  // offsetof
+
 #include "bldc_internal.h"
 
-// エンコーダ/モータ定数の校正・同定。起動時に1回だけ (スイッチ校正時、または
-// config.h の MEASURE_* を有効にしたとき) 実行される。共有状態は bldc_internal.h。
+// スイッチ校正 (エンコーダ/モータ定数の実測) とフラッシュの読み書き。手順と順序の理由は config.h。
+// 測定はすべて制御ループ (20kHz/1kHz) の中で記録・平均する。メインループの HAL_Delay は
+// 待ち時間にしか使わない (HAL_Delay(1) は実際には約2ms 待つので、周期の基準にはできない)。
 
-#if BLDC_NEED_RL || BLDC_NEED_PSI
-#include <math.h>  // logf / asinf (起動時の同定のみ。ISRからは呼ばない)
-#endif
+#define CALIB_CURRENT (CALIB_CURRENT_RATIO * MAX_CURRENT)  // 校正に流す電流 [A]
+#define ELEC_PER_REV (TWO_PI_F * POLE_PAIRS)               // 機械角1周ぶんの電気角 [rad]
+#define ENC_SWEEP_S 2.0f        // エンコーダ校正で機械角1周にかける時間 [s]
+#define J_LOG_SAMPLES 400       // J/Kt 測定の速度記録 (1kHz × 400 = 400ms)
+#define J_TOP_SPEED (0.5f * MAX_ANGULAR_SPEED)  // J/Kt 測定で加速を止める速度 [rad/s]
+// J/Kt 測定で許す最大の角加速度 [rad/s²]。オブザーバがロック中に追える上限
+// (PLL_KI × PLL_SPEED_ERROR_LIMIT_RAD = 4050) の8割にして、加速度を低く読まないようにする。
+// 減速は摩擦が加わるぶん加速より速いので、摩擦が大きく慣性が小さいと両立せず測れない
+#define J_MAX_ACCEL (0.8f * PLL_KI * PLL_SPEED_ERROR_LIMIT_RAD)
 
-// 強制転流(オープンループ駆動)。エンコーダ校正でのみ使う。
-// sin/cos を1回だけ引き、加法定理 cos(φ ∓ 2π/3) = -0.5·cosφ ± (√3/2)·sinφ で3相に展開する。
-// FOC_SinCos は範囲を問わないので位相の正規化は不要。
-static void BLDC_OpenLoopDrive(float amp, float phase) {
-  float sin_p, cos_p;
-  FOC_SinCos(phase, &sin_p, &cos_p);
+// ISR と共有するデータの受け渡し。開始フラグ (volatile) より前の通常の書き込みや、完了フラグを見た後の
+// 読み出しをコンパイラが入れ替えないよう、フラグの前後にメモリバリアを置く (配列ごと volatile にするより軽い)
+#define CALIB_BARRIER() __DMB()
 
-  float half_amp = 0.5f * amp;
-  float a = half_amp * cos_p;                   // U相の振れ幅
-  float b = half_amp * (SQRT3 * 0.5f) * sin_p;  // V/W相の直交成分
+// 測定ごとに使い分ける作業領域 (同時には使わない)
+static union {
+  struct {
+    float sum[2][ENCODER_LUT_SIZE];     // ビンごとの生値の和 (正転 / 逆転)
+    uint16_t cnt[2][ENCODER_LUT_SIZE];  // ビンごとのサンプル数
+  } enc;
+  float step[BLDC_CAPTURE_SAMPLES];  // 同期加算したステップ応答 [A]
+  float w[J_LOG_SAMPLES];            // J/Kt 測定の速度記録 [rad/s]
+} work;
 
-  BLDC_WritePwm(0.5f + a, 0.5f - 0.5f * a + b, 0.5f - 0.5f * a - b);
+// ---------------------------------------------------------------------------
+// ISR から呼ばれる部分 (svc.calib_hook が真の間だけ)
+// ---------------------------------------------------------------------------
+// 20kHz の平均 (Id, Iq, Vd, Vq, ω, エンコーダの偏差とその2乗)
+enum { AVG_ID, AVG_IQ, AVG_VD, AVG_VQ, AVG_W, AVG_ENC, AVG_ENC2, AVG_COUNT };
+static volatile uint32_t avg_left;
+static float avg_sum[AVG_COUNT];
+static float avg_enc0;  // エンコーダの基準値 (2乗和の桁落ちを防ぐため差で集計する)
+
+// エンコーダのビン集計。1: 正転 (飽和も含めて集計、レールを探す) / 2: 正転 / 3: 逆転 (2,3 は飽和を除外して数える)
+static volatile uint8_t enc_mode;
+static uint32_t enc_total, enc_sat;
+
+// J/Kt 測定の状態 (1kHz)。1: 加速 / 2: 減速 / 3: 完了 / 4: 記録が溢れた
+static volatile uint8_t j_state;
+static volatile uint16_t j_n, j_switch;
+static float j_dir, j_current;
+
+void BLDC_CalibIsr(void) {
+  if (avg_left > 0) {
+    float d = svc.encoder_raw - avg_enc0;
+    avg_sum[AVG_ID] += svc.id;
+    avg_sum[AVG_IQ] += svc.iq;
+    avg_sum[AVG_VD] += svc.vd;
+    avg_sum[AVG_VQ] += svc.vq;
+    avg_sum[AVG_W] += svc.angular_speed;
+    avg_sum[AVG_ENC] += d;
+    avg_sum[AVG_ENC2] += d * d;
+    avg_left--;
+  }
+
+  if (enc_mode != 0) {
+    // 真の機械角 φ = 強制電気角 / P の、機械角1周内での位置からビンを決める
+    float frac = svc.calib_theta * (1.0f / ELEC_PER_REV);  // 強制角は校正中ずっと正
+    frac -= (float)(int32_t)frac;
+    uint16_t bin = (uint16_t)(frac * (float)ENCODER_LUT_SIZE) & (ENCODER_LUT_SIZE - 1);
+    uint8_t slot = (enc_mode == 3) ? 1 : 0;
+    if (enc_mode != 1) {
+      enc_total++;
+      if (BLDC_IsEncoderSaturated(svc.encoder_raw)) {
+        enc_sat++;
+        return;
+      }
+    }
+    work.enc.sum[slot][bin] += svc.encoder_raw;
+    work.enc.cnt[slot][bin]++;
+  }
 }
 
-#if BLDC_MEASURING
-// --- ステップ応答測定の共通部分 ---
-// 測定前の状態づくり。q軸指令0のトルクモードで出力を有効にし、電流が整定するのを待つ
-// (ステップ直前の値 = サンプル0 = 基準を揃えるため)。
-static void BLDC_BeginMeasurement(void) {
-  svc.target_id_override = 0.0f;
+void BLDC_CalibOuterIsr(void) {
+  if (j_state != 1 && j_state != 2) return;
+  float w = svc.angular_speed;
+  if (j_n >= J_LOG_SAMPLES) {
+    j_state = 4;
+    svc.target_current = 0.0f;
+    return;
+  }
+  work.w[j_n++] = w;
+  if (j_state == 1 && j_dir * w >= J_TOP_SPEED) {
+    j_state = 2;
+    j_switch = j_n;
+    svc.target_current = -j_dir * j_current;  // 同じ大きさで減速させる
+  } else if (j_state == 2 && j_dir * w <= 0.0f) {
+    j_state = 3;
+    svc.target_current = 0.0f;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 測定の部品 (メインループ)
+// ---------------------------------------------------------------------------
+// 制御ループで n サンプル (50µs ごと) 平均する。出力が切れて終わらなければ false
+static bool Calib_Average(uint32_t n, float* out) {
+  for (uint8_t i = 0; i < AVG_COUNT; i++) avg_sum[i] = 0.0f;
+  avg_enc0 = svc.encoder_raw;
+  CALIB_BARRIER();
+  avg_left = n;
+  uint32_t t0 = HAL_GetTick();
+  while (avg_left > 0) {
+    if (HAL_GetTick() - t0 > n / 20 + 200) {
+      avg_left = 0;
+      printf("  平均が終わらない (出力停止?)\n");
+      return false;
+    }
+  }
+  CALIB_BARRIER();
+  for (uint8_t i = 0; i < AVG_COUNT; i++) out[i] = avg_sum[i] / (float)n;
+  out[AVG_ENC] += avg_enc0;  // 平均値は基準を戻す (AVG_ENC2 は基準からの2乗平均のまま)
+  return true;
+}
+
+// 強制電気角を target まで speed [rad/s (電気角)] で動かし、着くまで待つ
+static bool Calib_MoveTo(float target, float speed) {
+  float dist = Abs(target - svc.calib_theta);
+  svc.calib_step = speed * CURRENT_LOOP_DT;
+  svc.calib_target = target;
+  uint32_t timeout = (uint32_t)(dist / speed * 1000.0f) + 500;
+  uint32_t t0 = HAL_GetTick();
+  while (svc.calib_theta != target) {
+    if (svc.is_overcurrent || HAL_GetTick() - t0 > timeout) {
+      printf("  強制転流が止まった\n");
+      return false;
+    }
+  }
+  return true;
+}
+
+// q軸指令0のトルクモードで出力を有効にし、整定を待つ
+static void Calib_BeginTorqueMode(void) {
   svc.target_current = 0.0f;
   svc.mode = BLDC_MODE_TORQUE;
   svc.enable = true;
-  HAL_Delay(200);
+  HAL_Delay(50);
 }
 
 // 記録したIdの定常値 [A]。後ろ20%の平均
-static float BLDC_CaptureSteadyState(void) {
+static float Calib_CaptureSteadyState(const float* i) {
   const uint16_t tail = BLDC_CAPTURE_SAMPLES / 5;
-  int32_t sum = 0;
-  for (uint16_t i = BLDC_CAPTURE_SAMPLES - tail; i < BLDC_CAPTURE_SAMPLES; i++) {
-    sum += bldc_capture[i];
-  }
-  return (float)sum / (float)tail * 0.001f;
+  float sum = 0.0f;
+  for (uint16_t k = BLDC_CAPTURE_SAMPLES - tail; k < BLDC_CAPTURE_SAMPLES; k++) sum += i[k];
+  return sum / (float)tail;
 }
 
-// 63.2%到達点をサンプル単位で返す (0 なら見つからなかった)。
-// またぐ2点を線形補間する (しないと時定数を長く読み、1000Hzの1次系が 796Hz と出る。補間ありは 992Hz)。
-static float BLDC_CaptureTimeTo63(float i_ss, uint16_t* out_index) {
-  float thr = i_ss * 0.632f;
-  for (uint16_t i = 1; i < BLDC_CAPTURE_SAMPLES; i++) {
-    float cur = (float)bldc_capture[i] * 0.001f;
-    if (cur >= thr) {
-      float prev = (float)bldc_capture[i - 1] * 0.001f;
-      float d = cur - prev;
-      *out_index = i;
-      return (d > 1e-6f) ? ((float)(i - 1) + (thr - prev) / d) : (float)i;
-    }
-  }
-  *out_index = 0;
-  return 0.0f;
-}
-
-// 波形を表示する (前半は1サンプルずつ、後半は間引く)
-static void BLDC_CapturePrint(float i_ss) {
-  printf("   t[ms]   Id[A]\n");
-  for (uint16_t i = 0; i < BLDC_CAPTURE_SAMPLES; i += (i < 20) ? 1 : 10) {
-    float v = (float)bldc_capture[i] * 0.001f;
-    int bars = (i_ss > 0.001f) ? (int)(v / i_ss * 40.0f) : 0;
-    if (bars < 0) bars = 0;
-    if (bars > 50) bars = 50;
-    printf("  %6.2f  %+6.3f |", (double)(i * CURRENT_LOOP_DT * 1000.0f), (double)v);
-    for (int b = 0; b < bars; b++) printf("#");
-    printf("\n");
-  }
-}
-
-// ステップを1回打って記録が埋まるまで待つ。成功したら true。
-static bool BLDC_RunCapture(float step, bool is_voltage) {
+// ステップを1回打って記録が埋まるまで待ち、work.step に [A] で足し込む。成功したら true
+static bool Calib_RunCapture(float step, bool is_voltage) {
   svc.capture_step = step;
   svc.capture_is_voltage = is_voltage;
   svc.capture_state = BLDC_CAPTURE_ARMED;
@@ -87,614 +175,629 @@ static bool BLDC_RunCapture(float step, bool is_voltage) {
   bool ok = (svc.capture_state == BLDC_CAPTURE_DONE);
   svc.capture_state = BLDC_CAPTURE_IDLE;
   if (!ok) {
-    printf("  記録が完了しなかった (%u/%u)。制御ループが回っているか確認すること。\n",
-           svc.capture_index, (unsigned)BLDC_CAPTURE_SAMPLES);
+    printf("  記録が完了しなかった (%u/%u)\n", svc.capture_index, (unsigned)BLDC_CAPTURE_SAMPLES);
+    return false;
   }
-  return ok;
+  for (uint16_t k = 0; k < BLDC_CAPTURE_SAMPLES; k++) work.step[k] += bldc_capture[k] * 0.001f;
+  return true;
 }
-#endif  // BLDC_MEASURING
 
-#if BLDC_NEED_RL
+// 運動が収まるのを待つ (トルクは0にしておくこと)。3秒で止まらなければ false
+static bool Calib_WaitForRest(void) {
+  uint32_t t0 = HAL_GetTick();
+  while (Abs(svc.angular_speed) > 1.0f) {
+    if (HAL_GetTick() - t0 > 3000) {
+      printf("  ロータが止まらない\n");
+      return false;
+    }
+  }
+  HAL_Delay(200);
+  return true;
+}
+
 // ---------------------------------------------------------------------------
-// L と R の同定 (PIをバイパスした電圧ステップ)
+// 1. R と L (強制角0、PIをバイパスした電圧印加)
 // ---------------------------------------------------------------------------
-// 応答は素の1次系: i(t) = (V/R)(1 - e^(-t/τ)), τ = L/R。定常値から R、63%到達から L = τ·R。
-// 電圧を2点 (V と 2V) 振って R = (V2 - V1) / (I2 - I1) とし、ほぼ一定のデッドタイム誤差
-// (278ns, 12Vで約0.067V) を消す。1点だと R に10%近い誤差が乗る。
-bool BLDC_MeasureMotorRL(float* out_r, float* out_l) {
-  const float v1 = MOTOR_RL_STEP_VOLTS;
-  const float v2 = MOTOR_RL_STEP_VOLTS * 2.0f;
-  float i1 = 0.0f, i2 = 0.0f, tau = 0.0f;
-
-  printf("[RL] L と R の同定 (Vd を直接印加、PIはバイパス)\n");
-
-  BLDC_BeginMeasurement();
-
+// ロータは強制角0 (d軸) に引き込まれるのでトルクは出ず、応答は素の1次系 (τ = L/R) になる。
+//   R: 0.25〜1.0×V_cal の4点の定常電流から V = R·I + V0 を最小二乗 (V0 = デッドタイムの電圧誤差)
+//   L: V_cal のステップを4回打って同期加算し、後半の対数の傾きから τ (calib_math.h)。L = τ·R
+static bool Calib_MeasureRL(void) {
+  printf("[CAL] R,L\n");
+  svc.calib_theta = 0.0f;
+  svc.calib_target = 0.0f;
+  svc.calib_angle_active = true;
   svc.rl_aborted = false;
   svc.vd_override = 0.0f;
   svc.vd_override_active = true;
+  Calib_BeginTorqueMode();
 
-  for (uint8_t pass = 0; pass < 2; pass++) {
-    float v = (pass == 0) ? v1 : v2;
-    if (!BLDC_RunCapture(v, true)) break;
-
-    float i_ss = BLDC_CaptureSteadyState();
-    uint16_t k;
-    float k63 = BLDC_CaptureTimeTo63(i_ss, &k);
-    printf("  V=%.3fV → 定常 %.3fA, 63%%到達 %.2f サンプル (%.3fms)\n",
-           (double)v, (double)i_ss, (double)k63, (double)(k63 * CURRENT_LOOP_DT * 1000.0f));
-
-    if (pass == 0) {
-      i1 = i_ss;
-    } else {
-      i2 = i_ss;
-      tau = k63 * CURRENT_LOOP_DT;  // 電流が大きいほうがSNRが良い
-      BLDC_CapturePrint(i_ss);
+  // Id が校正電流に届く電圧を探す (ロータもここで d軸に引き込まれる)
+  const float v_max = 0.5f * svc.supply_volt * MAX_MODULATION_RATIO;
+  float v = 0.0f;
+  while (svc.id < CALIB_CURRENT) {
+    v += 0.002f;
+    if (v > v_max || svc.rl_aborted || !svc.enable) {
+      printf("  %.2fA に届かない (V=%.3fV)\n", (double)CALIB_CURRENT, (double)v);
+      return false;
     }
+    svc.vd_override = v;
+    HAL_Delay(1);
+  }
+  const float v_cal = v;
+  HAL_Delay(300);  // 引き込みの揺れが収まるのを待つ
 
-    // 熱を溜めないよう電流を落とす
-    svc.vd_override = 0.0f;
-    HAL_Delay(100);
-    if (svc.rl_aborted) break;
+  float vs[4], is[4], a[AVG_COUNT];
+  for (uint8_t k = 0; k < 4; k++) {
+    vs[k] = v_cal * (float)(k + 1) * 0.25f;
+    svc.vd_override = vs[k];
+    HAL_Delay(30);
+    if (!Calib_Average(2000, a)) return false;
+    is[k] = a[AVG_ID];
+  }
+  float r, v0;
+  if (!CalibMath_LineFit(is, vs, 4, &r, &v0) || !(r > 0.001f && r < 100.0f)) {
+    printf("  R が求まらない\n");
+    return false;
   }
 
+  for (uint16_t k = 0; k < BLDC_CAPTURE_SAMPLES; k++) work.step[k] = 0.0f;
+  for (uint8_t rep = 0; rep < 4; rep++) {
+    svc.vd_override = 0.0f;
+    HAL_Delay(20);
+    if (!Calib_RunCapture(v_cal, true) || svc.rl_aborted) return false;
+  }
   svc.vd_override = 0.0f;
   svc.vd_override_active = false;
-  BLDC_Stop();
+  for (uint16_t k = 0; k < BLDC_CAPTURE_SAMPLES; k++) work.step[k] *= 0.25f;
 
-  if (svc.rl_aborted) {
-    printf("  中断: 電流が %.1fA を超えた。MOTOR_RL_STEP_VOLTS を下げること。\n",
-           (double)MOTOR_RL_ABORT_AMPS);
+  float i_ss = Calib_CaptureSteadyState(work.step);
+  float tau = CalibMath_FitTau(work.step, BLDC_CAPTURE_SAMPLES, i_ss, CURRENT_LPF_COEF) * CURRENT_LOOP_DT;
+  float l = tau * r;
+  printf("  V_cal %.3fV  R %.4fΩ (V0 %.3fV)  τ %.3fms  L %.1fµH\n", (double)v_cal, (double)r,
+         (double)v0, (double)(tau * 1000.0f), (double)(l * 1e6f));
+  if (!(l > 1e-6f && l < 0.1f)) {
+    printf("  L が範囲外\n");
     return false;
   }
-  if (i2 - i1 < 0.05f) {
-    printf(
-        "  電流差が小さすぎて R を求められない (I1=%.3f I2=%.3f)。\n"
-        "  MOTOR_RL_STEP_VOLTS を上げること。\n",
-        (double)i1, (double)i2);
-    return false;
-  }
+  if (tau < 2.0f * CURRENT_LOOP_DT) printf("  注意 τ が2サンプル未満で L の誤差が大きい\n");
 
-  float r = (v2 - v1) / (i2 - i1);
-  float r_naive = v2 / i2;  // 1点だけの場合 (比較用)
-
-  printf("  → **MOTOR_R = %.4f** [Ω]  (1点だけなら %.4f。差がデッドタイム誤差)\n",
-         (double)r, (double)r_naive);
-  if (tau <= 0.0f) {
-    printf("  τ を検出できなかった。L は求められない。\n");
-    return false;
-  }
-
-  // 63%到達時間には L/R 以外の遅れが2つ混ざっており、引かないと L を4割ほど過大評価する。
-  //   (a) 電流LPFの時定数 τ = -Ts / ln(1-a)  (a=0.5, Ts=50µs で 72µs)
-  //   (b) 電圧を出してからサンプリングするまでの半周期 (CCRはプリロード付きで、電流を拾うのは
-  //       低側ON区間の中央なので、サンプル n の経過時間は (n - 0.5)·Ts)
-  // 1次系の縦続なので63%点は時定数の和にほぼ等しく、差し引きの誤差は数%。
-  const float tau_lpf = -CURRENT_LOOP_DT / logf(1.0f - CURRENT_LPF_COEF);
-  const float tau_delay = 0.5f * CURRENT_LOOP_DT;
-  float tau_lr = tau - tau_lpf - tau_delay;
-
-  printf("  → τ(実測) %.3fms − LPF %.3fms − 半周期 %.3fms = **τ(L/R) %.3fms**\n",
-         (double)(tau * 1000.0f), (double)(tau_lpf * 1000.0f),
-         (double)(tau_delay * 1000.0f), (double)(tau_lr * 1000.0f));
-
-  if (tau_lr <= 0.0f) {
-    printf(
-        "  補正後のτが0以下。L/R がフィルタの時定数より速く、この方法では測れない。\n"
-        "  CURRENT_LPF_COEF を大きくして測り直すこと。\n");
-    return false;
-  }
-
-  float l = tau_lr * r;
-  printf("  → **MOTOR_L = %.6f** [H] (= %.1f µH)  ※補正なしなら %.1f µH\n",
-         (double)l, (double)(l * 1e6f), (double)(tau * r * 1e6f));
-  printf("  → R/L = %.0f rad/s  (PIのゼロ点 Ki/Kp をここに合わせる)\n", (double)(r / l));
-  printf("  → この値で %.0fHz にすると Kp=%.4f Ki=%.1f\n",
-         (double)CURRENT_BW_HZ, (double)(l * 6.28318531f * CURRENT_BW_HZ),
-         (double)(r * 6.28318531f * CURRENT_BW_HZ));
-  if (tau_lr < 3.0f * CURRENT_LOOP_DT) {
-    printf(
-        "  注意 補正後のτが %.1f サンプルしかない。50µsサンプリングに対して速すぎるので\n"
-        "       L の値は誤差が大きい。\n",
-        (double)(tau_lr / CURRENT_LOOP_DT));
-  }
-  *out_r = r;
-  *out_l = l;
+  svc.motor_r = r;
+  svc.motor_l = l;
+  BLDC_UpdateCurrentGains();
   return true;
 }
-#endif  // BLDC_NEED_RL
 
-#if BLDC_NEED_PSI
 // ---------------------------------------------------------------------------
-// 鎖交磁束 ψm の同定
+// 2. 電流ループの帯域合わせ (強制角0で Id ステップ)
 // ---------------------------------------------------------------------------
-// 定常状態では dIq/dt = 0 なので Vq = R·Iq + ω_e·ψm。2速度の差を取り、デッドタイム等の
-// 一定オフセットを消す: ψm = ((Vq2 - Vq1) - R(Iq2 - Iq1)) / (ω_e2 - ω_e1)
-// フィードフォワードが有効でも成立する (必要な Vq の総量は ψm の真値だけで決まり、PIとFFの内訳は無関係)。
+// 演算遅れと電流LPFのぶん、実測帯域は設計帯域より低く出る。1回測って比で補正し、もう1回で確かめる。
+// 帯域は 63%到達時間から (半周期の遅れを引く)。オーバーシュート 15% 超は上げすぎ。
+static bool Calib_TuneCurrentBw(void) {
+  printf("[CAL] 電流帯域 (狙い %uHz)\n", (unsigned)CURRENT_BW_TARGET_HZ);
+  for (uint8_t it = 0; it < 2; it++) {
+    for (uint16_t k = 0; k < BLDC_CAPTURE_SAMPLES; k++) work.step[k] = 0.0f;
+    svc.target_id_override = 0.0f;
+    HAL_Delay(20);
+    bool ok = Calib_RunCapture(CALIB_CURRENT, false);
+    svc.target_id_override = 0.0f;
+    if (!ok) return false;
 
-// 指定速度まで回して整定させ、定常点の ω_e / Vq / Iq の平均を返す (ψm と角度遅れの同定で共用)。
-static bool BLDC_MeasureSteadyPoint(float target_w, float* out_we, float* out_vq, float* out_iq) {
-  // 校正は通信開始前 (BLDC_Init 内) に走り、制限値が既定の 0 だとモータが回らないので、
-  // ここで MD 側の絶対上限まで開ける。閉じるのは BLDC_Init の最後。
-  BLDC_SetLimits(BLDC_GetMaxTorqueNm());
-
-  BLDC_AngularSpeedControl(target_w);
-
-  // 加速度制限でランプするので、到達と整定を待つ
-  HAL_Delay(2500);
-
-  // 500ms 平均 (リプルや速度のゆらぎを均す)
-  const uint16_t n = 500;
-  float sum_w = 0.0f, sum_vq = 0.0f, sum_iq = 0.0f;
-  for (uint16_t i = 0; i < n; i++) {
-    sum_w += svc.angular_speed;
-    sum_vq += svc.vq;
-    sum_iq += svc.iq;
-    HAL_Delay(1);
-  }
-  float w = sum_w / (float)n;
-  *out_we = w * POLE_PAIRS;
-  *out_vq = sum_vq / (float)n;
-  *out_iq = sum_iq / (float)n;
-
-  printf("  %.0f rad/s 指令 → 実測 %.1f rad/s (ω_e %.0f), Vq %.3fV, Iq %.3fA\n",
-         (double)target_w, (double)w, (double)*out_we, (double)*out_vq, (double)*out_iq);
-
-  if (Abs(w - target_w) > target_w * 0.2f) {
-    printf("  指令速度に届いていない。負荷がかかっているか電圧が足りない。\n");
-    return false;
+    float i_ss = Calib_CaptureSteadyState(work.step);
+    float thr = 0.632f * i_ss, k63 = 0.0f, peak = 0.0f;
+    for (uint16_t k = 1; k < BLDC_CAPTURE_SAMPLES; k++) {
+      if (work.step[k] > peak) peak = work.step[k];
+      if (k63 == 0.0f && work.step[k] >= thr) {
+        float d = work.step[k] - work.step[k - 1];
+        k63 = (d > 1e-6f) ? ((float)(k - 1) + (thr - work.step[k - 1]) / d) : (float)k;
+      }
+    }
+    float tau = (k63 - 0.5f) * CURRENT_LOOP_DT;
+    if (!(i_ss > 0.5f * CALIB_CURRENT) || !(tau > 0.0f)) {
+      printf("  応答が取れない (定常 %.3fA)\n", (double)i_ss);
+      return false;
+    }
+    float f_bw = 1.0f / (TWO_PI_F * tau);
+    float overshoot = (peak - i_ss) / i_ss * 100.0f;
+    printf("  設計 %dHz → 実測 %dHz  オーバーシュート %.1f%%\n", (int)svc.current_bw_hz, (int)f_bw,
+           (double)overshoot);
+    if (it == 0) {
+      svc.current_bw_hz = Constrain(svc.current_bw_hz * CURRENT_BW_TARGET_HZ / f_bw,
+                                    0.8f * CURRENT_BW_TARGET_HZ, 2.0f * CURRENT_BW_TARGET_HZ);
+      BLDC_UpdateCurrentGains();
+    } else if (overshoot > 15.0f) {
+      printf("  オーバーシュート過大\n");
+      return false;
+    }
   }
   return true;
 }
 
-bool BLDC_MeasureMotorPsi(float* out_psi) {
-  printf("[PSI] 逆起電力定数 ψm の同定\n");
-  printf("  **モータが回ります。** 危険なら電源を切ってください。\n");
-  for (int8_t i = 3; i > 0; i--) {
-    printf("  %d...\n", i);
-    HAL_Delay(1000);
+// ---------------------------------------------------------------------------
+// 3. エンコーダ (電流制御の強制転流)
+// ---------------------------------------------------------------------------
+// 強制角は真の電気角そのもので、φ = 強制角 / P が真の機械角になる。機械角1周を
+// ENCODER_LUT_SIZE 個のビンに分け、ISR がビンごとに生値を平均する。
+//   (a) 静止ノイズ σ   : レール判定の幅を 4σ + 2 LSB に決める
+//   (b) 正転1周        : ビン平均の最小/最大 = 下/上のレール (単発の外れ値に左右されない)
+//   (c) 正転1周+逆転1周: 飽和サンプルの割合 = 盲点幅 (強制角は等速なので時間の割合 = 角度の割合)。
+//                        正転と逆転の平均で、摩擦による引き込み遅れとセンサの遅れが相殺される
+// 線形写像した角度と φ の差が補正テーブル (平均がd軸オフセット)。回転方向は生値の増減から決める。
+static void Calib_ClearBins(void) {
+  for (uint16_t b = 0; b < ENCODER_LUT_SIZE; b++) {
+    work.enc.sum[0][b] = work.enc.sum[1][b] = 0.0f;
+    work.enc.cnt[0][b] = work.enc.cnt[1][b] = 0;
   }
+}
 
-  float we1, vq1, iq1, we2, vq2, iq2;
-  bool ok = BLDC_MeasureSteadyPoint(MOTOR_PSI_SPEED1, &we1, &vq1, &iq1) &&
-            BLDC_MeasureSteadyPoint(MOTOR_PSI_SPEED2, &we2, &vq2, &iq2);
-  BLDC_Stop();
+static bool Calib_Encoder(void) {
+  printf("[CAL] エンコーダ (正転2周・逆転1周)\n");
+  const float speed = ELEC_PER_REV / ENC_SWEEP_S;
+  const float lead = ELEC_PER_REV / 8.0f;  // 記録前の助走 (向きを変えた直後の遅れの切り替わりを避ける)
 
+  // 強制角0のまま電流制御で保持する
+  svc.target_id_override = CALIB_CURRENT;
+  HAL_Delay(300);
+  float a[AVG_COUNT];
+  if (!Calib_Average(4000, a)) return false;
+  float var = a[AVG_ENC2] - (a[AVG_ENC] - avg_enc0) * (a[AVG_ENC] - avg_enc0);
+  float sigma = sqrtf(var > 0.0f ? var : 0.0f);
+
+  // (b) レール
+  Calib_ClearBins();
+  if (!Calib_MoveTo(lead, speed)) return false;
+  CALIB_BARRIER();
+  enc_mode = 1;
+  bool ok = Calib_MoveTo(lead + ELEC_PER_REV, speed);
+  enc_mode = 0;
+  CALIB_BARRIER();
   if (!ok) return false;
-  if (we2 - we1 < 1.0f) {
-    printf("  2点の速度差が小さすぎる。MOTOR_PSI_SPEED1/2 を離すこと。\n");
+  float lo = 1e9f, hi = -1e9f;
+  for (uint16_t b = 0; b < ENCODER_LUT_SIZE; b++) {
+    if (work.enc.cnt[0][b] == 0) continue;
+    float v = work.enc.sum[0][b] / (float)work.enc.cnt[0][b];
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  if (!(hi - lo > MAX_ADC_VAL * 0.5f)) {
+    printf("  レンジ不足 (%d〜%d)。ロータが回っていないか磁石が遠い\n", (int)lo, (int)hi);
+    return false;
+  }
+  svc.min_encoder_val = (uint16_t)(lo + 0.5f);
+  svc.max_encoder_val = (uint16_t)(hi + 0.5f);
+  svc.encoder_margin = 4.0f * sigma + 2.0f;
+
+  // (c) 正転・逆転
+  Calib_ClearBins();
+  enc_total = enc_sat = 0;
+  const float a0 = lead + ELEC_PER_REV;
+  CALIB_BARRIER();
+  enc_mode = 2;
+  ok = Calib_MoveTo(a0 + ELEC_PER_REV, speed);
+  enc_mode = 0;
+  CALIB_BARRIER();
+  ok = ok && Calib_MoveTo(a0 + ELEC_PER_REV + lead, speed) &&
+       Calib_MoveTo(a0 + ELEC_PER_REV, speed);
+  if (!ok) return false;
+  CALIB_BARRIER();
+  enc_mode = 3;
+  ok = Calib_MoveTo(a0, speed);
+  enc_mode = 0;
+  CALIB_BARRIER();
+  svc.target_id_override = 0.0f;
+  if (!ok) return false;
+
+  svc.encoder_dead_zone = TWO_PI_F * (float)enc_sat / (float)(enc_total ? enc_total : 1);
+  if (!(svc.encoder_dead_zone < TWO_PI_F * 0.25f)) {
+    printf("  盲点が1/4周以上\n");
     return false;
   }
 
-  float psi = ((vq2 - vq1) - svc.motor_r * (iq2 - iq1)) / (we2 - we1);
-  float psi_1pt = (vq2 - svc.motor_r * iq2) / we2;  // 1点だけの場合 (比較用)
-
-  printf("  → **MOTOR_PSI = %.6f** [Wb]  (1点だけなら %.6f。差が一定オフセット分)\n",
-         (double)psi, (double)psi_1pt);
-
-  // 2点法は「オフセットが2点で同じ」ことが前提なので、各点から逆算して確かめる
-  //   Vq = R·Iq + ω_e·ψm + V0  →  V0 = Vq − R·Iq − ω_e·ψm
-  float v0_1 = vq1 - svc.motor_r * iq1 - we1 * psi;
-  float v0_2 = vq2 - svc.motor_r * iq2 - we2 * psi;
-  printf("  逆算したオフセット: %.3fV / %.3fV\n", (double)v0_1, (double)v0_2);
-  if (Abs(v0_1 - v0_2) > 0.05f) {
-    printf(
-        "  警告 2点でオフセットが揃っていない。2点法の前提が崩れているので\n"
-        "       ψm は当てにならない。MOTOR_PSI_SPEED1/2 を上げて測り直すこと\n"
-        "       (速度が高いほど ω_e·ψm が大きくなり、オフセットの影響が減る)。\n");
+  // 有効なビン (正転・逆転とも、期待サンプル数の半分以上)
+  const float expect = (float)enc_total / (2.0f * ENCODER_LUT_SIZE);
+  bool valid[ENCODER_LUT_SIZE];
+  uint16_t n_valid = 0;
+  for (uint16_t b = 0; b < ENCODER_LUT_SIZE; b++) {
+    valid[b] = (work.enc.cnt[0][b] >= 0.5f * expect) && (work.enc.cnt[1][b] >= 0.5f * expect);
+    if (valid[b]) n_valid++;
   }
 
-  if (psi > 1e-6f) {
-    // 無負荷の到達速度の目安 (実際と大きく違えば符号・極対数・電圧を疑う)
-    float v_limit = svc.supply_volt * MAX_MODULATION_RATIO;
-    printf("  → 逆起電力定数 %.4f V/(rad/s) [電気角]\n", (double)psi);
-    printf("  → 電圧上限 %.2fV から無負荷の到達速度は約 %.0f rad/s (機械角) の見込み\n",
-           (double)v_limit, (double)(v_limit / (psi * POLE_PAIRS)));
-    *out_psi = psi;
-    return true;
+  // 回転方向: 隣り合う有効ビンの生値の増減 (継ぎ目の大きな跳びは除く)
+  uint16_t inc = 0, dec = 0;
+  for (uint16_t b = 0; b + 1 < ENCODER_LUT_SIZE; b++) {
+    if (!valid[b] || !valid[b + 1]) continue;
+    float d = work.enc.sum[0][b + 1] / work.enc.cnt[0][b + 1] -
+              work.enc.sum[0][b] / work.enc.cnt[0][b];
+    if (Abs(d) > 0.5f * (hi - lo)) continue;
+    if (d > 0.0f) inc++;
+    if (d < 0.0f) dec++;
   }
-  printf("  ψm が負またはゼロ。Vq の符号か POLE_PAIRS を疑うこと。\n");
-  return false;
-}
-
-// ---------------------------------------------------------------------------
-// 電気角の実効遅れの同定
-// ---------------------------------------------------------------------------
-// 推定角が δ ずれると逆起電力が推定d軸に漏れる: Vd = R·Id − ω_e·L·Iq + ω_e·ψm·sin δ
-//   sin δ = (Vd − R·Id + ω_e·L·Iq) / (ω_e·ψm)
-// δ は現在の補償値で回したときの残りなので、真の遅れは t_true = t_いま − δ / ω_e。
-// 1回の測定で決まる (検算: 補償前 1.074ms、補償後 1.077ms)。ψm が必要なので ψm の同定より後に呼ぶ。
-bool BLDC_MeasureAngleDelay(float* out_delay) {
-  const float target_w = ANGLE_DELAY_MEASURE_SPEED;
-  printf("[DLY] 電気角の実効遅れの同定 (%.0f rad/s で回す)\n", (double)target_w);
-
-  float we, vq, iq;
-  if (!BLDC_MeasureSteadyPoint(target_w, &we, &vq, &iq)) {
-    BLDC_Stop();
+  if (inc + dec < ENCODER_LUT_SIZE / 2 || (inc > dec ? inc : dec) < 0.9f * (inc + dec)) {
+    printf("  回転方向が決まらない (増 %u / 減 %u)。ロータが滑っている\n", inc, dec);
     return false;
   }
+  svc.encoder_dir = (inc > dec) ? 1.0f : -1.0f;
+  BLDC_UpdateEncoderScale();
 
-  // Vd と Id は BLDC_MeasureSteadyPoint が拾わないのでここで平均する
-  const uint16_t n = 300;
-  float sum_vd = 0.0f, sum_id = 0.0f;
-  for (uint16_t i = 0; i < n; i++) {
-    sum_vd += svc.vd;
-    sum_id += svc.id;
-    HAL_Delay(1);
+  // ビンごとの θ_lin (正転と逆転の円平均) を sum[0] に、作業用を sum[1] に置く
+  float max_lag = 0.0f;
+  for (uint16_t b = 0; b < ENCODER_LUT_SIZE; b++) {
+    if (!valid[b]) continue;
+    float th_f = BLDC_EncoderLinear(work.enc.sum[0][b] / work.enc.cnt[0][b]);
+    float th_b = BLDC_EncoderLinear(work.enc.sum[1][b] / work.enc.cnt[1][b]);
+    float lag = FOC_AngleDiff(th_f, th_b);
+    if (Abs(lag) > max_lag) max_lag = Abs(lag);
+    work.enc.sum[0][b] = FOC_NormalizeRadians(th_b + 0.5f * lag);
   }
-  float vd = sum_vd / (float)n;
-  float id = sum_id / (float)n;
-  BLDC_Stop();
+  float offset = 0.0f;
+  float max_step = CalibMath_BuildLut(work.enc.sum[0], valid, ENCODER_LUT_SIZE, work.enc.sum[1],
+                                      &offset, svc.encoder_lut);
+  svc.encoder_offset_theta = offset;
 
-  float denom = we * svc.motor_psi;
-  if (denom < 1e-6f) {
-    printf("  ω_e·ψm が小さすぎて解けない。ψm の同定を先に済ませること。\n");
+  float lut_max = 0.0f;
+  for (uint16_t k = 0; k < ENCODER_LUT_SIZE; k++) {
+    float c = Abs((float)svc.encoder_lut[k] * CALIB_LUT_SCALE);
+    if (c > lut_max) lut_max = c;
+  }
+  printf(
+      "  min %u max %u σ %.2f margin %.1f dir %+d 盲点 %.2f%% offset %.4f\n"
+      "  補正 最大 %.4frad 隣接差 %.4frad 正逆差 %.4frad 有効 %u/%u\n",
+      svc.min_encoder_val, svc.max_encoder_val, (double)sigma, (double)svc.encoder_margin,
+      (int)svc.encoder_dir, (double)(svc.encoder_dead_zone * 100.0f / TWO_PI_F), (double)offset,
+      (double)lut_max, (double)max_step, (double)max_lag, n_valid, (unsigned)ENCODER_LUT_SIZE);
+
+  // 隣接差が大きい = 補正量が途中で跳んでいる (ロータの滑り・POLE_PAIRS の不一致)。
+  // 正逆差が大きい = 強制角にロータが付いてきていない (摩擦・負荷が大きい)
+  if (!(max_step >= 0.0f && max_step < 0.1f) || max_lag > 0.1f ||
+      n_valid < ENCODER_LUT_SIZE * 3 / 4) {
+    printf("  校正不良 (滑り・POLE_PAIRS・負荷を確認)\n");
     return false;
   }
-
-  float sin_d = (vd - svc.motor_r * id + we * svc.motor_l * iq) / denom;
-  printf("  Vd %.3fV, Id %.3fA, ω_e %.0f, いまの補償 %.3fms → sinδ = %.4f\n",
-         (double)vd, (double)id, (double)we, (double)(svc.angle_delay * 1000.0f),
-         (double)sin_d);
-
-  if (sin_d > 0.9f || sin_d < -0.9f) {
-    printf(
-        "  δ が90°に近く、この式では精度が出ない。\n"
-        "  ANGLE_DELAY_MEASURE_SPEED を下げるか、既定値を実際に近づけること。\n");
-    return false;
-  }
-
-  float delta = asinf(sin_d);
-  float delay = svc.angle_delay - delta / we;
-  printf("  → δ = %+.1f° → **ANGLE_DELAY = %.5f** [s] (= %.3f ms)\n",
-         (double)(delta * 57.29578f), (double)delay, (double)(delay * 1000.0f));
-
-  // 負や極端に大きい値は測定失敗。既定値のほうがまだ安全。
-  if (!(delay > 0.0f && delay < 0.01f)) {
-    printf("  値が範囲外。採用しない。\n");
-    return false;
-  }
-  *out_delay = delay;
   return true;
 }
-#endif  // BLDC_NEED_PSI
 
-#if MEASURE_CURRENT_STEP
 // ---------------------------------------------------------------------------
-// 電流ループ(閉ループ)のステップ応答測定
+// 4. J/Kt と摩擦 (トルクモードで加速→減速。ロータが回る)
 // ---------------------------------------------------------------------------
-// d軸に電流ステップを入れて Id の応答を記録し、帯域を求める。
-// d軸ならトルクが出ず逆起電力も混ざらないので電気的な応答だけが取れ、SPM (Ld = Lq) なので
-// 結果はq軸にそのまま使える。
-static void BLDC_AnalyzeCurrentStep(float step_amps) {
-  float i_ss = BLDC_CaptureSteadyState();
+// 同じ電流 I で加速 (+I) と減速 (−I) をさせ、同じ速度帯 0.2〜0.8×J_TOP_SPEED の平均加速度を比べる:
+//   (J/Kt)·a_acc =  I − i_f(ω)
+//   (J/Kt)·a_dec = −I − i_f(ω)    → J/Kt = 2I / (a_acc − a_dec),  i_f = −(J/Kt)(a_acc + a_dec)/2
+// 摩擦 i_f は速度に依存してよい (同じ速度帯なので差で消える)。正逆両方向で測って平均する。
+// 電流は加速度が J_MAX_ACCEL 以下・記録が溢れない範囲になるよう自動で決める。
+typedef enum { J_OK, J_TOO_FAST, J_TOO_SLOW, J_FAILED } JResult;
 
-  printf("[STEP] 電流ループのステップ応答 (Id指令 %.2fA)\n", (double)step_amps);
-
-  // 定常値が指令から大きく外れていたら電流が流せていない (電源電圧不足・出力無効・過電流ラッチなど)
-  if (i_ss < step_amps * 0.5f) {
-    printf(
-        "  定常値 %.3fA が指令 %.2fA に届いていない。測定は無効。\n"
-        "  電源電圧・過電流ラッチ・エンコーダ校正を確認すること。\n",
-        (double)i_ss, (double)step_amps);
-    return;
+static JResult Calib_InertiaRun(float dir, float current, float* jkt, float* fric) {
+  Calib_BeginTorqueMode();
+  if (!Calib_WaitForRest()) return J_FAILED;
+  j_n = 0;
+  j_switch = 0;
+  j_dir = dir;
+  j_current = current;
+  svc.target_current = dir * current;
+  CALIB_BARRIER();
+  j_state = 1;
+  uint32_t t0 = HAL_GetTick();
+  while (j_state < 3 && HAL_GetTick() - t0 < 1000) {
   }
+  uint8_t state = j_state;
+  j_state = 0;
+  CALIB_BARRIER();
+  svc.target_current = 0.0f;
+  if (svc.is_overcurrent) return J_FAILED;
+  if (state != 3) return J_TOO_SLOW;
 
-  uint16_t k63;
-  float k63f = BLDC_CaptureTimeTo63(i_ss, &k63);
+  float s_acc = 0.0f, s_dec = 0.0f;
+  uint16_t n_acc = CalibMath_BandSlope(work.w, j_switch, dir, 0.2f * J_TOP_SPEED,
+                                       0.8f * J_TOP_SPEED, &s_acc);
+  uint16_t n_dec = CalibMath_BandSlope(&work.w[j_switch], j_n - j_switch, dir,
+                                       0.2f * J_TOP_SPEED, 0.8f * J_TOP_SPEED, &s_dec);
+  float a_acc = dir * s_acc / OUTER_LOOP_DT;  // 回転方向を正にした加速度 [rad/s²]
+  float a_dec = dir * s_dec / OUTER_LOOP_DT;
+  printf("  %+d方向 I=%.2fA: 加速 %d (%u点) 減速 %d (%u点) rad/s²\n", (int)dir, (double)current,
+         (int)a_acc, n_acc, (int)a_dec, n_dec);
+  if (n_acc < 10 || n_dec < 10 || a_acc > J_MAX_ACCEL || -a_dec > J_MAX_ACCEL) return J_TOO_FAST;
+  if (!(a_acc > 0.0f && a_dec < 0.0f)) return J_TOO_SLOW;
 
-  // オーバーシュート (15%超ならゲインが高すぎる)
-  int16_t peak = bldc_capture[0];
-  for (uint16_t i = 0; i < BLDC_CAPTURE_SAMPLES; i++) {
-    if (bldc_capture[i] > peak) peak = bldc_capture[i];
-  }
-  float overshoot = ((float)peak * 0.001f - i_ss) / i_ss * 100.0f;
-
-  printf("  定常値 %.3fA  63%%到達 %.2f サンプル (%.3fms)  オーバーシュート %.1f%%\n",
-         (double)i_ss, (double)k63f, (double)(k63f * CURRENT_LOOP_DT * 1000.0f),
-         (double)overshoot);
-
-  if (k63 == 0 || k63f <= 0.0f) {
-    printf("  1サンプル(50µs)以内に立ち上がっている。帯域は測定限界の外。\n");
-    BLDC_CapturePrint(i_ss);
-    return;
-  }
-
-  float tau = k63f * CURRENT_LOOP_DT;
-
-  // 本当に1次系か検証する (1次系なら 2τ で 86.5%、3τ で 95.0%)。極零相殺できていないと
-  // 速い成分と遅い成分に割れて長い尾を引き、63%点だけでは帯域を過大評価する。
-  // τ は整数サンプルとは限らないので、ここも線形補間する (切り捨てると判定が不安定になる)。
-  const float frac[3] = {0.632f, 0.865f, 0.950f};
-  float dev[3] = {0.0f, 0.0f, 0.0f};
-  printf("  1次系との比較:");
-  for (uint8_t m = 1; m <= 3; m++) {
-    float fidx = k63f * (float)m;
-    uint16_t i0 = (uint16_t)fidx;
-    if (i0 > BLDC_CAPTURE_SAMPLES - 2) i0 = BLDC_CAPTURE_SAMPLES - 2;
-    float f = fidx - (float)i0;
-    float v0 = (float)bldc_capture[i0] * 0.001f;
-    float v1 = (float)bldc_capture[i0 + 1] * 0.001f;
-    float actual = (v0 + f * (v1 - v0)) / i_ss;
-    dev[m - 1] = (actual - frac[m - 1]) * 100.0f;
-    printf("  %uτ %.0f%%(理想%.0f%%)", m, (double)(actual * 100.0f),
-           (double)(frac[m - 1] * 100.0f));
-  }
-  printf("\n");
-
-  // 判定の主役は 3τ。極零相殺が合っていないと 3τ でも 95% に届かない尾が残る。
-  // 2τ が高めに出るのはループ内の遅れ (電流LPFと演算遅れ) で τ を長く読むためで、異常ではない。
-  // 実測: 壊れていたとき 2τ +17% / 3τ -13%、直したあと 2τ +9% / 3τ +4%。
-  if (dev[2] < -8.0f) {
-    printf(
-        "  **遅い尾が残っている (3τ で %+.0f%%)。** PIのゼロ点 Ki/Kp が\n"
-        "  プラントの極 R/L と合っていないと、応答が速い成分と遅い成分に割れる。\n"
-        "  MEASURE_MOTOR_RL で L と R を実測して MOTOR_L / MOTOR_R を直すこと。\n"
-        "  この状態では下の帯域の値は当てにならない。\n",
-        (double)dev[2]);
-  } else if (dev[1] > 20.0f) {
-    printf(
-        "  **応答が1次系から外れている (2τ で %+.0f%%)。**\n"
-        "  ゲインが高すぎて振動しているか、ループ内の遅れが想定より大きい。\n",
-        (double)dev[1]);
-  } else {
-    // L の同定と同じく半周期を引く (引かないと帯域を1割ほど低く読む)
-    float tau_corr = tau - 0.5f * CURRENT_LOOP_DT;
-    if (tau_corr <= 0.0f) tau_corr = tau;
-    float f_bw = 1.0f / (TWO_PI_F * tau_corr);
-    printf("  → 1次系とみなせる。**帯域 約%.0fHz** (狙い %.0fHz, 補正前 %.0fHz)\n",
-           (double)f_bw, (double)CURRENT_BW_TARGET_HZ, (double)(1.0f / (TWO_PI_F * tau)));
-    // 基準は CURRENT_BW_TARGET_HZ (config.h 参照)
-    printf("  → 狙いに合わせるなら CURRENT_BW_HZ = %.0f (いまは %.0f)\n",
-           (double)(CURRENT_BW_HZ * CURRENT_BW_TARGET_HZ / f_bw), (double)CURRENT_BW_HZ);
-  }
-
-  if (k63 < 3) {
-    printf(
-        "  注意 63%%到達が %u サンプルしかない。50µsサンプリングに対して速すぎるので\n"
-        "       帯域の値は誤差が大きい。\n",
-        k63);
-  }
-  if (overshoot > 15.0f) {
-    printf("  警告 オーバーシュートが大きい。CURRENT_BW_HZ を下げること。\n");
-  }
-
-  BLDC_CapturePrint(i_ss);
+  *jkt = 2.0f * current / (a_acc - a_dec);
+  *fric = -*jkt * (a_acc + a_dec) * 0.5f;
+  return J_OK;
 }
 
-// 注意: モータに電流が流れる。d軸なのでトルクは出ないはずだが、エンコーダ校正がずれていると
-// ロータが動く。校正済みで、ロータが自由に回っても安全な状態で使うこと。
-void BLDC_MeasureCurrentStep(void) {
-  const float step_amps = Constrain(CURRENT_STEP_AMPS, 0.0f, MAX_CURRENT);
+static bool Calib_Inertia(void) {
+  printf("[CAL] J/Kt と摩擦 (**ロータが回る**)\n");
+  float current = 0.1f * MAX_CURRENT;
+  float jkt[2], fric[2];
+  for (uint8_t d = 0; d < 2; d++) {
+    float dir = (d == 0) ? 1.0f : -1.0f;
+    JResult r = J_FAILED;
+    for (uint8_t attempt = 0; attempt < 6; attempt++) {
+      r = Calib_InertiaRun(dir, current, &jkt[d], &fric[d]);
+      if (r == J_OK || r == J_FAILED) break;
+      current *= (r == J_TOO_FAST) ? 0.5f : 2.0f;
+      if (current > 0.5f * MAX_CURRENT) current = 0.5f * MAX_CURRENT;
+    }
+    if (r != J_OK) {
+      printf("  測定できない\n");
+      return false;
+    }
+  }
+  BLDC_Stop();
 
-  BLDC_BeginMeasurement();  // q軸は0のまま、d軸だけを動かす
+  float j_per_kt = 0.5f * (jkt[0] + jkt[1]);
+  float friction = 0.5f * (fric[0] + fric[1]);
+  printf("  J/Kt %.4e A·s²/rad (正 %.4e / 逆 %.4e)  摩擦 %.3fA\n", (double)j_per_kt,
+         (double)jkt[0], (double)jkt[1], (double)friction);
+  if (Abs(jkt[0] - jkt[1]) > 0.2f * j_per_kt) printf("  注意 正逆で20%%以上違う\n");
+  if (!(j_per_kt > 1e-7f && j_per_kt < 1.0f)) {
+    printf("  J/Kt が範囲外\n");
+    return false;
+  }
+  svc.j_per_kt = j_per_kt;
+  svc.friction_current = (friction > 0.0f) ? friction : 0.0f;
+  BLDC_UpdateSpeedGains();
+  return true;
+}
 
-  bool ok = BLDC_RunCapture(step_amps, false);
+// ---------------------------------------------------------------------------
+// 5. ψm と角度の遅れ (速度制御で正逆8点。ロータが回る)
+// ---------------------------------------------------------------------------
+// 推定角が真の角度より δ 進んでいると、定常状態の電圧は
+//   Vq − R·Iq − ω_e·L·Id = ω_e·ψm·cos δ + V0·sign(ω)    (V0: デッドタイムの電圧誤差)
+//   Vd − R·Id + ω_e·L·Iq = ω_e·ψm·sin δ
+// 1式目を最小二乗して ψm と V0、2つの比から各点の δ を出し、δ = δ0 + ω_e·Δt を当てはめる。
+// Δt は遅れ補償の残り、δ0 は速度に依らない電気角のずれ (エンコーダのオフセット誤差) で、両方補正する。
+#define PSI_POINTS 8
 
+static bool Calib_SteadyPoint(float target, float* a) {
+  BLDC_AngularSpeedControl(target);
+  uint32_t t0 = HAL_GetTick();
+  while (Abs(svc.speed_ramp - target) > 0.01f ||
+         Abs(svc.angular_speed - target) > 0.05f * Abs(target) + 1.0f) {
+    if (HAL_GetTick() - t0 > 4000 || !svc.enable) {
+      printf("  %d rad/s に届かない (%.1f)\n", (int)target, (double)svc.angular_speed);
+      return false;
+    }
+  }
+  HAL_Delay(300);
+  return Calib_Average(10000, a);  // 0.5s
+}
+
+static bool Calib_PsiDelay(void) {
+  printf("[CAL] ψm と角度遅れ (**ロータが回る**)\n");
+  const float v_limit = svc.supply_volt * MAX_MODULATION_RATIO;
+  float a[AVG_COUNT];
+
+  // 暫定の ψm から、電圧の天井に当たらない試験速度を決める
+  if (!Calib_SteadyPoint(0.25f * MAX_ANGULAR_SPEED, a)) return false;
+  float we = a[AVG_W] * POLE_PAIRS;
+  float psi1 = (a[AVG_VQ] - svc.motor_r * a[AVG_IQ] - we * svc.motor_l * a[AVG_ID]) / we;
+  if (!(psi1 > 1e-5f)) {
+    printf("  ψm が正にならない (%.6f)\n", (double)psi1);
+    return false;
+  }
+  svc.motor_psi = psi1;  // 掃引中の逆起電力FFに使う
+  float w_test = 0.7f * v_limit / (psi1 * POLE_PAIRS);
+  if (w_test > 0.9f * MAX_ANGULAR_SPEED) w_test = 0.9f * MAX_ANGULAR_SPEED;
+
+  float x[PSI_POINTS], s[PSI_POINTS], y[PSI_POINTS], z[PSI_POINTS];
+  for (uint8_t k = 0; k < PSI_POINTS; k++) {
+    s[k] = (k < PSI_POINTS / 2) ? 1.0f : -1.0f;
+    float target = s[k] * w_test * (float)(k % (PSI_POINTS / 2) + 1) / (float)(PSI_POINTS / 2);
+    if (!Calib_SteadyPoint(target, a)) return false;
+    x[k] = a[AVG_W] * POLE_PAIRS;
+    y[k] = a[AVG_VQ] - svc.motor_r * a[AVG_IQ] - x[k] * svc.motor_l * a[AVG_ID];
+    z[k] = a[AVG_VD] - svc.motor_r * a[AVG_ID] + x[k] * svc.motor_l * a[AVG_IQ];
+  }
+  BLDC_AngularSpeedControl(0.0f);
+  HAL_Delay(1500);
+  BLDC_Stop();
+
+  float psi_c, v0;
+  if (!CalibMath_FitPsi(x, s, y, PSI_POINTS, &psi_c, &v0) || !(psi_c > 1e-5f)) {
+    printf("  ψm が求まらない\n");
+    return false;
+  }
+  // 各点の δ と、その当てはめ。ψm は cos δ を掛け戻して求め直す
+  float delta[PSI_POINTS], num = 0.0f, den = 0.0f;
+  for (uint8_t k = 0; k < PSI_POINTS; k++) {
+    delta[k] = atan2f(z[k] / x[k], (y[k] - v0 * s[k]) / x[k]);
+    float sin_d, cos_d;  // libm の cosf は引数縮約で約3KB 増えるので表引きを使う
+    FOC_SinCos(delta[k], &sin_d, &cos_d);
+    float c = x[k] * cos_d;
+    num += c * (y[k] - v0 * s[k]);
+    den += c * c;
+  }
+  float dt_resid, delta0;
+  if (!(den > 1e-9f) || !CalibMath_LineFit(x, delta, PSI_POINTS, &dt_resid, &delta0)) return false;
+  float psi = num / den;
+  float delay = svc.angle_delay - dt_resid;
+  float rms = 0.0f;
+  for (uint8_t k = 0; k < PSI_POINTS; k++) {
+    float r = delta[k] - (delta0 + dt_resid * x[k]);
+    rms += r * r;
+  }
+  rms = sqrtf(rms / PSI_POINTS);
+
+  printf("  試験速度 %d rad/s  ψm %.6fWb  V0 %.3fV\n", (int)w_test, (double)psi, (double)v0);
+  printf("  遅れ %.3f→%.3fms  静的ずれ δ0 %+.1f°(電気角)  当てはめ残差 %.1f°\n",
+         (double)(svc.angle_delay * 1000.0f), (double)(delay * 1000.0f),
+         (double)(delta0 * 57.29578f), (double)(rms * 57.29578f));
+  if (!(psi > 1e-5f && psi < 1.0f) || !(delay >= 0.0f && delay < 0.005f) ||
+      !(Abs(delta0) < 0.5f)) {
+    printf("  範囲外\n");
+    return false;
+  }
+  svc.motor_psi = psi;
+  svc.angle_delay = delay;
+  // 推定電気角を δ0 だけ戻す = 機械角のオフセットを δ0/P 増やす
+  svc.encoder_offset_theta = FOC_NormalizeRadians(svc.encoder_offset_theta + delta0 / POLE_PAIRS);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// 全体
+// ---------------------------------------------------------------------------
+bool BLDC_Calibrate(void) {
+  printf("[CAL] スイッチ校正を開始 (校正電流 %.1fA)\n", (double)CALIB_CURRENT);
+  svc.iq_limit = MAX_CURRENT;  // Kt が未定なので BLDC_SetLimits を介さず開ける (BLDC_Init の最後で閉じる)
+  svc.calib_hook = true;
+
+  // 1〜3 は強制角
+  bool ok = Calib_MeasureRL() && Calib_TuneCurrentBw() && Calib_Encoder();
+  svc.vd_override_active = false;
   svc.target_id_override = 0.0f;
   BLDC_Stop();
+  svc.calib_angle_active = false;
 
-  if (ok) BLDC_AnalyzeCurrentStep(step_amps);
-}
-#endif  // MEASURE_CURRENT_STEP
-
-// エンコーダの最大/最小値・盲点幅・電気角のオフセットを実測する (保存は BLDC_SaveCalibration)
-void BLDC_SetEncoder(volatile uint16_t* encoder_val) {
-  svc.encoder_offset_theta = 0;
-  svc.max_encoder_val = 0;
-  svc.min_encoder_val = MAX_ADC_VAL;
-
-  // 強制転流で等速に回しながら測る。盲点幅は「時間の割合＝機械角の割合」として求めるので、
-  // 2周とも同じ速度・同じ駆動条件で回すこと。
-  const uint16_t SWEEP_SAMPLES = 3000;  // HAL_Delay(1) なので3秒 = 約13回転
-  const float DRIVE_AMP = 0.15f;        // 強制転流の変調振幅 (回すのに使う)
-  const float HOLD_AMP = 0.3f;          // 位置を引き込んで保持するときの振幅
-  const float SWEEP_STEP = 0.2f;        // 1サンプルあたりの電気角の進み [rad]
-
-  // 1周目: 最大値・最小値を取得する
-  float phase = 0;
-  for (uint16_t i = 0; i < SWEEP_SAMPLES; i++) {
-    phase += SWEEP_STEP;
-    if (svc.max_encoder_val < *encoder_val) svc.max_encoder_val = *encoder_val;
-    if (svc.min_encoder_val > *encoder_val) svc.min_encoder_val = *encoder_val;
-    BLDC_OpenLoopDrive(DRIVE_AMP, phase);
-    HAL_Delay(1);
+  if (ok) {
+    // 4,5 は校正したエンコーダで閉ループ
+    svc.encoder_calibrated = true;
+    svc.encoder_primed = false;  // 新しい校正値で張り直す (次の ISR)
+    HAL_Delay(50);
+    ok = Calib_Inertia() && Calib_PsiDelay();
+    BLDC_Stop();
   }
+  svc.calib_hook = false;
 
-  // 2周目: 盲点(レール飽和で角度が読めない区間)の幅を、飽和していたサンプルの割合から求める。
-  // 無視すると継ぎ目に段差ができる (BLDC_UpdateEncoderScale 参照)。約13回転なので端数誤差は 1/13 程度。
-  uint32_t sat_samples = 0;
-  for (uint16_t i = 0; i < SWEEP_SAMPLES; i++) {
-    phase += SWEEP_STEP;
-    if (BLDC_IsEncoderSaturated(*encoder_val)) sat_samples++;
-    BLDC_OpenLoopDrive(DRIVE_AMP, phase);
-    HAL_Delay(1);
+  svc.motor_calibrated = ok;
+  if (!ok) {
+    svc.encoder_calibrated = false;
+    return false;
   }
-  svc.encoder_dead_zone = TWO_PI_F * (float)sat_samples / (float)SWEEP_SAMPLES;
-
-  // 異常値 (盲点が1周の1/4以上 = エンコーダか磁石の取り付けを疑う) は補正なしにする
-  if (!(svc.encoder_dead_zone >= 0.0f && svc.encoder_dead_zone < TWO_PI_F * 0.25f)) {
-    svc.encoder_dead_zone = 0.0f;
-  }
-
-  BLDC_UpdateEncoderScale();  // これ以降 BLDC_UpdateEncoder が使える
-
-  // 電気角0の位置にロータを引き込み、そのときの機械角をオフセットとする。
-  // 電気角1回転ぶんずつ位置をずらしながら POLE_PAIRS 回くり返して平均する。
-  // 測定点は機械角で 2π/P ずつ離れるが、平均は θ0 と 2π/P の整数倍しか違わず、
-  // 電気角では 2π/P のずれ = 2π のずれ = 同一なので、そのまま平均してよい
-  // (各測定値が等間隔で同じ誤差を持つことが前提)。
-  float offset_sum = 0;
-  for (uint8_t i = 0; i < POLE_PAIRS; i++) {
-    BLDC_OpenLoopDrive(DRIVE_AMP, 0);
-    HAL_Delay(200);
-    BLDC_OpenLoopDrive(HOLD_AMP, 0);
-    HAL_Delay(100);
-
-    // ロータは直前の位相送りで約0.9rad動いている。オブザーバは50µs前提で、この校正ループ
-    // (HAL_Delay(1)) では追従が20倍遅く、イノベーション上限も超えて棄却され続ける。
-    // 張り直さないと追従中のランプが平均に入り、オフセットが約70°(電気角) ずれる。
-    svc.encoder_primed = false;
-    BLDC_UpdateEncoder(*encoder_val);
-
-    // 0/2π の境目で壊れないよう、1点目からの差分で平均する
-    float base = svc.mech_theta;
-    float diff_sum = 0;
-    for (uint16_t j = 0; j < 200; j++) {
-      BLDC_UpdateEncoder(*encoder_val);
-      diff_sum += FOC_AngleDiff(svc.mech_theta, base);
-      HAL_Delay(1);
-    }
-    offset_sum += FOC_NormalizeRadians(base + diff_sum * 0.005f);
-
-    // 電気角を約1回転送って次の測定点へ進める (次のループ頭で phase=0 ≡ 2π に引き込まれるので端数は問題ない)
-    phase = 0;
-    for (uint16_t j = 0; j < (uint16_t)(TWO_PI_F * 10.0f); j++) {
-      phase += 0.1f;
-      BLDC_OpenLoopDrive(DRIVE_AMP, phase);
-      HAL_Delay(1);
-    }
-  }
-  svc.encoder_offset_theta = offset_sum / POLE_PAIRS;
-
-  printf("(Measure)max: %lu, min: %lu, offset: %.6f rad, dead_zone: %.4f rad (%.2f°, 1周の%.1f%%)\n",
-         (unsigned long)svc.max_encoder_val,
-         (unsigned long)svc.min_encoder_val,
-         svc.encoder_offset_theta,
-         svc.encoder_dead_zone,
-         (double)(svc.encoder_dead_zone * 57.29578f),
-         (double)(svc.encoder_dead_zone * 100.0f / TWO_PI_F));
+  svc.encoder_primed = false;  // δ0 でオフセットが変わったので張り直す
+  printf("[CAL] 結果: R %.4fΩ L %.1fµH ψm %.6fWb 遅れ %.3fms J/Kt %.4e 摩擦 %.3fA 帯域 %dHz\n",
+         (double)svc.motor_r, (double)(svc.motor_l * 1e6f), (double)svc.motor_psi,
+         (double)(svc.angle_delay * 1000.0f), (double)svc.j_per_kt,
+         (double)svc.friction_current, (int)svc.current_bw_hz);
+  printf("[CAL] J = %.4e kg·m² (= J/Kt × Kt)\n", (double)(svc.j_per_kt * BLDC_GetTorqueConstant()));
+  return true;
 }
 
-#if MOTOR_AUTO_CALIBRATION
-// 校正値をまとめてフラッシュに保存する。ページ消去を伴うので、必ず1回で全項目を書くこと。
-void BLDC_SaveCalibration(void) {
-  BLDCFlashData d = {BLDC_FLASH_MAGIC,
-                     svc.max_encoder_val,
-                     svc.min_encoder_val,
-                     svc.encoder_offset_theta,
-                     svc.encoder_dead_zone,
-                     svc.motor_r,
-                     svc.motor_l,
-                     svc.motor_psi,
-                     svc.angle_delay};
-  if (Flash_WriteData(FLASH_USER_START_ADDR, &d, sizeof(d)) == HAL_OK) {
-    printf("[CAL] フラッシュに保存した\n");
-  } else {
-    printf("[CAL] フラッシュ書き込みに失敗した\n");
-  }
-}
-#endif  // MOTOR_AUTO_CALIBRATION
-
-// 電流PIのゲインを、いまの L と R から計算し直す (L,R を実測したら必ず呼ぶ)
+// ---------------------------------------------------------------------------
+// ゲイン
+// ---------------------------------------------------------------------------
+// 電流PI: Kp = L·ω_bw, Ki = R·ω_bw (config.h)。未校正 (0) なら0になり電圧は出ない
 void BLDC_UpdateCurrentGains(void) {
-  svc.id_pi.kp = CURRENT_PI_KP_FROM(svc.motor_l);
-  svc.id_pi.ki = CURRENT_PI_KI_FROM(svc.motor_r);
+  float w = TWO_PI_F * svc.current_bw_hz;
+  svc.id_pi.kp = svc.motor_l * w;
+  svc.id_pi.ki = svc.motor_r * w;
   svc.id_pi.output_limit = svc.supply_volt * MAX_MODULATION_RATIO;
   FOC_PI_Reset(&svc.id_pi);
   svc.iq_pi = svc.id_pi;
-  printf("[CAL] 電流PI: Kp=%.4f Ki=%.1f (Ki/Kp=%.0f = R/L, 目標帯域 %.0fHz)\n",
-         (double)svc.id_pi.kp, (double)svc.id_pi.ki,
-         (double)(svc.motor_r / svc.motor_l), (double)CURRENT_BW_HZ);
+  if (svc.motor_l > 0.0f) {
+    printf("[CAL] 電流PI: Kp=%.4f Ki=%.1f (設計 %dHz)\n", (double)svc.id_pi.kp,
+           (double)svc.id_pi.ki, (int)svc.current_bw_hz);
+  }
 }
 
-#if MOTOR_AUTO_CALIBRATION
-// モータ定数の自動測定 (制御ループが回り始めてから呼ぶ)。順序の理由は config.h の MOTOR_AUTO_CALIBRATION。
-// 失敗した項目は既定値のまま続行する。
-void BLDC_CalibrateMotor(void) {
-  float r, l, psi, delay;
-
-  printf("[CAL] モータ定数の自動測定を開始\n");
-
-  if (BLDC_MeasureMotorRL(&r, &l)) {
-    svc.motor_r = r;
-    svc.motor_l = l;
-    BLDC_UpdateCurrentGains();
-  } else {
-    printf("[CAL] R,L の測定に失敗。既定値のまま続行する\n");
+// 速度PID: Kp = (J/Kt)·ω_c, Ki = Kp·ω_c / SPEED_KI_RATIO (config.h)。未校正なら0
+void BLDC_UpdateSpeedGains(void) {
+  float wc = TWO_PI_F * SPEED_BW_HZ;
+  svc.speed_pid.kp = svc.j_per_kt * wc;
+  svc.speed_pid.ki = svc.speed_pid.kp * wc / SPEED_KI_RATIO;
+  svc.speed_pid.integral = 0;
+  if (svc.j_per_kt > 0.0f) {
+    printf("[CAL] 速度PID: Kp=%.5f Ki=%.4f (設計 %uHz)\n", (double)svc.speed_pid.kp,
+           (double)svc.speed_pid.ki, (unsigned)SPEED_BW_HZ);
   }
-
-  if (BLDC_MeasureMotorPsi(&psi)) {
-    svc.motor_psi = psi;
-  } else {
-    printf("[CAL] ψm の測定に失敗。既定値のまま続行する\n");
-  }
-
-  if (BLDC_MeasureAngleDelay(&delay)) {
-    svc.angle_delay = delay;
-  } else {
-    printf("[CAL] 角度遅れの測定に失敗。既定値のまま続行する\n");
-  }
-
-  printf("[CAL] 結果: R=%.4fΩ L=%.6fH(%.1fµH) ψm=%.6fWb 遅れ=%.3fms\n",
-         (double)svc.motor_r, (double)svc.motor_l, (double)(svc.motor_l * 1e6f),
-         (double)svc.motor_psi, (double)(svc.angle_delay * 1000.0f));
 }
-#endif  // MOTOR_AUTO_CALIBRATION
 
-// フラッシュの校正値を検証して適用する。未校正 (全ビット1) や旧フォーマットを
-// マジックナンバーと範囲チェックで弾く (NaN も落とせるよう不等号は肯定形で書く)。
-// エンコーダとモータ定数は別々に検証し、「もっともらしいゴミ」を避けるためモータ定数は範囲を厳しめにする。
+// ---------------------------------------------------------------------------
+// フラッシュ
+// ---------------------------------------------------------------------------
+static uint32_t Calib_Checksum(const BLDCFlashData* d) {
+  const uint32_t* p = (const uint32_t*)d;
+  uint32_t sum = 0x5A5A5A5AUL;
+  for (size_t i = 0; i < offsetof(BLDCFlashData, checksum) / 4; i++) sum += p[i];
+  return sum;
+}
+
+_Static_assert(offsetof(BLDCFlashData, checksum) % 4 == 0, "checksum must be word aligned");
+_Static_assert(sizeof(BLDCFlashData) <= FLASH_USER_END_ADDR + 1 - FLASH_USER_START_ADDR,
+               "calibration data does not fit in the flash page");
+
+void BLDC_ResetCalibration(void) {
+  svc.encoder_calibrated = false;
+  svc.motor_calibrated = false;
+  svc.min_encoder_val = 0;
+  svc.max_encoder_val = MAX_ADC_VAL;
+  svc.encoder_margin = 4.0f;
+  svc.encoder_dir = 1.0f;
+  svc.encoder_offset_theta = 0.0f;
+  svc.encoder_dead_zone = 0.0f;
+  for (uint16_t k = 0; k < ENCODER_LUT_SIZE; k++) svc.encoder_lut[k] = 0;
+  svc.motor_r = 0.0f;
+  svc.motor_l = 0.0f;
+  svc.motor_psi = 0.0f;
+  svc.angle_delay = ANGLE_DELAY_DEFAULT;
+  svc.j_per_kt = 0.0f;
+  svc.friction_current = 0.0f;
+  svc.current_bw_hz = CURRENT_BW_TARGET_HZ;
+}
+
+void BLDC_SaveCalibration(void) {
+  static BLDCFlashData d;  // 300B 近いのでスタックに置かない
+  memset(&d, 0, sizeof(d));
+  d.magic = BLDC_FLASH_MAGIC;
+  d.max_encoder_val = svc.max_encoder_val;
+  d.min_encoder_val = svc.min_encoder_val;
+  d.encoder_margin = (uint16_t)(svc.encoder_margin + 0.5f);
+  d.encoder_dir = (int16_t)svc.encoder_dir;
+  d.encoder_offset_theta = svc.encoder_offset_theta;
+  d.encoder_dead_zone = svc.encoder_dead_zone;
+  d.motor_r = svc.motor_r;
+  d.motor_l = svc.motor_l;
+  d.motor_psi = svc.motor_psi;
+  d.angle_delay = svc.angle_delay;
+  d.j_per_kt = svc.j_per_kt;
+  d.friction_current = svc.friction_current;
+  d.current_bw_hz = svc.current_bw_hz;
+  memcpy(d.encoder_lut, svc.encoder_lut, sizeof(d.encoder_lut));
+  d.checksum = Calib_Checksum(&d);
+  printf("[CAL] フラッシュ書き込み%s\n",
+         Flash_WriteData(FLASH_USER_START_ADDR, &d, sizeof(d)) == HAL_OK ? "完了" : "に失敗");
+}
+
+// マジックナンバー・チェックサム・範囲で検証する (NaN も落とせるよう不等号は肯定形で書く)
 void BLDC_LoadFlashCalibration(void) {
-  BLDCFlashData d;
+  static BLDCFlashData d;
   Flash_ReadData(FLASH_USER_START_ADDR, &d, sizeof(d));
 
-  bool enc_ok = (d.magic == BLDC_FLASH_MAGIC) &&
-                (d.max_encoder_val > d.min_encoder_val) && (d.max_encoder_val <= MAX_ADC_VAL) &&
-                (d.encoder_offset_theta > -TWO_PI_F && d.encoder_offset_theta < TWO_PI_F) &&
-                (d.encoder_dead_zone >= 0.0f && d.encoder_dead_zone < TWO_PI_F * 0.25f);
-
-  bool motor_ok = (d.magic == BLDC_FLASH_MAGIC) &&
-                  (d.motor_r > 0.001f && d.motor_r < 100.0f) &&
-                  (d.motor_l > 1e-6f && d.motor_l < 0.1f) &&
-                  (d.motor_psi > 1e-5f && d.motor_psi < 1.0f) &&
-                  (d.angle_delay >= 0.0f && d.angle_delay < 0.01f);
-
-  svc.encoder_calibrated = enc_ok;
-  if (enc_ok) {
-    svc.max_encoder_val = d.max_encoder_val;
-    svc.min_encoder_val = d.min_encoder_val;
-    svc.encoder_offset_theta = d.encoder_offset_theta;
-    svc.encoder_dead_zone = d.encoder_dead_zone;
-    printf("(From Flash)max: %lu, min: %lu, offset: %.6f rad, dead_zone: %.4f rad\n",
-           (unsigned long)d.max_encoder_val, (unsigned long)d.min_encoder_val,
-           d.encoder_offset_theta, d.encoder_dead_zone);
-  } else {
-    printf("BLDC: エンコーダ校正値が不正です。スイッチを押しながら再起動して校正してください。\n");
-    svc.min_encoder_val = 0;
-    svc.max_encoder_val = MAX_ADC_VAL;
-    svc.encoder_offset_theta = 0.0f;
-    svc.encoder_dead_zone = 0.0f;
+  bool ok = (d.magic == BLDC_FLASH_MAGIC) && (d.checksum == Calib_Checksum(&d)) &&
+            (d.max_encoder_val > d.min_encoder_val) && (d.max_encoder_val <= MAX_ADC_VAL) &&
+            (d.encoder_dir == 1 || d.encoder_dir == -1) && (d.encoder_margin < 100) &&
+            (d.encoder_offset_theta >= 0.0f && d.encoder_offset_theta < TWO_PI_F) &&
+            (d.encoder_dead_zone >= 0.0f && d.encoder_dead_zone < TWO_PI_F * 0.25f) &&
+            (d.motor_r > 0.001f && d.motor_r < 100.0f) && (d.motor_l > 1e-6f && d.motor_l < 0.1f) &&
+            (d.motor_psi > 1e-5f && d.motor_psi < 1.0f) &&
+            (d.angle_delay >= 0.0f && d.angle_delay < 0.005f) &&
+            (d.j_per_kt > 1e-7f && d.j_per_kt < 1.0f) &&
+            (d.friction_current >= 0.0f && d.friction_current < MAX_CURRENT) &&
+            (d.current_bw_hz >= 0.8f * CURRENT_BW_TARGET_HZ &&
+             d.current_bw_hz <= 2.0f * CURRENT_BW_TARGET_HZ);
+  if (!ok) {
+    printf("BLDC: 校正値が無いか不正。スイッチを押しながら起動して校正すること (駆動しない)\n");
+    return;
   }
-
-  if (motor_ok) {
-    svc.motor_r = d.motor_r;
-    svc.motor_l = d.motor_l;
-    svc.motor_psi = d.motor_psi;
-    svc.angle_delay = d.angle_delay;
-    printf("(From Flash)R: %.4fΩ, L: %.1fµH, ψm: %.6fWb, 遅れ: %.3fms\n",
-           d.motor_r, (double)(d.motor_l * 1e6f), d.motor_psi,
-           (double)(d.angle_delay * 1000.0f));
-  } else {
-    printf("BLDC: モータ定数が未校正です。config.h の既定値を使います。\n");
-  }
-}
-
-// 起動時の診断 (config.h の MEASURE_*)。制御ループが回り始めてからでないと測れない。
-void BLDC_RunStartupMeasurements(void) {
-#if MEASURE_MOTOR_RL
-  {
-    float r, l;
-    BLDC_MeasureMotorRL(&r, &l);
-  }
-#endif
-#if MEASURE_CURRENT_STEP
-  BLDC_MeasureCurrentStep();
-#endif
-#if MEASURE_MOTOR_PSI
-  {
-    float psi;
-    BLDC_MeasureMotorPsi(&psi);
-  }
-#endif
+  svc.max_encoder_val = d.max_encoder_val;
+  svc.min_encoder_val = d.min_encoder_val;
+  svc.encoder_margin = (float)d.encoder_margin;
+  svc.encoder_dir = (float)d.encoder_dir;
+  svc.encoder_offset_theta = d.encoder_offset_theta;
+  svc.encoder_dead_zone = d.encoder_dead_zone;
+  memcpy(svc.encoder_lut, d.encoder_lut, sizeof(svc.encoder_lut));
+  svc.motor_r = d.motor_r;
+  svc.motor_l = d.motor_l;
+  svc.motor_psi = d.motor_psi;
+  svc.angle_delay = d.angle_delay;
+  svc.j_per_kt = d.j_per_kt;
+  svc.friction_current = d.friction_current;
+  svc.current_bw_hz = d.current_bw_hz;
+  svc.encoder_calibrated = true;
+  svc.motor_calibrated = true;
+  printf("(Flash) enc %u-%u dir %+d offset %.4f 盲点 %.4f / R %.4f L %.1fµH ψm %.6f 遅れ %.3fms"
+         " J/Kt %.3e 摩擦 %.3fA\n",
+         d.min_encoder_val, d.max_encoder_val, d.encoder_dir, (double)d.encoder_offset_theta,
+         (double)d.encoder_dead_zone, (double)d.motor_r, (double)(d.motor_l * 1e6f),
+         (double)d.motor_psi, (double)(d.angle_delay * 1000.0f), (double)d.j_per_kt,
+         (double)d.friction_current);
 }

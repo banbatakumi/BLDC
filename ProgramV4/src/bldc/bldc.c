@@ -5,10 +5,8 @@
 // 20kHz制御ループ本体 (PWM出力・電流PI・SVPWM・保護・公開API)。
 // 校正・同定は bldc_calibration.c、共有状態 (svc) は bldc_internal.h。
 
-#if BLDC_MEASURING
 // ステップ応答の記録バッファ (BLDC_CurrentLoop が書き、bldc_calibration.c が読む)
 int16_t bldc_capture[BLDC_CAPTURE_SAMPLES];
-#endif
 
 SensoredVectorControl svc;
 
@@ -36,12 +34,14 @@ void BLDC_UpdateEncoderScale(void) {
 }
 
 // 外側ループ (速度・位置) のPID。出力は Iq指令 [A]。
+// ff はフィードフォワード [A]。飽和判定とアンチワインドアップは ff 込みの出力で行う。
 // アンチワインドアップはバックカリキュレーション: 飽和で捨てたぶん (raw_output - output) を
 // 積分項から引き戻し、積分が使える範囲を超えて伸びないようにする (クランプだけだと
 // 飽和のたびに大きなオーバーシュートが出る)。飽和していなければ補正は0で通常のPIDと同じ。
 // enable_integral が false のときは積分を凍結しており、引き戻すと位置制御が目標近傍で
 // 積分を0に固定する意図 (POSITION_INTEGRAL_STOP_RAD) を壊すので補正しない。
-static inline float BLDC_PIDControl(PIDController* pid, float error, float dt, bool enable_integral) {
+static inline float BLDC_PIDControl(PIDController* pid, float error, float ff, float dt,
+                                    bool enable_integral) {
   float p_term = pid->kp * error;
 
   if (enable_integral) {
@@ -52,7 +52,7 @@ static inline float BLDC_PIDControl(PIDController* pid, float error, float dt, b
   pid->d_term = pid->d_term * pid->d_lpf + raw_d_term * (1.0f - pid->d_lpf);
   pid->prev_error = error;
 
-  float raw_output = p_term + pid->integral + pid->d_term;
+  float raw_output = p_term + pid->integral + pid->d_term + ff;
   float output = Constrain(raw_output, -pid->output_limit, pid->output_limit);
 
   if (enable_integral) {
@@ -108,6 +108,9 @@ static void BLDC_OuterLoop(void) {
   // tanhf を20kHzで回さないよう制動係数はここ (1kHz) で更新する。モードによらず更新しておく。
   svc.brake_direction = BLDC_BrakeDirection(svc.angular_speed);
 
+  // 校正の速度記録・状態遷移 (J/Kt の同定)。DirectIqLoop より前に指令を書き換える
+  if (svc.calib_hook) BLDC_CalibOuterIsr();
+
   switch (svc.mode) {
     case BLDC_MODE_SPEED: {
       // MD 固定のハード保護 (MAX_ANGULAR_SPEED) と最大角加速度のスルーレート制限だけをかける
@@ -117,7 +120,10 @@ static void BLDC_OuterLoop(void) {
                               -MAX_ANGULAR_ACCEL, MAX_ANGULAR_ACCEL);
       svc.speed_ramp += accel * OUTER_LOOP_DT;
 
-      svc.target_iq = BLDC_PIDControl(&svc.speed_pid, svc.speed_ramp - svc.angular_speed,
+      // フィードフォワード: 指令の加速度に要る電流 (J/Kt × 加速度) と摩擦を打ち消す電流。
+      // 摩擦の向きは指令速度の符号 (制動と同じ境界層つき tanh)。J/Kt 未校正なら0
+      float ff = svc.j_per_kt * accel - svc.friction_current * BLDC_BrakeDirection(svc.speed_ramp);
+      svc.target_iq = BLDC_PIDControl(&svc.speed_pid, svc.speed_ramp - svc.angular_speed, ff,
                                       OUTER_LOOP_DT, true);
       break;
     }
@@ -139,7 +145,7 @@ static void BLDC_OuterLoop(void) {
         break;
       }
 
-      svc.target_iq = BLDC_PIDControl(&svc.position_pid, error, OUTER_LOOP_DT,
+      svc.target_iq = BLDC_PIDControl(&svc.position_pid, error, 0.0f, OUTER_LOOP_DT,
                                       abs_error >= POSITION_INTEGRAL_STOP_RAD);
       break;
     }
@@ -236,8 +242,20 @@ static void BLDC_CurrentLoop(void) {
   // FOC_SinCos は範囲を問わないので正規化しない (正規化は表示用の BLDC_GetElecTheta で行う)。
   // 角度の遅れ (AS5600のフィルタ等) を ω̂ ぶん進めて補償する。しないと 120 rad/s で
   // 電気角が 49° ずれる (実測)。詳細は config.h の ANGLE_DELAY_DEFAULT。
-  float mech_theta_now = svc.mech_theta + svc.angular_speed * svc.angle_delay;
-  svc.elec_theta = mech_theta_now * POLE_PAIRS + ELEC_THETA_OFFSET;
+  // 校正中はエンコーダを使わず強制角を calib_target へ calib_step ずつ進める (R,L・エンコーダ校正)。
+  const bool forced = svc.calib_angle_active;
+  if (forced) {
+    float d = svc.calib_target - svc.calib_theta;
+    if (Abs(d) <= svc.calib_step) {
+      svc.calib_theta = svc.calib_target;
+    } else {
+      svc.calib_theta += (d > 0.0f) ? svc.calib_step : -svc.calib_step;
+    }
+    svc.elec_theta = svc.calib_theta;
+  } else {
+    float mech_theta_now = svc.mech_theta + svc.angular_speed * svc.angle_delay;
+    svc.elec_theta = mech_theta_now * POLE_PAIRS;
+  }
   float sin_t, cos_t;
   FOC_SinCos(svc.elec_theta, &sin_t, &cos_t);
 
@@ -248,7 +266,6 @@ static void BLDC_CurrentLoop(void) {
   // d軸指令。SPMなので弱め界磁はせず通常は0。ステップ応答測定のときだけ target_id_override が非0。
   float target_id = svc.target_id_override;
 
-#if BLDC_MEASURING
   // ステップ応答の記録。Idを記録してからステップを入れるので、サンプルnは「ステップから n × 50µs 後」
   // (サンプル0はステップ直前の基準値)。
   if (svc.capture_state == BLDC_CAPTURE_ARMED) {
@@ -261,41 +278,35 @@ static void BLDC_CurrentLoop(void) {
       svc.capture_state = BLDC_CAPTURE_DONE;
     } else if (svc.capture_index == 1) {
       // ここでステップを入れる
-#if BLDC_NEED_RL
       if (svc.capture_is_voltage) {
         svc.vd_override = svc.capture_step;
-      } else
-#endif
-      {
+      } else {
         target_id = svc.capture_step;               // この周期から反映
         svc.target_id_override = svc.capture_step;  // 次周期以降も保持
       }
     }
   }
-#endif
 
-#if BLDC_NEED_RL
   if (svc.vd_override_active) {
     // L・R同定中は PI を通さず Vd を直接与える (応答が素の1次系になる)
     svc.vd = svc.vd_override;
     svc.vq = 0.0f;
 
     // 開ループで電流を制限するものが無いので、超えたら即座に切る
-    if (Abs(svc.id) > MOTOR_RL_ABORT_AMPS) {
+    if (Abs(svc.id) > MAX_CURRENT) {
       svc.vd = 0.0f;
       svc.vd_override = 0.0f;
       svc.rl_aborted = true;
     }
-  } else
-#endif
-  {
+  } else {
     svc.vd = FOC_PI_Update(&svc.id_pi, target_id - svc.id, CURRENT_LOOP_DT);
     svc.vq = FOC_PI_Update(&svc.iq_pi, svc.target_iq - svc.iq, CURRENT_LOOP_DT);
 
 #if CURRENT_FF_ENABLE
     // 逆起電力とdq干渉のフィードフォワード (config.h 参照)
     //   Vd ← −ω_e·L·Iq,  Vq ← +ω_e·L·Id + ω_e·ψm
-    float w_e = svc.angular_speed * POLE_PAIRS;
+    // 強制角の校正中は ω̂ (未校正のエンコーダ由来) が実際の回転と無関係なので使わない
+    float w_e = forced ? 0.0f : svc.angular_speed * POLE_PAIRS;
     svc.vq_ff = w_e * (svc.motor_l * svc.id + svc.motor_psi);
 
     // FFが電圧の全予算を使うとPIが制御権限を失うので頭打ちにする (config.h の CURRENT_FF_MAX_RATIO)
@@ -321,6 +332,8 @@ static void BLDC_CurrentLoop(void) {
   FOC_SVPWM(v_alpha, v_beta, svc.supply_volt, &du, &dv, &dw);
   BLDC_WritePwm(du, dv, dw);
   BLDC_SetOutputEnable(true);  // コーストから復帰する
+
+  if (svc.calib_hook) BLDC_CalibIsr();  // 校正の平均・ビン集計 (この周期の値がそろってから)
 }
 
 // ---------------------------------------------------------------------------
@@ -359,7 +372,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 
   // 機械角と角速度はオブザーバが20kHzで更新する
   PROF2_BEGIN(prof_encoder);
-  BLDC_UpdateEncoder(*svc.encoder_val_ptr);
+  svc.encoder_raw = BLDC_ReadEncoderRaw();
+  BLDC_UpdateEncoder(svc.encoder_raw);
   PROF2_END(prof_encoder);
 
   if (++outer_cnt >= OUTER_LOOP_DIV) {
@@ -465,10 +479,9 @@ static void BLDC_InitPwmTimer(void) {
 }
 
 // 外側ループ (速度・位置) のゲイン。出力は Iq指令 [A]。
+// 速度PIDは J/Kt から BLDC_UpdateSpeedGains が計算する (ここでは0 = 未校正)。位置PIDは手動値。
 // output_limit は BLDC_OuterLoop が毎周期入れ替える。初期値 0 = 制限値を受け取るまで動かない。
 static void BLDC_InitOuterGains(void) {
-  svc.speed_pid.kp = 0.1f;
-  svc.speed_pid.ki = 0.25f;
   svc.speed_pid.kd = 0;
   svc.speed_pid.d_term = 0;
   svc.speed_pid.d_lpf = 0.0f;
@@ -503,9 +516,9 @@ static void BLDC_InitProfiler(void) {
 // (理論値 CURRENT_REF_ADC は個体差が大きく、回転中の測定値よりも外れうるため使わない)
 static void BLDC_CalibrateCurrentZero(void) {
   for (uint8_t attempt = 1;; attempt++) {
-    int32_t before = *svc.encoder_val_ptr;
+    int32_t before = (int32_t)BLDC_ReadEncoderRaw();
     CurrentSense_Calibrate();
-    int32_t moved = (int32_t)*svc.encoder_val_ptr - before;
+    int32_t moved = (int32_t)BLDC_ReadEncoderRaw() - before;
     if (moved < 0) moved = -moved;
     if (moved > MAX_ADC_VAL / 2) moved = MAX_ADC_VAL - moved;  // 0/2π の継ぎ目をまたいだ
     if (moved <= CURRENT_CALIB_MAX_ENCODER_MOVE_LSB) return;
@@ -520,10 +533,10 @@ static void BLDC_CalibrateCurrentZero(void) {
   }
 }
 
-void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val, float supply_volt) {
+void BLDC_Init(bool do_calibrate, volatile uint16_t* encoder_buf, float supply_volt) {
   printf("BLDC_Init\n");
 
-  svc.encoder_val_ptr = encoder_val;
+  svc.encoder_buf = encoder_buf;
   svc.mode = BLDC_MODE_STOP;
   svc.enable = false;
   // 母線電圧は最初に確定させる。暫定値のまま校正すると、電圧の水増しで ψm だけが
@@ -535,38 +548,25 @@ void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val, float supply
   // 電流センシング(TIM1同期ADC)を開始 (TIM1が動いてから)
   CurrentSense_Init();
 
-  // モータ定数の初期値 (フラッシュに有効な値があれば上書きされる。校正中もR,L測定まではこれで回す)
-  svc.motor_r = MOTOR_R_DEFAULT;
-  svc.motor_l = MOTOR_L_DEFAULT;
-  svc.motor_psi = MOTOR_PSI_DEFAULT;
-  svc.angle_delay = ANGLE_DELAY_DEFAULT;
-
-  // スイッチ押下あり: いま測る / なし: フラッシュから読む (検証に通ったものだけ採用)。
-  // フラッシュ書き込みは、モータ定数測定まで終わってから1回でまとめて行う。
-  if (do_set_encoder) {
-    printf("BLDC_SetEncoder\n");
-    BLDC_SetEncoder(encoder_val);
-    svc.encoder_calibrated = true;
-    printf("(Measured) このセッションの校正値を使う\n");
-  } else {
-    BLDC_LoadFlashCalibration();
-  }
+  // 校正値: スイッチ押下あり = 未校正から測り直す / なし = フラッシュから読む (検証に通ったときだけ採用)。
+  // 未校正のままなら BLDC_IsCalibrated が偽で、app は駆動しない。
+  BLDC_ResetCalibration();
+  if (!do_calibrate) BLDC_LoadFlashCalibration();
   BLDC_UpdateEncoderScale();
 
-  printf("トルク定数 Kt: %.5f N・m/A, 最大トルク(MAX_CURRENT時): %.4f N・m\n",
-         (double)BLDC_GetTorqueConstant(), (double)(BLDC_GetTorqueConstant() * MAX_CURRENT));
-
   BLDC_InitOuterGains();
-  BLDC_UpdateCurrentGains();  // L と R から導く
+  BLDC_UpdateCurrentGains();
+  BLDC_UpdateSpeedGains();
 
-  // 電流センサのゼロ点校正 (全相デューティ0.5で電流が流れない状態で行う)
+  // 電流センサのゼロ点校正 (全相デューティ0.5で電流が流れない状態で行う)。
+  // モータ定数の校正は電流制御で行うので、それより前に済ませる
   BLDC_WritePwm(0.5f, 0.5f, 0.5f);
   HAL_Delay(200);
   BLDC_CalibrateCurrentZero();
 
   // 制御ループを回す前に機械角を実測値で確定させる
   svc.encoder_primed = false;
-  BLDC_UpdateEncoder(*svc.encoder_val_ptr);
+  BLDC_UpdateEncoder(BLDC_ReadEncoderRaw());
   printf("BLDC: mech_theta = %.3f rad で開始\n", svc.mech_theta);
 
   // 指令が来るまで出力を切る (ゼロ点校正が終わってから)
@@ -578,24 +578,24 @@ void BLDC_Init(bool do_set_encoder, volatile uint16_t* encoder_val, float supply
 
   // 20kHz制御ループを開始
   CurrentSense_EnableInterrupt();
-  printf("BLDC control loop start (%.0f Hz)\n", (double)PWM_FREQ);
+  printf("BLDC control loop start (%u Hz)\n", (unsigned)PWM_FREQ);
 
-  // 測定は制御ループが回っている必要があるのでここから下で行う
-#if MOTOR_AUTO_CALIBRATION
-  // スイッチ押下で起動したときだけモータ定数も測って保存する
-  if (do_set_encoder) {
-    BLDC_CalibrateMotor();
-    BLDC_SaveCalibration();
+  // 校正は電流制御と過電流保護が働く状態で行うので、制御ループが回ってから
+  if (do_calibrate) {
+    if (BLDC_Calibrate()) {
+      BLDC_SaveCalibration();
+    } else {
+      printf("[CAL] 失敗。フラッシュは更新しない (このセッションは駆動しない)\n");
+    }
   }
-#endif
-  BLDC_RunStartupMeasurements();
+
+  printf("Kt: %.5f N・m/A, 最大トルク: %.4f N・m\n", (double)BLDC_GetTorqueConstant(),
+         (double)BLDC_GetMaxTorqueNm());
 
   // 校正が一時的に開けた制限値を閉じ、上位から制限値を受け取るまで動かないようにする
   BLDC_SetLimits(0.0f);
-  printf(
-      "BLDC: トルク上限 0 で開始 (上位からの指令待ち)。MD側の上限は %.3f N・m"
-      " / 速度は %.0f rad/s で頭打ち\n",
-      (double)BLDC_GetMaxTorqueNm(), (double)MAX_ANGULAR_SPEED);
+  printf("BLDC: トルク上限 0 で開始 (上位からの指令待ち)%s\n",
+         BLDC_IsCalibrated() ? "" : "。**未校正のため駆動しない**");
 }
 
 // ---------------------------------------------------------------------------
@@ -690,7 +690,7 @@ float BLDC_GetVq(void) { return svc.vq; }
 // Vq のうちフィードフォワード分。符号が逆だと Vq と逆向きに出るので、実装ミスの確認に使う
 float BLDC_GetVqFF(void) { return svc.vq_ff; }
 bool BLDC_IsOvercurrent(void) { return svc.is_overcurrent; }
-bool BLDC_IsEncoderCalibrated(void) { return svc.encoder_calibrated; }
+bool BLDC_IsCalibrated(void) { return svc.encoder_calibrated && svc.motor_calibrated; }
 void BLDC_GetTripInfo(BLDCTripInfo* info) { *info = svc.trip; }
 
 void BLDC_ClearOvercurrent(void) {

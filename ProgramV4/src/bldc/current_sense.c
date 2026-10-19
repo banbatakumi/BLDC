@@ -112,12 +112,12 @@ void CurrentSense_Calibrate(void) {
   bool offset_valid =
       (Abs(dev_u) <= CURRENT_OFFSET_TOLERANCE) && (Abs(dev_v) <= CURRENT_OFFSET_TOLERANCE);
 
-  printf("CurrentSense: offset Iu:%.1f Iv:%.1f [ADC] (中点 %.0f), %.4f A/LSB, レンジ 約±%.1f A\n",
-         offset_u, offset_v, (double)CURRENT_REF_ADC,
+  printf("CurrentSense: offset Iu:%.1f Iv:%.1f [ADC] (中点 %u), %.4f A/LSB, レンジ 約±%.1f A\n",
+         offset_u, offset_v, (unsigned)CURRENT_REF_ADC,
          (double)ADC2CURRENT_ABS, (double)(CURRENT_REF_ADC * ADC2CURRENT_ABS));
   if (!offset_valid) {
-    printf("CurrentSense: 警告 オフセットが中点から大きくずれています (Iu:%+.0f Iv:%+.0f LSB)\n",
-           dev_u, dev_v);
+    printf("CurrentSense: 警告 オフセットが中点から大きくずれています (Iu:%+d Iv:%+d LSB)\n",
+           (int)dev_u, (int)dev_v);
   }
 }
 

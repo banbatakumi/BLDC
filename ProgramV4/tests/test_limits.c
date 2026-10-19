@@ -46,7 +46,8 @@ typedef struct {
   float output_limit;
 } PIDController;
 
-static float BLDC_PIDControl(PIDController* pid, float error, float dt, bool enable_integral) {
+static float BLDC_PIDControl(PIDController* pid, float error, float ff, float dt,
+                             bool enable_integral) {
   float p_term = pid->kp * error;
   if (enable_integral) pid->integral += pid->ki * error * dt;
 
@@ -54,7 +55,7 @@ static float BLDC_PIDControl(PIDController* pid, float error, float dt, bool ena
   pid->d_term = pid->d_term * pid->d_lpf + raw_d_term * (1.0f - pid->d_lpf);
   pid->prev_error = error;
 
-  float raw_output = p_term + pid->integral + pid->d_term;
+  float raw_output = p_term + pid->integral + pid->d_term + ff;
   float output = Constrain(raw_output, -pid->output_limit, pid->output_limit);
   if (enable_integral) pid->integral += output - raw_output;
   pid->integral = Constrain(pid->integral, -pid->output_limit, pid->output_limit);
@@ -87,7 +88,7 @@ static void OuterLoopPosition(Sim* s) {
     s->pid.d_term = 0;
     s->target_iq = 0;
   } else {
-    s->target_iq = BLDC_PIDControl(&s->pid, error, OUTER_LOOP_DT,
+    s->target_iq = BLDC_PIDControl(&s->pid, error, 0.0f, OUTER_LOOP_DT,
                                    abs_error >= POSITION_INTEGRAL_STOP_RAD);
   }
 

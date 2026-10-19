@@ -8,11 +8,13 @@
 # test_limits   : bldc.c の外側ループ(位置制御)を書き写して1kHzで回す。
 #                 制限とアンチワインドアップの振る舞いを見る。
 #                 **bldc.c を触ったら、こちらの写しも合わせること。**
+# test_calibration : src/bldc/calib_math.h を**そのまま** include し、校正の計算
+#                 (補正テーブル・時定数・J/Kt・ψm) を合成データで検証する。
 CC ?= cc
 CFLAGS = -std=c11 -Wall -Wextra -O1 -I../lib/crc8 -I../src/app
 BUILD = build
 
-TESTS = $(BUILD)/test_protocol $(BUILD)/test_limits
+TESTS = $(BUILD)/test_protocol $(BUILD)/test_limits $(BUILD)/test_calibration
 
 .PHONY: all run clean
 all: run

@@ -27,12 +27,8 @@ static Serial uart2;
 static LPF supply_volt_lpf;
 static LPF temp_lpf;
 
-// ADC2の値 (エンコーダ, 電圧, 温度)。DMAが書き換えるので volatile 必須。
-static volatile uint16_t adc_val[3];
-#define ADC_ENCODER 0
-#define ADC_SUPPLY_VOLT 1
-#define ADC_TEMP 2
-#define ADC_CHANNEL_COUNT 3
+// ADC2の値 ([エンコーダ × ENCODER_ADC_SAMPLES, 電圧, 温度]。config.h)。DMAが書き換えるので volatile 必須。
+static volatile uint16_t adc_val[SENSOR_ADC_CHANNELS];
 
 static float supply_volt;
 static float temp;
@@ -55,6 +51,36 @@ static uint8_t applied_torque_limit;
 static uint32_t rx_crc_error_count;     // CRC不一致
 static uint32_t rx_unknown_mode_count;  // CRCは合ったがモードヘッダが未知
 
+// ADC2 の変換列を組み直す (adc.c は CubeMX の再生成で上書きされるので、ここで設定する)。
+// エンコーダ (IN2) を ENCODER_ADC_SAMPLES 回並べ、最後に電源電圧 (IN3) と温度 (IN1)。
+// サンプリング時間はチャンネル単位の設定なので、同じチャンネルを何度並べても同じ値になる。
+static void SensorAdc_Init(void) {
+  hadc2.Init.NbrOfConversion = SENSOR_ADC_CHANNELS;
+  // 失敗したまま進むと下の値待ちで黙って止まるので、CubeMX と同じく Error_Handler で明示的に止める
+  if (HAL_ADC_Init(&hadc2) != HAL_OK) Error_Handler();
+
+  ADC_ChannelConfTypeDef sc = {0};
+  sc.SingleDiff = ADC_SINGLE_ENDED;
+  sc.OffsetNumber = ADC_OFFSET_NONE;
+  sc.Channel = ADC_CHANNEL_2;
+  sc.SamplingTime = ADC_SAMPLETIME_181CYCLES_5;
+  for (uint32_t rank = 1; rank <= ENCODER_ADC_SAMPLES; rank++) {
+    sc.Rank = rank;
+    if (HAL_ADC_ConfigChannel(&hadc2, &sc) != HAL_OK) Error_Handler();
+  }
+  // 分圧抵抗の出力インピーダンスが高いので長いサンプリング時間のまま
+  sc.SamplingTime = ADC_SAMPLETIME_601CYCLES_5;
+  sc.Channel = ADC_CHANNEL_3;
+  sc.Rank = SENSOR_ADC_SUPPLY_VOLT + 1;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sc) != HAL_OK) Error_Handler();
+  sc.Channel = ADC_CHANNEL_1;
+  sc.Rank = SENSOR_ADC_TEMP + 1;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sc) != HAL_OK) Error_Handler();
+
+  // オフセットのセルフキャリブレーション (ADC1 と同じく変換開始前に行う)
+  if (HAL_ADCEx_Calibration_Start(&hadc2, ADC_SINGLE_ENDED) != HAL_OK) Error_Handler();
+}
+
 void Setup(void) {
   printf("Hello World\n");
   printf("SystemCoreClock = %ld\n", SystemCoreClock);
@@ -70,21 +96,22 @@ void Setup(void) {
 
   DigitalIn_Init(&SW, GPIOA, GPIO_PIN_12);
 
-  HAL_ADC_Start_DMA(&hadc2, (uint32_t*)&adc_val, ADC_CHANNEL_COUNT);
-  for (uint8_t i = 0; i < ADC_CHANNEL_COUNT; i++) {
-    while (!(adc_val[i] > 0));  // 値が入るまで待つ
+  SensorAdc_Init();
+  if (HAL_ADC_Start_DMA(&hadc2, (uint32_t*)&adc_val, SENSOR_ADC_CHANNELS) != HAL_OK) Error_Handler();
+  // 値が入るまで待つ。エンコーダはレール (0) に張り付いていることがあるので、電圧と温度だけを見る
+  while (!(adc_val[SENSOR_ADC_SUPPLY_VOLT] > 0 && adc_val[SENSOR_ADC_TEMP] > 0)) {
   }
 
   printf("ADC_DMA start\n");
   PwmOut_Write(&LED1, 0);
 
-  supply_volt = adc_val[ADC_SUPPLY_VOLT] * ADC2VOLT * 10.0f;
+  supply_volt = adc_val[SENSOR_ADC_SUPPLY_VOLT] * ADC2VOLT * 10.0f;
   LPF_Init(&supply_volt_lpf, 0.9, supply_volt);
   LPF_Init(&temp_lpf, 0.99, 30);
 
   // PWM出力・電流センシング・20kHz制御ループが立ち上がる。スイッチ押下で起動すると校正を行う。
   // 校正中の電圧換算に使うので、実測の母線電圧を渡す。
-  BLDC_Init(DigitalIn_Read(&SW), &adc_val[ADC_ENCODER], supply_volt);
+  BLDC_Init(DigitalIn_Read(&SW), &adc_val[0], supply_volt);
   PwmOut_Write(&LED2, 0);
 
   Serial_Init(&uart2, &huart2, 256);
@@ -120,13 +147,13 @@ static void PrintStatus(void) {
   printf(
       "Iq:%+6.2f/%+6.2fA  Id:%+6.2fA  Vd:%+5.2fV  Vq:%+5.2f(FF%+5.2f)/%5.2fV"
       "  peak:%5.2fA  %6.1frad/s"
-      "  sat:%4lu glt:%4lu emax:%.4frad  %4.1fV %2.0fC"
+      "  sat:%4lu glt:%4lu emax:%.4frad  %4.1fV %2dC"
       "  lim:%.3fN・m  crcerr:%lu mode?:%lu\n",
       BLDC_GetIq(), BLDC_GetTargetIq(), BLDC_GetId(), BLDC_GetVd(),
       BLDC_GetVq(), BLDC_GetVqFF(), supply_volt * MAX_MODULATION_RATIO,
       BLDC_GetPeakCurrent(), BLDC_GetAngularSpeed(),
       (unsigned long)enc.saturated, (unsigned long)enc.glitch, enc.max_innovation,
-      supply_volt, temp,
+      supply_volt, (int)temp,
       (double)(applied_torque_limit * SERIAL_TORQUE_LIMIT_SCALE),
       (unsigned long)rx_crc_error_count, (unsigned long)rx_unknown_mode_count);
   BLDC_ResetPeakCurrent();   // peak, sat/glt/emax は表示区間ごとの値
@@ -151,12 +178,12 @@ static void PrintProfile(void) {
 // ---------------------------------------------------------------------------
 static void GetSensors(void) {
   // 電源電圧の変換(分圧で1/10にしている)
-  supply_volt = adc_val[ADC_SUPPLY_VOLT] * ADC2VOLT * 10.0f;
+  supply_volt = adc_val[SENSOR_ADC_SUPPLY_VOLT] * ADC2VOLT * 10.0f;
   supply_volt = LPF_Update(&supply_volt_lpf, supply_volt);
   BLDC_SetSupplyVolt(supply_volt);
 
   // MCP9700T/HTT温度センサの変換 (0.5V が 0°C、10mV/°C)
-  float temp_voltage = adc_val[ADC_TEMP] * ADC2VOLT;
+  float temp_voltage = adc_val[SENSOR_ADC_TEMP] * ADC2VOLT;
   temp = (temp_voltage - 0.5f) * 100.0f;
   temp = LPF_Update(&temp_lpf, temp);
 
@@ -199,9 +226,9 @@ static void ApplyLimits(uint8_t rx_torque_limit) {
   // 切り捨て (上限を1LSBでも上回る値をエコーしないため)
   uint8_t hw_torque_byte = (hw_torque >= 255.0f) ? 255 : (uint8_t)hw_torque;
 
-  // エンコーダ未校正のまま電流を流すと電気角が合わず、指令と無関係な向きに回る。
+  // 未校正のまま電流を流すと電気角もゲインも合わず、指令と無関係な向きに回る。
   // 上限 0 のまま動かさない (エコーバックも 0 になるので上位は制限値の不一致として検知できる)
-  if (!BLDC_IsEncoderCalibrated()) hw_torque_byte = 0;
+  if (!BLDC_IsCalibrated()) hw_torque_byte = 0;
 
   applied_torque_limit = (rx_torque_limit < hw_torque_byte) ? rx_torque_limit : hw_torque_byte;
 
@@ -305,7 +332,7 @@ static void SendSerial(void) {
 
   // 20kHz割り込みが書き換える値なので、1つの値につき取得は1回だけにする
   SerialTxFrame f;
-  f.status = (!BLDC_IsEncoderCalibrated() << SERIAL_STATUS_BIT_UNCALIBRATED) |
+  f.status = (!BLDC_IsCalibrated() << SERIAL_STATUS_BIT_UNCALIBRATED) |
              (BLDC_IsOvercurrent() << SERIAL_STATUS_BIT_OVERCURRENT) |
              (is_overheat << SERIAL_STATUS_BIT_OVERHEAT) |
              (is_voltage_out_of_range << SERIAL_STATUS_BIT_VOLTAGE) |
@@ -376,7 +403,7 @@ static void ReportOvercurrentTrip(void) {
   BLDC_GetTripInfo(&t);
   printf("=== Overcurrent (limit %.1fA) ===\n", (double)OVERCURRENT_LIMIT);
   printf("  peak:%.2fA  Iu:%+.2f Iv:%+.2f Iw:%+.2f A\n", t.peak_current, t.iu, t.iv, t.iw);
-  printf("  raw  U:%4u V:%4u  (中点%.0f)\n", t.raw_u, t.raw_v, (double)CURRENT_REF_ADC);
+  printf("  raw  U:%4u V:%4u  (中点%u)\n", t.raw_u, t.raw_v, (unsigned)CURRENT_REF_ADC);
   printf("  Id:%+.2f Iq:%+.2f A  (指令 Iq:%+.2f A)\n", t.id, t.iq, t.target_iq);
   printf("  Vd:%+.2f Vq:%+.2f V  (上限%.2f V)\n", t.vd, t.vq,
          supply_volt * MAX_MODULATION_RATIO);
