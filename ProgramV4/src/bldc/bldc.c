@@ -784,13 +784,15 @@ void BLDC_Stop(void) {
   svc.enable = false;
 }
 
-// 過電流保護がラッチされている間は起動させない
+// 過電流保護がラッチされている間と、未校正のとき (校正の実行中を除く) は起動させない。
+// 未校正では電流PIのゲインが0なので、有効にすると全相デューティ0.5 = 3相短絡になる
 static inline void BLDC_Enable(BLDCMode mode) {
-  if (svc.is_overcurrent) return;
+  if (svc.is_overcurrent || !(BLDC_IsCalibrated() || svc.calib_hook)) return;
   // モード切替時に位置PIDの微分項を初期化する (他モード中は prev_error が更新されず、出力が飛ぶため)
   if (svc.mode != mode) {
     svc.position_pid.prev_error = FOC_AngleDiff(svc.target_position, svc.mech_theta);
     svc.position_pid.d_term = 0;
+    svc.position_pid.integral = 0;  // 前回の位置制御で溜まった積分を別の位置へ持ち越さない
     // 速度モードも現在の角速度から始める (ランプ・積分を他モードから持ち越さない)
     svc.speed_ramp = svc.angular_speed;
     svc.speed_pid.integral = 0;

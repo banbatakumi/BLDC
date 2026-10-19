@@ -361,7 +361,10 @@ static void SendSerial(void) {
   f.temperature = (uint8_t)Constrain(temp, 0.0f, 255.0f);
   f.theta = (uint16_t)(BLDC_GetMechTheta() * 10000);  // 機械角 [0.1mrad]
   // 角速度 [0.01rad/s]。クランプは100倍後の値なので i16 のレンジで指定する
-  f.speed = (int16_t)Constrain(BLDC_GetAngularSpeed() * 100, -32767.0f, 32767.0f);
+  // Constrain はマクロで引数を複数回評価するので、先に1回だけ取得する (途中で割り込みが値を変えると
+  // 範囲外の値が int16 に入り符号が反転する)
+  const float speed = BLDC_GetAngularSpeed() * 100;
+  f.speed = (int16_t)Constrain(speed, -32767.0f, 32767.0f);
   f.iq = (int16_t)(BLDC_GetIq() * 1000);  // q軸電流 [mA]
 
   // 受信値ではなく MD が実際に適用している値を返す
@@ -469,6 +472,9 @@ static bool HandleFaults(void) {
              FixFmt(supply_volt, 2));
     }
     is_overheat = true;
+    // 過熱中は電圧の計測を進めないので、過熱前の範囲外の開始時刻を持ち越さない
+    // (持ち越すと復帰直後の短い電圧低下で猶予なしに止まる)
+    is_voltage_pending = false;
     LatchFault(&is_overheat, temp < (TEMP_LIMIT - 5), ERROR_BLINK_OVERHEAT);
     return true;
   }

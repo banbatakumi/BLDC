@@ -151,9 +151,10 @@ static inline void Serial_Write(Serial *self, const uint8_t *data, uint16_t len)
       HAL_UART_Transmit_DMA(self->huart, (uint8_t *)data, len);
 }
 
+// 受信だけをやり直す。HAL_UART_DMAStop は使わない: 上の理由で gState が BUSY_TX のまま残るので、
+// 送信中の状態フレームの DMA まで止めて途中で切ってしまう (上位で CRC エラーになる)
 static inline void Serial_Reset(Serial *self) {
       HAL_UART_AbortReceive(self->huart);
-      HAL_UART_DMAStop(self->huart);
       memset(self->rxBuf, 0, self->rxBufSize);
       self->rxWrapBase = 0;
       self->rxLastWritten = 0;

@@ -108,7 +108,7 @@ void BLDC_Init(bool do_calibrate, volatile uint16_t* encoder_buf, volatile uint1
 
 void BLDC_SetSupplyVolt(float supply_volt);
 
-// 上位から指定される制限値。指令フレームごと (1kHz) に呼ばれ、次の外側ループから効く。
+// 上位から指定される制限値。指令フレームごと (2kHz) に呼ばれ、次の外側ループから効く。
 //   torque_limit_nm : トルク (= Iq) 指令の飽和値 [N・m]。全モードに効く唯一の制限。
 //                     速度/位置ループでは出力制限 (アンチワインドアップの基準) になり、
 //                     トルク/ブレーキモードでは最終段のクランプになる。

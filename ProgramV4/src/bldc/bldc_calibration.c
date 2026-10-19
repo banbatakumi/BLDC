@@ -203,6 +203,11 @@ static bool Calib_Average(uint32_t n, float* out) {
     }
   }
   CALIB_BARRIER();
+  // 出力が切れても (過電流など) ISR は 0 を足し続けて平均が終わるので、ここで確かめる
+  if (!svc.enable || svc.is_overcurrent) {
+    printf("  平均の途中で出力が止まった\n");
+    return false;
+  }
   for (uint8_t i = 0; i < AVG_COUNT; i++) out[i] = avg_sum[i] / (float)n;
   out[AVG_ENC] += avg_enc0;  // 平均値は基準を戻す (AVG_ENC2 は基準からの2乗平均のまま)
   return true;
@@ -212,6 +217,7 @@ static bool Calib_Average(uint32_t n, float* out) {
 static bool Calib_MoveTo(float target, float speed) {
   float dist = Abs(target - svc.calib_theta);
   svc.calib_step = speed * CURRENT_LOOP_DT;
+  CALIB_BARRIER();
   svc.calib_target = target;
   uint32_t timeout = (uint32_t)(dist / speed * 1000.0f) + 500;
   uint32_t t0 = HAL_GetTick();
@@ -254,6 +260,7 @@ static float Calib_CaptureSteadyState(const float* i) {
 static bool Calib_RunCapture(float step, bool is_voltage) {
   svc.capture_step = step;
   svc.capture_is_voltage = is_voltage;
+  CALIB_BARRIER();
   svc.capture_state = BLDC_CAPTURE_ARMED;
 
   // 記録は10msで終わるので、500msで打ち切る
@@ -446,6 +453,10 @@ static bool Calib_TuneCurrentBw(void) {
     } else if (overshoot > 15.0f) {
       printf("  オーバーシュート過大\n");
       return false;
+    } else if (f_bw < 0.7f * CURRENT_BW_TARGET_HZ) {
+      // 1回目の補正は 0.8〜2倍で頭打ちにするので、届かないまま終わることがある
+      printf("  帯域が狙いに届かない\n");
+      return false;
     }
   }
   return true;
@@ -538,7 +549,12 @@ static bool Calib_Encoder(void) {
   }
   svc.min_encoder_val = (uint16_t)(rail_lo + 0.5f);
   svc.max_encoder_val = (uint16_t)(rail_hi + 0.5f);
-  svc.encoder_margin = 4.0f * sigma + 2.0f;
+  // フラッシュには整数で保存するので、校正中も同じ値で盲点幅とテーブルを測る (起動時の検査は 100 未満)
+  svc.encoder_margin = (float)(uint16_t)(4.0f * sigma + 2.0f + 0.5f);
+  if (!(svc.encoder_margin < 100.0f)) {
+    printf("  静止ノイズが大きすぎる (σ %s LSB)\n", FixFmt(sigma, 1));
+    return false;
+  }
 
   // (c) 2つの電流で正逆往復
   bool valid[ENCODER_LUT_SIZE];
@@ -726,7 +742,73 @@ static bool Calib_Inertia(void) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. ψm と角度の遅れ (速度制御で正逆8点。ロータが回る)
+// 5. 補正テーブル (惰性回転。ロータが回る)
+// ---------------------------------------------------------------------------
+// 速度制御で回してから出力を切り、惰性で回る間に θ_lin が格子線を横切った時刻を記録する
+// (計算と理由は calib_math.h の CalibMath_CoastFit)。正転・逆転を交互に COAST_RUNS 回。
+// 開始速度は、摩擦で減速しても COAST_REVS 周回れる速さを J/Kt と摩擦電流から決める:
+//   ω_top² = ω_end² + 2·a·2π·COAST_REVS、a = 摩擦電流 / (J/Kt)
+// 出力を切ると全相がオフになる。逆起電力は電源電圧より十分低いのでダイオードも導通せず、電流は流れない。
+static bool Calib_EncoderLut(void) {
+  printf("[CAL] 補正テーブル (惰性回転 %u回、**ロータが回る**)\n", (unsigned)COAST_RUNS);
+  const float decel = svc.friction_current / svc.j_per_kt;
+  float top = sqrtf(COAST_END * COAST_END + 2.0f * decel * TWO_PI_F * COAST_REVS);
+  if (top < 2.0f * COAST_END) top = 2.0f * COAST_END;
+  if (top > 0.9f * MAX_ANGULAR_SPEED) top = 0.9f * MAX_ANGULAR_SPEED;
+
+  CoastSeg seg[COAST_RUNS];
+  uint16_t used = 0;
+  for (uint8_t r = 0; r < COAST_RUNS; r++) {
+    const float dir = (r & 1) ? -1.0f : 1.0f;
+    if (!Calib_ReachSpeed(dir * top)) return false;
+    coast_rec = (CoastRec){0};
+    coast_rec.buf = &work.coast.buf[used];
+    coast_rec.cap = (uint16_t)((COAST_BUF - used) / (COAST_RUNS - r));
+    coast_rec.dir = (int8_t)dir;
+    BLDC_Stop();
+    HAL_Delay(2);  // 電流が消えるのを待つ (L/R ≒ 0.3ms)
+    CALIB_BARRIER();
+    enc_mode = ENC_COAST;
+    uint32_t t0 = HAL_GetTick();
+    while (!coast_rec.full && dir * svc.angular_speed > COAST_END && HAL_GetTick() - t0 < 2000) {
+    }
+    enc_mode = ENC_OFF;
+    CALIB_BARRIER();
+    seg[r].base = used;
+    seg[r].n = coast_rec.n;
+    seg[r].k0 = coast_rec.k0;
+    seg[r].dir = coast_rec.dir;
+    used += coast_rec.n;
+    if (coast_rec.n < ENCODER_LUT_SIZE) {
+      printf("  惰性で1周回らない (%u本)\n", coast_rec.n);
+      return false;
+    }
+  }
+
+  float fb = 0.0f;
+  uint16_t missing = 0;
+  float rms = CalibMath_CoastFit(work.coast.buf, seg, COAST_RUNS, ENCODER_LUT_SIZE, work.coast.e,
+                                 work.coast.sum, work.coast.cnt, &fb, &missing);
+  float e_max = 0.0f;
+  for (uint16_t k = 0; k < ENCODER_LUT_SIZE; k++) {
+    if (Abs(work.coast.e[k]) > e_max) e_max = Abs(work.coast.e[k]);
+  }
+  printf("  開始 %d rad/s  記録 %u本  残差 RMS %srad  正逆差 %srad  補正 最大 %srad  補間 %u本\n",
+         (int)top, used, FixFmt(rms, 4), FixFmt(fb, 4), FixFmt(e_max, 4), missing);
+  // 残差が大きい = 惰性中の速度が滑らかでない (引っかかり・負荷の変動)。補間が多い = 盲点が広すぎる
+  if (!(rms >= 0.0f && rms < 0.01f) || e_max > 0.1f || missing > ENCODER_LUT_SIZE / 16) {
+    printf("  補正テーブル不良\n");
+    return false;
+  }
+  for (uint16_t k = 0; k < ENCODER_LUT_SIZE; k++) {
+    float q = work.coast.e[k] / CALIB_LUT_SCALE;
+    svc.encoder_lut[k] = (int16_t)(q + (q >= 0.0f ? 0.5f : -0.5f));
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// 6. ψm と角度の遅れ (速度制御で正逆8点。ロータが回る)
 // ---------------------------------------------------------------------------
 // 推定角が真の角度より δ 進んでいると、定常状態の電圧は
 //   Vq − R·Iq − ω_e·L·Id = ω_e·ψm·cos δ + V0·sign(ω)    (V0: デッドタイムの電圧誤差)
@@ -875,72 +957,6 @@ static bool Calib_Verify(float w_test) {
 }
 
 // ---------------------------------------------------------------------------
-// 6. 補正テーブル (惰性回転。ロータが回る)
-// ---------------------------------------------------------------------------
-// 速度制御で回してから出力を切り、惰性で回る間に θ_lin が格子線を横切った時刻を記録する
-// (計算と理由は calib_math.h の CalibMath_CoastFit)。正転・逆転を交互に COAST_RUNS 回。
-// 開始速度は、摩擦で減速しても COAST_REVS 周回れる速さを J/Kt と摩擦電流から決める:
-//   ω_top² = ω_end² + 2·a·2π·COAST_REVS、a = 摩擦電流 / (J/Kt)
-// 出力を切ると全相がオフになる。逆起電力は電源電圧より十分低いのでダイオードも導通せず、電流は流れない。
-static bool Calib_EncoderLut(void) {
-  printf("[CAL] 補正テーブル (惰性回転 %u回、**ロータが回る**)\n", (unsigned)COAST_RUNS);
-  const float decel = svc.friction_current / svc.j_per_kt;
-  float top = sqrtf(COAST_END * COAST_END + 2.0f * decel * TWO_PI_F * COAST_REVS);
-  if (top < 2.0f * COAST_END) top = 2.0f * COAST_END;
-  if (top > 0.9f * MAX_ANGULAR_SPEED) top = 0.9f * MAX_ANGULAR_SPEED;
-
-  CoastSeg seg[COAST_RUNS];
-  uint16_t used = 0;
-  for (uint8_t r = 0; r < COAST_RUNS; r++) {
-    const float dir = (r & 1) ? -1.0f : 1.0f;
-    if (!Calib_ReachSpeed(dir * top)) return false;
-    coast_rec = (CoastRec){0};
-    coast_rec.buf = &work.coast.buf[used];
-    coast_rec.cap = (uint16_t)((COAST_BUF - used) / (COAST_RUNS - r));
-    coast_rec.dir = (int8_t)dir;
-    BLDC_Stop();
-    HAL_Delay(2);  // 電流が消えるのを待つ (L/R ≒ 0.3ms)
-    CALIB_BARRIER();
-    enc_mode = ENC_COAST;
-    uint32_t t0 = HAL_GetTick();
-    while (!coast_rec.full && dir * svc.angular_speed > COAST_END && HAL_GetTick() - t0 < 2000) {
-    }
-    enc_mode = ENC_OFF;
-    CALIB_BARRIER();
-    seg[r].base = used;
-    seg[r].n = coast_rec.n;
-    seg[r].k0 = coast_rec.k0;
-    seg[r].dir = coast_rec.dir;
-    used += coast_rec.n;
-    if (coast_rec.n < ENCODER_LUT_SIZE) {
-      printf("  惰性で1周回らない (%u本)\n", coast_rec.n);
-      return false;
-    }
-  }
-
-  float fb = 0.0f;
-  uint16_t missing = 0;
-  float rms = CalibMath_CoastFit(work.coast.buf, seg, COAST_RUNS, ENCODER_LUT_SIZE, work.coast.e,
-                                 work.coast.sum, work.coast.cnt, &fb, &missing);
-  float e_max = 0.0f;
-  for (uint16_t k = 0; k < ENCODER_LUT_SIZE; k++) {
-    if (Abs(work.coast.e[k]) > e_max) e_max = Abs(work.coast.e[k]);
-  }
-  printf("  開始 %d rad/s  記録 %u本  残差 RMS %srad  正逆差 %srad  補正 最大 %srad  補間 %u本\n",
-         (int)top, used, FixFmt(rms, 4), FixFmt(fb, 4), FixFmt(e_max, 4), missing);
-  // 残差が大きい = 惰性中の速度が滑らかでない (引っかかり・負荷の変動)。補間が多い = 盲点が広すぎる
-  if (!(rms >= 0.0f && rms < 0.01f) || e_max > 0.1f || missing > ENCODER_LUT_SIZE / 16) {
-    printf("  補正テーブル不良\n");
-    return false;
-  }
-  for (uint16_t k = 0; k < ENCODER_LUT_SIZE; k++) {
-    float q = work.coast.e[k] / CALIB_LUT_SCALE;
-    svc.encoder_lut[k] = (int16_t)(q + (q >= 0.0f ? 0.5f : -0.5f));
-  }
-  return true;
-}
-
-// ---------------------------------------------------------------------------
 // 全体
 // ---------------------------------------------------------------------------
 bool BLDC_Calibrate(void) {
@@ -962,7 +978,9 @@ bool BLDC_Calibrate(void) {
     svc.encoder_primed = false;  // 新しい校正値で張り直す (次の ISR)
     HAL_Delay(50);
     float w_test = 0.0f;
-    ok = Calib_Inertia() && Calib_PsiDelay(&w_test) && Calib_EncoderLut() && Calib_Verify(w_test);
+    // 補正テーブルを ψm・遅れより先に作る (テーブルなしだと電気角が P·ε 揺れ、Vq の平均が
+    // ψm·J0(P·ε) に縮んで ψm と Kt を低く読む。δ0 もテーブル込みの角度に対して決めたい)
+    ok = Calib_Inertia() && Calib_EncoderLut() && Calib_PsiDelay(&w_test) && Calib_Verify(w_test);
     BLDC_Stop();
   }
   svc.calib_hook = false;
