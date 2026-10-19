@@ -22,8 +22,11 @@ all: run
 run: $(TESTS)
 	@for t in $(TESTS); do echo "=== $$t ==="; ./$$t || exit 1; echo; done
 
+# ヘッダだけ変えたときも作り直す (-MMD の依存ファイルを読む)
 $(BUILD)/%: %.c | $(BUILD)
-	$(CC) $(CFLAGS) -o $@ $< -lm
+	$(CC) $(CFLAGS) -MMD -MP -o $@ $< -lm
+
+-include $(wildcard $(BUILD)/*.d)
 
 $(BUILD):
 	mkdir -p $(BUILD)

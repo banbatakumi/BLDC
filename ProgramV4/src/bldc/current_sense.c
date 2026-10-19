@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "adc.h"
+#include "fixfmt.h"
 #include "main.h"
 #include "mymath.h"
 #include "tim.h"
@@ -112,9 +113,9 @@ void CurrentSense_Calibrate(void) {
   bool offset_valid =
       (Abs(dev_u) <= CURRENT_OFFSET_TOLERANCE) && (Abs(dev_v) <= CURRENT_OFFSET_TOLERANCE);
 
-  printf("CurrentSense: offset Iu:%.1f Iv:%.1f [ADC] (中点 %u), %.4f A/LSB, レンジ 約±%.1f A\n",
-         offset_u, offset_v, (unsigned)CURRENT_REF_ADC,
-         (double)ADC2CURRENT_ABS, (double)(CURRENT_REF_ADC * ADC2CURRENT_ABS));
+  printf("CurrentSense: offset Iu:%s Iv:%s [ADC] (中点 %u), %s A/LSB, レンジ 約±%s A\n",
+         FixFmt(offset_u, 1), FixFmt(offset_v, 1), (unsigned)CURRENT_REF_ADC,
+         FixFmt(ADC2CURRENT_ABS, 4), FixFmt(CURRENT_REF_ADC * ADC2CURRENT_ABS, 1));
   if (!offset_valid) {
     printf("CurrentSense: 警告 オフセットが中点から大きくずれています (Iu:%+d Iv:%+d LSB)\n",
            (int)dev_u, (int)dev_v);

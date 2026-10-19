@@ -44,7 +44,7 @@
 #define SERIAL_STATUS_BIT_COMMANDED 0     // 受理済みの指令を実行中 (停止モードでない)
 #define SERIAL_STATUS_BIT_VOLTAGE 1       // 電源電圧が範囲外
 #define SERIAL_STATUS_BIT_OVERHEAT 2      // 過熱
-#define SERIAL_STATUS_BIT_OVERCURRENT 3   // 過電流ラッチ
+#define SERIAL_STATUS_BIT_OVERCURRENT 3   // 保護ラッチ (過電流または過速度)
 #define SERIAL_STATUS_BIT_UNCALIBRATED 4  // エンコーダ未校正 (制限値を受け付けず動かない)
 
 // トルク制限のスケール。受信・エコーバック・上限との比較で必ずこれを使うこと。

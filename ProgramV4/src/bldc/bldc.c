@@ -1,6 +1,5 @@
-#include <math.h>  // tanhf (ブレーキの境界層)
-
 #include "bldc_internal.h"
+#include "fixfmt.h"
 
 // 20kHz制御ループ本体 (PWM出力・電流PI・SVPWM・保護・公開API)。
 // 校正・同定は bldc_calibration.c、共有状態 (svc) は bldc_internal.h。
@@ -9,6 +8,12 @@
 int16_t bldc_capture[BLDC_CAPTURE_SAMPLES];
 
 SensoredVectorControl svc;
+
+#if PROFILE_ISR
+// 割り込みの入口からデューティ (CCR) を書き込むまで。期限 ISR_DEADLINE_US と比べるのはこれ
+// (外側ループは書き込みの後に回すので、割り込み全体の時間は期限と関係しない)
+static Profile prof_pwm;
+#endif
 
 // PWM出力の有効/無効。無効側は上下FETともOFFのコースト。
 // 全相デューティ0.5は3相短絡と同じで、回転中は逆起電力による短絡制動電流が流れるため使わない。
@@ -64,12 +69,22 @@ static inline float BLDC_PIDControl(PIDController* pid, float error, float ff, f
   return output;
 }
 
+// tanh の近似 (パデ近似 x(27+x²)/(27+9x²)。|x|≦3 で誤差 2.5% 以内、それより外は ±1)。
+// 境界層で符号関数を滑らかにするためだけに使うので、この精度で足りる。libm の tanhf は
+// expm1f 経由で1回約 6.5µs かかり、外側ループで2回呼ぶと割り込みが期限を 14µs 超えた (2026-10-19 実測)
+static inline float BLDC_TanhApprox(float x) {
+  if (x >= 3.0f) return 1.0f;
+  if (x <= -3.0f) return -1.0f;
+  float x2 = x * x;
+  return x * (27.0f + x2) / (27.0f + 9.0f * x2);
+}
+
 // 制動電流に掛ける係数 (-1〜1)。回転と逆向きに流す。
 // sign(ω) だと v=0 付近でチャタリングするので tanh の境界層 (BRAKE_BOUNDARY_SPEED_RAD_S) で
 // 滑らかにし、さらに不感帯未満 (BRAKE_DEADBAND_SPEED_RAD_S) は 0 にしてディザを防ぐ。
 static float BLDC_BrakeDirection(float angular_speed) {
   if (Abs(angular_speed) < BRAKE_DEADBAND_SPEED_RAD_S) return 0.0f;
-  return -tanhf(angular_speed / BRAKE_BOUNDARY_SPEED_RAD_S);
+  return -BLDC_TanhApprox(angular_speed * (1.0f / BRAKE_BOUNDARY_SPEED_RAD_S));
 }
 
 // PIDを通らないモード (トルク・制動・停止) のIq指令を作り、上限で飽和させる。
@@ -95,6 +110,8 @@ static bool BLDC_IsDirectIqMode(BLDCMode mode) {
   return mode != BLDC_MODE_SPEED && mode != BLDC_MODE_POSITION;
 }
 
+static void BLDC_Trip(BLDCTripReason reason, float peak, float iu, float iv, float iw);
+
 // 外側ループ (1kHz)。各モードに応じてq軸電流指令を作る。
 static void BLDC_OuterLoop(void) {
   // volatile を Constrain に直接渡さないこと (マクロが引数を3回展開し、途中で書き換わると low > high になる)
@@ -105,7 +122,16 @@ static void BLDC_OuterLoop(void) {
   svc.speed_pid.output_limit = iq_limit;
   svc.position_pid.output_limit = iq_limit;
 
-  // tanhf を20kHzで回さないよう制動係数はここ (1kHz) で更新する。モードによらず更新しておく。
+  // 過速度保護 (config.h の OVERSPEED_LIMIT_RATIO)。電気角が狂ってトルクが逆向きに出る暴走を止める
+  if (Abs(svc.angular_speed) > MAX_ANGULAR_SPEED * OVERSPEED_LIMIT_RATIO) {
+    if (++svc.overspeed_count >= OVERSPEED_TRIP_MS && !svc.is_overcurrent) {
+      BLDC_Trip(BLDC_TRIP_OVERSPEED, 0.0f, svc.iu, svc.iv, -(svc.iu + svc.iv));
+    }
+  } else {
+    svc.overspeed_count = 0;
+  }
+
+  // 制動係数はここ (1kHz) で更新する。モードによらず更新しておく。
   svc.brake_direction = BLDC_BrakeDirection(svc.angular_speed);
 
   // 校正の速度記録・状態遷移 (J/Kt の同定)。DirectIqLoop より前に指令を書き換える
@@ -161,8 +187,10 @@ static void BLDC_OuterLoop(void) {
   svc.target_iq = Constrain(svc.target_iq, -iq_limit, iq_limit);
 }
 
-// 過電流保護の発動。原因調査のため、発動時の状態を記録して止める。
-static void BLDC_Trip(float peak, float iu, float iv, float iw) {
+// 保護の発動 (過電流・過速度)。原因調査のため、発動時の状態を記録して止める。
+// どちらも is_overcurrent でラッチする (解除も同じ BLDC_ClearOvercurrent)。理由は trip.reason。
+static void BLDC_Trip(BLDCTripReason reason, float peak, float iu, float iv, float iw) {
+  svc.trip.reason = reason;
   svc.trip.peak_current = peak;
   svc.trip.iu = iu;
   svc.trip.iv = iv;
@@ -223,7 +251,7 @@ static void BLDC_CurrentLoop(void) {
   // 短絡のような急峻な故障はソフトでは間に合わない。ここで守るのは持続的な過電流。
   if (peak > OVERCURRENT_LIMIT) {
     if (++svc.overcurrent_count >= OVERCURRENT_TRIP_COUNT && !svc.is_overcurrent) {
-      BLDC_Trip(peak, iu, iv, iw);
+      BLDC_Trip(BLDC_TRIP_OVERCURRENT, peak, iu, iv, iw);
     }
   } else {
     svc.overcurrent_count = 0;
@@ -235,6 +263,7 @@ static void BLDC_CurrentLoop(void) {
   // ラッチ表示のまま駆動が続く
   if (!svc.enable || svc.is_overcurrent) {
     BLDC_Coast();
+    if (svc.calib_hook) BLDC_CalibIsr();  // 校正の惰性回転の記録 (出力を切って回す)
     return;
   }
 
@@ -331,6 +360,10 @@ static void BLDC_CurrentLoop(void) {
   float du, dv, dw;
   FOC_SVPWM(v_alpha, v_beta, svc.supply_volt, &du, &dv, &dw);
   BLDC_WritePwm(du, dv, dw);
+#if PROFILE_ISR
+  prof_pwm.start = bldc_prof_irq.start;  // 割り込みの入口から測る
+  Profile_End(&prof_pwm);
+#endif
   BLDC_SetOutputEnable(true);  // コーストから復帰する
 
   if (svc.calib_hook) BLDC_CalibIsr();  // 校正の平均・ビン集計 (この周期の値がそろってから)
@@ -361,6 +394,113 @@ static Profile prof_outer;    // 外側ループ (1kHzのときだけカウン�
 #endif
 
 // ADC1(PWM同期の電流計測)の変換完了割り込み = 20kHz制御ループ本体。ADC2とコールバックを共有する。
+// ---------------------------------------------------------------------------
+// 速度の揺れの調査 (bldc.h の BLDCRippleStats。状態表示が有効なときだけ使われる)
+// ---------------------------------------------------------------------------
+#define RIPPLE_LPF 0.09f        // 1 − exp(−2π·300Hz/20kHz)。揺れを見る帯域 (300Hz まで)
+#define RIPPLE_SLOW 0.001f      // 遅い平均 (時定数 50ms)
+#define RIPPLE_HYST 0.3f        // ゼロ交差のヒステリシス [rad/s]
+static struct {
+  float est_f, volt_f, est_slow, volt_slow;  // LPF の状態
+  uint32_t n;
+  float sum_w, min, max;
+  float s_e, s_ee, s_v, s_vv, s_ev;  // ずれの和と積和
+  float s_t, s_tt, t0;               // Iq 指令 (t0 を引いて桁落ちを防ぐ)
+  int8_t sign;                       // ω̂ のずれの符号 (ヒステリシス付き)
+  uint32_t crossings;
+  float angle;                       // 集計中に回った機械角 [rad]
+  float fc_v[4], fs_v[4], fc_t[4], fs_t[4];  // 次数ごとのフーリエ係数の和 (cos / sin)
+  bool reset;
+} ripple;
+static const uint8_t RIPPLE_ORDER[4] = BLDC_RIPPLE_ORDERS;
+
+static void BLDC_RippleUpdate(void) {
+  if (!svc.enable || !(svc.motor_psi > 0.0f)) return;
+  float w_volt = (svc.vq - svc.motor_r * svc.iq) / (POLE_PAIRS * svc.motor_psi);
+  if (ripple.reset) {
+    ripple.reset = false;
+    ripple.n = 0;
+    ripple.sum_w = ripple.s_e = ripple.s_ee = ripple.s_v = ripple.s_vv = ripple.s_ev = 0.0f;
+    ripple.s_t = ripple.s_tt = 0.0f;
+    ripple.t0 = svc.target_iq;
+    ripple.min = 1e9f;
+    ripple.max = -1e9f;
+    ripple.crossings = 0;
+    ripple.angle = 0.0f;
+    for (uint8_t k = 0; k < 4; k++) ripple.fc_v[k] = ripple.fs_v[k] = ripple.fc_t[k] = ripple.fs_t[k] = 0.0f;
+  }
+  if (ripple.n == 0 && ripple.est_slow == 0.0f) {  // 初回はフィルタを張り付ける
+    ripple.est_f = ripple.est_slow = svc.angular_speed;
+    ripple.volt_f = ripple.volt_slow = w_volt;
+  }
+  ripple.est_f += RIPPLE_LPF * (svc.angular_speed - ripple.est_f);
+  ripple.volt_f += RIPPLE_LPF * (w_volt - ripple.volt_f);
+  ripple.est_slow += RIPPLE_SLOW * (ripple.est_f - ripple.est_slow);
+  ripple.volt_slow += RIPPLE_SLOW * (ripple.volt_f - ripple.volt_slow);
+
+  float de = ripple.est_f - ripple.est_slow;
+  float dv = ripple.volt_f - ripple.volt_slow;
+  float dt = svc.target_iq - ripple.t0;
+  ripple.n++;
+  ripple.sum_w += ripple.est_f;
+  if (ripple.est_f < ripple.min) ripple.min = ripple.est_f;
+  if (ripple.est_f > ripple.max) ripple.max = ripple.est_f;
+  ripple.s_e += de;
+  ripple.s_ee += de * de;
+  ripple.s_v += dv;
+  ripple.s_vv += dv * dv;
+  ripple.s_ev += de * dv;
+  ripple.s_t += dt;
+  ripple.s_tt += dt * dt;
+  if (de > RIPPLE_HYST && ripple.sign <= 0) {
+    if (ripple.sign < 0) ripple.crossings++;
+    ripple.sign = 1;
+  } else if (de < -RIPPLE_HYST && ripple.sign >= 0) {
+    if (ripple.sign > 0) ripple.crossings++;
+    ripple.sign = -1;
+  }
+  ripple.angle += Abs(svc.angular_speed) * CURRENT_LOOP_DT;
+
+  // 機械角に同期した成分。速度の揺れは真の速度 (電圧から) で、指令の揺れは Iq 指令で見る
+  for (uint8_t k = 0; k < 4; k++) {
+    float s, c;
+    FOC_SinCos((float)RIPPLE_ORDER[k] * svc.mech_theta, &s, &c);
+    ripple.fc_v[k] += dv * c;
+    ripple.fs_v[k] += dv * s;
+    ripple.fc_t[k] += dt * c;
+    ripple.fs_t[k] += dt * s;
+  }
+}
+
+void BLDC_GetRippleStats(BLDCRippleStats* st) {
+  // メインループから読むので、集計中の値が混ざっても表示が少しずれるだけ (調査用)
+  float n = (float)(ripple.n ? ripple.n : 1);
+  float me = ripple.s_e / n, mv = ripple.s_v / n, mt = ripple.s_t / n;
+  float ve = ripple.s_ee / n - me * me;
+  float vv = ripple.s_vv / n - mv * mv;
+  float cov = ripple.s_ev / n - me * mv;
+  float vt = ripple.s_tt / n - mt * mt;
+  st->n = ripple.n;
+  st->mean = ripple.sum_w / n;
+  st->min = ripple.min;
+  st->max = ripple.max;
+  st->std_est = FOC_Sqrt(ve > 0.0f ? ve : 0.0f);
+  st->std_volt = FOC_Sqrt(vv > 0.0f ? vv : 0.0f);
+  st->corr = (ve > 0.0f && vv > 0.0f) ? cov / FOC_Sqrt(ve * vv) : 0.0f;
+  st->std_target_iq = FOC_Sqrt(vt > 0.0f ? vt : 0.0f);
+  float revs = ripple.angle / TWO_PI_F;
+  st->cycles_per_rev = (revs > 0.1f) ? 0.5f * (float)ripple.crossings / revs : 0.0f;
+  // 振幅 = 2·√(C² + S²)/n (Iq 指令は t0 を引いているが、一定値は同期成分に効かない)
+  for (uint8_t k = 0; k < 4; k++) {
+    float cv = ripple.fc_v[k] / n, sv = ripple.fs_v[k] / n;
+    float ct = ripple.fc_t[k] / n, stt = ripple.fs_t[k] / n;
+    st->amp_volt[k] = 2.0f * FOC_Sqrt(cv * cv + sv * sv);
+    st->amp_iq[k] = 2.0f * FOC_Sqrt(ct * ct + stt * stt);
+  }
+}
+
+void BLDC_ResetRippleStats(void) { ripple.reset = true; }
+
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
   if (hadc->Instance != ADC1) return;
 
@@ -376,6 +516,17 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
   BLDC_UpdateEncoder(svc.encoder_raw);
   PROF2_END(prof_encoder);
 
+  // 電流ループ (デューティの書き込み) を先に済ませる。期限 (ISR_DEADLINE_US) があるのは
+  // CCR の書き込みまでなので、外側ループ (1ms に1回だけ重い) はその後に回す。
+  // Iq 指令の反映は次の周期 (50µs 後) からになるが、外側ループの周期 1ms に比べて無視できる
+  PROF2_BEGIN(prof_current);
+  BLDC_CurrentLoop();
+  PROF2_END(prof_current);
+
+  // 速度の揺れの調査 (デューティを書いた後なので期限には効かない)。
+  // STATUS_PRINT_INTERVAL_S は小数なので #if にできない。定数の条件なので無効ならコードごと消える
+  if (STATUS_PRINT_INTERVAL_S > 0) BLDC_RippleUpdate();
+
   if (++outer_cnt >= OUTER_LOOP_DIV) {
     outer_cnt = 0;
     PROF2_BEGIN(prof_outer);
@@ -385,10 +536,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     // トルク・制動・停止は分周せず毎周期反映する
     BLDC_DirectIqLoop(svc.iq_limit);
   }
-
-  PROF2_BEGIN(prof_current);
-  BLDC_CurrentLoop();
-  PROF2_END(prof_current);
 
 #if PROFILE_ISR
   Profile_End(&prof_callback);
@@ -401,6 +548,7 @@ void BLDC_ResetIsrProfile(void) {
   ProfileResult dummy;
   Profile_Snapshot(&bldc_prof_irq, &dummy, true);
   Profile_Snapshot(&prof_callback, &dummy, true);
+  Profile_Snapshot(&prof_pwm, &dummy, true);
   ProfilePeriod_Snapshot(&bldc_prof_period, &dummy, true);
 #if PROFILE_ISR >= 2
   Profile_Snapshot(&prof_encoder, &dummy, true);
@@ -415,27 +563,31 @@ void BLDC_ResetIsrProfile(void) {
 //   rate : 実測の割り込み頻度。20.0kHz でなければ異常
 //   cb   : コールバック本体。irq - cb がHALのディスパッチ分
 //   周期 : 50µs から外れていたらADCトリガか優先度を疑う
+//   PWM  : 割り込みの入口からデューティを書き込むまでの平均/最大。期限と比べるのはこれ
+//          (出力停止中は書き込まないので数えない)
 void BLDC_PrintIsrProfile(float elapsed_s) {
-  ProfileResult irq, cb, period;
+  ProfileResult irq, cb, period, pwm;
   Profile_Snapshot(&bldc_prof_irq, &irq, true);
   Profile_Snapshot(&prof_callback, &cb, true);
+  Profile_Snapshot(&prof_pwm, &pwm, true);
   ProfilePeriod_Snapshot(&bldc_prof_period, &period, true);
 
-  printf("[PROF] irq %5.2f/%5.2fus  CPU %4.1f%%  rate %5.2fkHz  cb %5.2fus  周期 %5.2f-%5.2fus\n",
-         (double)Profile_CyclesToUs(irq.mean), (double)Profile_CyclesToUs((float)irq.max),
-         (double)Profile_CpuPercent(irq.total, elapsed_s),
-         (double)(Profile_RateHz(irq.count, elapsed_s) * 0.001f),
-         (double)Profile_CyclesToUs(cb.mean),
-         (double)Profile_CyclesToUs((float)period.min),
-         (double)Profile_CyclesToUs((float)period.max));
+  printf("[PROF] irq %5s/%5sus  CPU %4s%%  rate %5skHz  cb %5sus  周期 %5s-%5sus\n",
+         FixFmt(Profile_CyclesToUs(irq.mean), 2), FixFmt(Profile_CyclesToUs((float)irq.max), 2),
+         FixFmt(Profile_CpuPercent(irq.total, elapsed_s), 1),
+         FixFmt(Profile_RateHz(irq.count, elapsed_s) * 0.001f, 2),
+         FixFmt(Profile_CyclesToUs(cb.mean), 2), FixFmt(Profile_CyclesToUs((float)period.min), 2),
+         FixFmt(Profile_CyclesToUs((float)period.max), 2));
 
   // デューティ書き込みの期限 (config.h の ISR_DEADLINE_US)。超えると電流サンプリング点がずれる
-  float irq_max_us = Profile_CyclesToUs((float)irq.max);
-  if (irq_max_us > ISR_DEADLINE_US) {
+  float pwm_max_us = Profile_CyclesToUs((float)pwm.max);
+  printf("       PWM書込 %s/%sus (期限 %sus)\n", FixFmt(Profile_CyclesToUs(pwm.mean), 2),
+         FixFmt(pwm_max_us, 2), FixFmt(ISR_DEADLINE_US, 1));
+  if (pwm_max_us > ISR_DEADLINE_US) {
     printf(
-        "       警告 割り込みが期限 %.1fus を超えた (最大 %.2fus)。"
-        "デューティの反映が1周期ずれる恐れがある\n",
-        (double)ISR_DEADLINE_US, (double)irq_max_us);
+        "       警告 デューティの書き込みが期限 %sus を超えた (最大 %sus)。"
+        "反映が1周期ずれる恐れがある\n",
+        FixFmt(ISR_DEADLINE_US, 1), FixFmt(pwm_max_us, 2));
   }
 
 #if PROFILE_ISR >= 2
@@ -444,11 +596,10 @@ void BLDC_PrintIsrProfile(float elapsed_s) {
   Profile_Snapshot(&prof_current, &cur, true);
   Profile_Snapshot(&prof_outer, &out, true);
 
-  printf("       内訳: PLL %4.2fus  電流ループ %4.2f/%4.2fus  外側 %4.2fus (%4.2fkHz)\n",
-         (double)Profile_CyclesToUs(enc.mean),
-         (double)Profile_CyclesToUs(cur.mean), (double)Profile_CyclesToUs((float)cur.max),
-         (double)Profile_CyclesToUs(out.mean),
-         (double)(Profile_RateHz(out.count, elapsed_s) * 0.001f));
+  printf("       内訳: PLL %4sus  電流ループ %4s/%4sus  外側 %4sus (%4skHz)\n",
+         FixFmt(Profile_CyclesToUs(enc.mean), 2), FixFmt(Profile_CyclesToUs(cur.mean), 2),
+         FixFmt(Profile_CyclesToUs((float)cur.max), 2), FixFmt(Profile_CyclesToUs(out.mean), 2),
+         FixFmt(Profile_RateHz(out.count, elapsed_s) * 0.001f, 2));
 #endif
 }
 #endif  // PROFILE_ISR
@@ -504,8 +655,8 @@ static void BLDC_InitProfiler(void) {
     return;
   }
   uint32_t ov = Profile_MeasureOverhead();
-  printf("BLDC: プロファイル有効 (PROFILE_ISR=%d) 計測オーバーヘッド %lu cycle/区間 (%.3fus)\n",
-         PROFILE_ISR, (unsigned long)ov, (double)Profile_CyclesToUs((float)ov));
+  printf("BLDC: プロファイル有効 (PROFILE_ISR=%d) 計測オーバーヘッド %lu cycle/区間 (%sus)\n",
+         PROFILE_ISR, (unsigned long)ov, FixFmt(Profile_CyclesToUs((float)ov), 3));
 }
 #endif
 
@@ -533,10 +684,12 @@ static void BLDC_CalibrateCurrentZero(void) {
   }
 }
 
-void BLDC_Init(bool do_calibrate, volatile uint16_t* encoder_buf, float supply_volt) {
+void BLDC_Init(bool do_calibrate, volatile uint16_t* encoder_buf, volatile uint16_t* supply_raw,
+               float supply_volt) {
   printf("BLDC_Init\n");
 
   svc.encoder_buf = encoder_buf;
+  svc.supply_raw = supply_raw;
   svc.mode = BLDC_MODE_STOP;
   svc.enable = false;
   // 母線電圧は最初に確定させる。暫定値のまま校正すると、電圧の水増しで ψm だけが
@@ -567,7 +720,7 @@ void BLDC_Init(bool do_calibrate, volatile uint16_t* encoder_buf, float supply_v
   // 制御ループを回す前に機械角を実測値で確定させる
   svc.encoder_primed = false;
   BLDC_UpdateEncoder(BLDC_ReadEncoderRaw());
-  printf("BLDC: mech_theta = %.3f rad で開始\n", svc.mech_theta);
+  printf("BLDC: mech_theta = %s rad で開始\n", FixFmt(svc.mech_theta, 3));
 
   // 指令が来るまで出力を切る (ゼロ点校正が終わってから)
   BLDC_SetOutputEnable(false);
@@ -589,8 +742,8 @@ void BLDC_Init(bool do_calibrate, volatile uint16_t* encoder_buf, float supply_v
     }
   }
 
-  printf("Kt: %.5f N・m/A, 最大トルク: %.4f N・m\n", (double)BLDC_GetTorqueConstant(),
-         (double)BLDC_GetMaxTorqueNm());
+  printf("Kt: %s N・m/A, 最大トルク: %s N・m\n", FixFmt(BLDC_GetTorqueConstant(), 5),
+         FixFmt(BLDC_GetMaxTorqueNm(), 4));
 
   // 校正が一時的に開けた制限値を閉じ、上位から制限値を受け取るまで動かないようにする
   BLDC_SetLimits(0.0f);
@@ -678,6 +831,9 @@ void BLDC_BrakeControlNm(float brake_torque_nm) {
 
 float BLDC_GetMechTheta(void) { return svc.mech_theta; }
 
+void BLDC_SetEncoderLutEnabled(bool on) { svc.encoder_lut_off = !on; }
+
+
 // 割り込み内では正規化していないので、表示・送信用にここで 0〜2π に畳む
 float BLDC_GetElecTheta(void) { return FOC_NormalizeRadians(svc.elec_theta); }
 float BLDC_GetAngularSpeed(void) { return svc.angular_speed; }
@@ -695,6 +851,7 @@ void BLDC_GetTripInfo(BLDCTripInfo* info) { *info = svc.trip; }
 
 void BLDC_ClearOvercurrent(void) {
   svc.overcurrent_count = 0;
+  svc.overspeed_count = 0;
   svc.is_overcurrent = false;
 }
 
@@ -711,4 +868,6 @@ void BLDC_ResetEncoderStats(void) {
   svc.saturated_total = 0;
   svc.glitch_total = 0;
   svc.max_innovation = 0.0f;
+  svc.max_innovation_raw = 0.0f;
+  svc.max_innovation_after_sat = 0;
 }

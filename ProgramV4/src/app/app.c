@@ -4,7 +4,7 @@
 
 // LED1/LED2 (青): 起動の進捗 → 運転中は負荷(Iq)のバーグラフ
 // LED3 (緑): 初期化完了と、コマンド受信中の点灯
-// LED4 (赤): 異常。点滅回数で種別 (1回:過熱 2回:電圧異常 3回:過電流)
+// LED4 (赤): 異常。点滅回数で種別 (1回:過熱 2回:電圧異常 3回:過電流 4回:過速度)
 static PwmOut LED1;
 static PwmOut LED2;
 static PwmOut LED3;
@@ -14,6 +14,7 @@ static DigitalIn SW;
 #define ERROR_BLINK_OVERHEAT 1
 #define ERROR_BLINK_VOLTAGE 2
 #define ERROR_BLINK_OVERCURRENT 3
+#define ERROR_BLINK_OVERSPEED 4
 
 static Timer serial_send_timer;
 static Timer serial_recv_timer;
@@ -105,13 +106,13 @@ void Setup(void) {
   printf("ADC_DMA start\n");
   PwmOut_Write(&LED1, 0);
 
-  supply_volt = adc_val[SENSOR_ADC_SUPPLY_VOLT] * ADC2VOLT * 10.0f;
+  supply_volt = adc_val[SENSOR_ADC_SUPPLY_VOLT] * ADC2VOLT * SUPPLY_VOLT_DIVIDER;
   LPF_Init(&supply_volt_lpf, 0.9, supply_volt);
   LPF_Init(&temp_lpf, 0.99, 30);
 
   // PWM出力・電流センシング・20kHz制御ループが立ち上がる。スイッチ押下で起動すると校正を行う。
   // 校正中の電圧換算に使うので、実測の母線電圧を渡す。
-  BLDC_Init(DigitalIn_Read(&SW), &adc_val[0], supply_volt);
+  BLDC_Init(DigitalIn_Read(&SW), &adc_val[0], &adc_val[SENSOR_ADC_SUPPLY_VOLT], supply_volt);
   PwmOut_Write(&LED2, 0);
 
   Serial_Init(&uart2, &huart2, 256);
@@ -145,19 +146,39 @@ static void PrintStatus(void) {
   // Vd は電気角が合っているかの指標。合っていれば Vd ≈ −ω_e·L·Iq でほぼ0、
   // δ ずれていると Vd ≈ −ω_e·ψm·sin δ が現れる。
   printf(
-      "Iq:%+6.2f/%+6.2fA  Id:%+6.2fA  Vd:%+5.2fV  Vq:%+5.2f(FF%+5.2f)/%5.2fV"
-      "  peak:%5.2fA  %6.1frad/s"
-      "  sat:%4lu glt:%4lu emax:%.4frad  %4.1fV %2dC"
-      "  lim:%.3fN・m  crcerr:%lu mode?:%lu\n",
-      BLDC_GetIq(), BLDC_GetTargetIq(), BLDC_GetId(), BLDC_GetVd(),
-      BLDC_GetVq(), BLDC_GetVqFF(), supply_volt * MAX_MODULATION_RATIO,
-      BLDC_GetPeakCurrent(), BLDC_GetAngularSpeed(),
-      (unsigned long)enc.saturated, (unsigned long)enc.glitch, enc.max_innovation,
-      supply_volt, (int)temp,
-      (double)(applied_torque_limit * SERIAL_TORQUE_LIMIT_SCALE),
+      "Iq:%6s/%6sA  Id:%6sA  Vd:%5sV  Vq:%5s(FF%5s)/%5sV"
+      "  peak:%5sA  %6srad/s"
+      "  sat:%4lu glt:%4lu emax:%srad  %4sV %2dC"
+      "  lim:%sN・m  crcerr:%lu mode?:%lu\n",
+      FixFmtSigned(BLDC_GetIq(), 2), FixFmtSigned(BLDC_GetTargetIq(), 2),
+      FixFmtSigned(BLDC_GetId(), 2), FixFmtSigned(BLDC_GetVd(), 2),
+      FixFmtSigned(BLDC_GetVq(), 2), FixFmtSigned(BLDC_GetVqFF(), 2),
+      FixFmt(supply_volt * MAX_MODULATION_RATIO, 2), FixFmt(BLDC_GetPeakCurrent(), 2),
+      FixFmt(BLDC_GetAngularSpeed(), 1),
+      (unsigned long)enc.saturated, (unsigned long)enc.glitch, FixFmt(enc.max_innovation, 4),
+      FixFmt(supply_volt, 1), (int)temp,
+      FixFmt(applied_torque_limit * SERIAL_TORQUE_LIMIT_SCALE, 3),
       (unsigned long)rx_crc_error_count, (unsigned long)rx_unknown_mode_count);
+  // 速度の揺れ (bldc.h の BLDCRippleStats)。回っているときだけ
+  BLDCRippleStats rp;
+  BLDC_GetRippleStats(&rp);
+  if (rp.n > 1000 && Abs(rp.mean) > 1.0f) {
+    printf("   ω̂ 平均%s [%s〜%s] σ%s (%s回/周)  電圧から σ%s  相関%s  Iq指令 σ%sA\n",
+           FixFmt(rp.mean, 1), FixFmt(rp.min, 1), FixFmt(rp.max, 1), FixFmt(rp.std_est, 2),
+           FixFmt(rp.cycles_per_rev, 1), FixFmt(rp.std_volt, 2), FixFmtSigned(rp.corr, 2),
+           FixFmt(rp.std_target_iq, 2));
+    // 機械角に同期した成分 (1周あたりの回数ごと): 速度の揺れ [rad/s] / Iq 指令の揺れ [A]
+    static const uint8_t ORDERS[4] = BLDC_RIPPLE_ORDERS;
+    printf("   成分 速度/Iq指令:");
+    for (uint8_t k = 0; k < 4; k++) {
+      printf("  %u回/周 %s/%s", ORDERS[k], FixFmt(rp.amp_volt[k], 2), FixFmt(rp.amp_iq[k], 3));
+    }
+    printf("\n");
+  }
+
   BLDC_ResetPeakCurrent();   // peak, sat/glt/emax は表示区間ごとの値
   BLDC_ResetEncoderStats();
+  BLDC_ResetRippleStats();
 }
 
 // 20kHz制御ループの実行時間を定期表示する (PROFILE_ISR / PROFILE_PRINT_INTERVAL_S = 0 で削除)
@@ -177,8 +198,8 @@ static void PrintProfile(void) {
 // センサ
 // ---------------------------------------------------------------------------
 static void GetSensors(void) {
-  // 電源電圧の変換(分圧で1/10にしている)
-  supply_volt = adc_val[SENSOR_ADC_SUPPLY_VOLT] * ADC2VOLT * 10.0f;
+  // 電源電圧の変換 (分圧比は config.h の SUPPLY_VOLT_DIVIDER)
+  supply_volt = adc_val[SENSOR_ADC_SUPPLY_VOLT] * ADC2VOLT * SUPPLY_VOLT_DIVIDER;
   supply_volt = LPF_Update(&supply_volt_lpf, supply_volt);
   BLDC_SetSupplyVolt(supply_volt);
 
@@ -401,14 +422,21 @@ static void LatchFault(bool* latched, bool recovered, uint8_t blink_count) {
 static void ReportOvercurrentTrip(void) {
   BLDCTripInfo t;
   BLDC_GetTripInfo(&t);
-  printf("=== Overcurrent (limit %.1fA) ===\n", (double)OVERCURRENT_LIMIT);
-  printf("  peak:%.2fA  Iu:%+.2f Iv:%+.2f Iw:%+.2f A\n", t.peak_current, t.iu, t.iv, t.iw);
+  if (t.reason == BLDC_TRIP_OVERSPEED) {
+    printf("=== Overspeed (limit %s rad/s) ===\n",
+           FixFmt(MAX_ANGULAR_SPEED * OVERSPEED_LIMIT_RATIO, 0));
+  } else {
+    printf("=== Overcurrent (limit %sA) ===\n", FixFmt(OVERCURRENT_LIMIT, 1));
+  }
+  printf("  peak:%sA  Iu:%s Iv:%s Iw:%s A\n", FixFmt(t.peak_current, 2), FixFmtSigned(t.iu, 2),
+         FixFmtSigned(t.iv, 2), FixFmtSigned(t.iw, 2));
   printf("  raw  U:%4u V:%4u  (中点%u)\n", t.raw_u, t.raw_v, (unsigned)CURRENT_REF_ADC);
-  printf("  Id:%+.2f Iq:%+.2f A  (指令 Iq:%+.2f A)\n", t.id, t.iq, t.target_iq);
-  printf("  Vd:%+.2f Vq:%+.2f V  (上限%.2f V)\n", t.vd, t.vq,
-         supply_volt * MAX_MODULATION_RATIO);
-  printf("  theta:%.3f rad  speed:%.1f rad/s  Vdc:%.2f V\n",
-         t.mech_theta, t.angular_speed, supply_volt);
+  printf("  Id:%s Iq:%s A  (指令 Iq:%s A)\n", FixFmtSigned(t.id, 2), FixFmtSigned(t.iq, 2),
+         FixFmtSigned(t.target_iq, 2));
+  printf("  Vd:%s Vq:%s V  (上限%s V)\n", FixFmtSigned(t.vd, 2), FixFmtSigned(t.vq, 2),
+         FixFmt(supply_volt * MAX_MODULATION_RATIO, 2));
+  printf("  theta:%s rad  speed:%s rad/s  Vdc:%s V\n", FixFmt(t.mech_theta, 3),
+         FixFmt(t.angular_speed, 1), FixFmt(supply_volt, 2));
 }
 
 // 過電流ラッチ。スイッチを押すまで解除しない。
@@ -421,7 +449,9 @@ static void HandleOvercurrent(void) {
     trip_reported = true;
     ReportOvercurrentTrip();
   }
-  BlinkError(ERROR_BLINK_OVERCURRENT);
+  BLDCTripInfo t;
+  BLDC_GetTripInfo(&t);
+  BlinkError(t.reason == BLDC_TRIP_OVERSPEED ? ERROR_BLINK_OVERSPEED : ERROR_BLINK_OVERCURRENT);
 
   if (sw_state) {  // スイッチを押すと復帰 (受信のやり直しは MainApp の復帰処理で行う)
     trip_reported = false;
@@ -435,7 +465,8 @@ static void HandleOvercurrent(void) {
 static bool HandleFaults(void) {
   if (temp > TEMP_LIMIT || is_overheat) {
     if (FaultPrintDue()) {
-      printf("Overheat! Temperature: %.2f°C, Supply Voltage: %.2fV\n", temp, supply_volt);
+      printf("Overheat! Temperature: %s°C, Supply Voltage: %sV\n", FixFmt(temp, 2),
+             FixFmt(supply_volt, 2));
     }
     is_overheat = true;
     LatchFault(&is_overheat, temp < (TEMP_LIMIT - 5), ERROR_BLINK_OVERHEAT);
@@ -458,7 +489,8 @@ static bool HandleFaults(void) {
 
   if (is_voltage_out_of_range) {
     if (FaultPrintDue()) {
-      printf("Supply voltage out of range: %.2fV, Temperature: %.2f°C\n", supply_volt, temp);
+      printf("Supply voltage out of range: %sV, Temperature: %s°C\n", FixFmt(supply_volt, 2),
+             FixFmt(temp, 2));
     }
     LatchFault(&is_voltage_out_of_range,
                supply_volt > (SUPPLY_VOLTAGE_MIN_LIMIT + SUPPLY_VOLTAGE_RECOVER_HYST) &&
@@ -485,6 +517,39 @@ static void UpdateLoadLeds(void) {
   PwmOut_Write(&LED1, iq_ratio * 2.0f);
   PwmOut_Write(&LED2, iq_ratio * 2.0f - 1.0f);
 }
+
+#if SELF_TEST_RUN
+// 上位なしで決まった速度の順に回す (config.h の SELF_TEST_RUN。一時的な試験用)
+static void SelfTestRun(void) {
+  static const struct {
+    uint32_t until_ms;  // この区間の終わり (周期の先頭からの時間)
+    float speed;        // [rad/s]。0 は停止
+    bool lut;           // エンコーダ補正テーブル
+  } PLAN[] = {{3000, 0.0f, true},     {11000, 10.0f, true},   {19000, 10.0f, false},
+              {27000, 30.0f, true},   {35000, 30.0f, false},  {43000, 120.0f, true},
+              {51000, 120.0f, false}, {55000, 0.0f, true}};
+  static uint32_t start_ms;
+  static int8_t last = -1;
+  if (last < 0) start_ms = HAL_GetTick();
+
+  uint32_t t = (HAL_GetTick() - start_ms) % PLAN[sizeof(PLAN) / sizeof(PLAN[0]) - 1].until_ms;
+  int8_t i = 0;
+  while (t >= PLAN[i].until_ms) i++;
+  if (i != last) {
+    last = i;
+    printf("[SELF] %d rad/s  補正テーブル%s\n", (int)PLAN[i].speed, PLAN[i].lut ? "あり" : "なし");
+    BLDC_SetEncoderLutEnabled(PLAN[i].lut);
+  }
+
+  if (!BLDC_IsCalibrated() || PLAN[i].speed == 0.0f) {
+    BLDC_SetLimits(0.0f);
+    BLDC_Stop();
+    return;
+  }
+  BLDC_SetLimits(SELF_TEST_TORQUE_NM);
+  BLDC_AngularSpeedControl(PLAN[i].speed);
+}
+#endif
 
 void MainApp(void) {
   // ブロッキングする初期化・校正 (Setup) がすべて終わってから起動する
@@ -514,6 +579,10 @@ void MainApp(void) {
       RestartReceive();
     }
 
+#if SELF_TEST_RUN
+    (void)RecvSerial;  // 試験中は受信しない (未使用警告を消すだけ)
+    SelfTestRun();
+#else
     RecvSerial();
 
     if (active_command != NULL) {
@@ -521,6 +590,7 @@ void MainApp(void) {
     } else {
       BLDC_Stop();
     }
+#endif
 
     UpdateLoadLeds();
   }

@@ -42,8 +42,11 @@ typedef enum {
 // フラッシュに保存する校正値。スイッチ校正が**全部成功したときだけ**1回で書く。
 // 項目を追加/変更したら BLDC_FLASH_MAGIC も変えること (旧データを新フォーマットで読むと誤動作する)。
 // BLD3 で電気的パラメータ、BLD4 で慣性 J、BLD5 で補正テーブル・回転方向・J/Kt・摩擦・電流帯域を追加し、
-// 既定値を廃止した (未校正なら駆動しない)。
-#define BLDC_FLASH_MAGIC 0x424C4435UL  // "BLD5"
+// 既定値を廃止した (未校正なら駆動しない)。BLD6 でコギング補償の表を追加し、BLD7 で外した
+// (中速の振動には効かず、高速では悪化したため。BLD5 と同じ並びだが、BLD6 と区別するため番号を進めた)。
+// BLD8 は並びは同じで、補正テーブルを惰性回転で作るように変えた (旧テーブルは強制転流による偽の
+// 14回/周の誤差を含むので読ませない)。
+#define BLDC_FLASH_MAGIC 0x424C4438UL  // "BLD8"
 
 typedef struct {
   uint32_t magic;              // BLDC_FLASH_MAGIC。フォーマット判定用
@@ -64,8 +67,14 @@ typedef struct {
   uint32_t checksum;           // 上の全ワードの和 (補正テーブルは範囲検査できないため)
 } BLDCFlashData;
 
-// 過電流保護が働いた瞬間の状態。原因の切り分けに使う。
+// 保護 (過電流・過速度) が働いた瞬間の状態。原因の切り分けに使う。
+typedef enum {
+  BLDC_TRIP_OVERCURRENT = 0,
+  BLDC_TRIP_OVERSPEED,
+} BLDCTripReason;
+
 typedef struct {
+  BLDCTripReason reason;  // どの保護が働いたか
   float peak_current;   // 検出した相電流のピーク [A]
   float iu, iv, iw;     // そのときの相電流 [A]
   float id, iq;         // dq軸電流 [A]
@@ -91,8 +100,11 @@ typedef struct {
 // encoder_buf は ADC2 の DMA が非同期に書き換えるバッファの先頭 (エンコーダ ENCODER_ADC_SAMPLES 個)。
 // supply_volt は実測した母線電圧を渡すこと。SVPWM の電圧→デューティ変換に使うので、
 // 実際と違うと指令電圧と実電圧の比がずれ、校正で測るモータ定数も狂う。
+// supply_raw は母線電圧の ADC 値 (同じく DMA が更新)。校正中はメインループが止まっていて
+// BLDC_SetSupplyVolt が呼ばれないので、校正がこれを直接読んで電圧の変化に追従する。
 // do_calibrate が真ならスイッチ校正 (config.h) を行い、成功すればフラッシュに保存する。
-void BLDC_Init(bool do_calibrate, volatile uint16_t* encoder_buf, float supply_volt);
+void BLDC_Init(bool do_calibrate, volatile uint16_t* encoder_buf, volatile uint16_t* supply_raw,
+               float supply_volt);
 
 void BLDC_SetSupplyVolt(float supply_volt);
 
@@ -120,6 +132,10 @@ void BLDC_BrakeControlNm(float brake_torque_nm);            // 制動トルク�
 
 // トルク定数 Kt = 1.5 × POLE_PAIRS × ψm [N・m/A] (ψm は校正値、磁気飽和なしの近似)
 float BLDC_GetTorqueConstant(void);
+
+// エンコーダ補正テーブルの一時的な有効/無効 (試験・比較用。起動時は有効)。
+// 無効にすると線形の写像 (レール間を等分) とオフセットだけで角度を出す
+void BLDC_SetEncoderLutEnabled(bool on);
 
 // 状態の取得
 float BLDC_GetMechTheta(void);     // 機械角 [rad]
@@ -153,6 +169,33 @@ typedef struct {
 // 0.05rad を超えるなら補正テーブル・盲点幅の精度不足。
 void BLDC_GetEncoderStats(BLDCEncoderStats* stats);
 void BLDC_ResetEncoderStats(void);
+
+// 速度の揺れの調査 (STATUS_PRINT_INTERVAL_S > 0 のときだけ集計する)。
+// エンコーダから推定した速度 ω̂ と、電圧から求めた速度 ω_v = (Vq − R·Iq)/(P·ψm) を同じ LPF (300Hz) に
+// 通し、それぞれの遅い平均 (時定数 50ms) からのずれを集計する。ω_v は角度推定に頼らないので、
+//   実際に速度が揺れている → 両方が同じように揺れ、相関が高い
+//   推定だけが揺れている (角度の細かい誤差) → ω_v はあまり揺れず、相関が低い
+// 揺れの回数 (ヒステリシス付きのゼロ交差) から「1周あたり何回」も出す。
+typedef struct {
+  uint32_t n;             // サンプル数 (20kHz)
+  float mean;             // ω̂ の平均 [rad/s]
+  float min, max;         // ω̂ (LPF後) の最小・最大 [rad/s]
+  float std_est;          // ω̂ のゆらぎの標準偏差 [rad/s]
+  float std_volt;         // ω_v のゆらぎの標準偏差 [rad/s]
+  float corr;             // 両者の相関係数 (−1〜1)
+  float cycles_per_rev;   // ω̂ の揺れの回数 / 回転数
+  float std_target_iq;    // Iq 指令の標準偏差 [A]
+  // 機械角に同期した成分の振幅 (フーリエ係数)。次数は BLDC_RIPPLE_ORDERS (1周あたりの回数)
+  float amp_volt[4];      // 電圧から求めた速度の揺れ [rad/s]
+  float amp_iq[4];        // Iq 指令の揺れ [A]
+} BLDCRippleStats;
+
+// 調べる次数: 1 = 機械的な偏り (偏心・負荷)、7 = 電気角1倍 (電流オフセット)、
+// 14 = 電気角2倍 (相の抵抗・電流センサ倍率の偏り)、42 = 電気角6倍 (デッドタイム・逆起電力の歪み)
+#define BLDC_RIPPLE_ORDERS {1, POLE_PAIRS, 2 * POLE_PAIRS, 6 * POLE_PAIRS}
+
+void BLDC_GetRippleStats(BLDCRippleStats* stats);  // 前回のリセットからの集計
+void BLDC_ResetRippleStats(void);
 
 // 20kHz制御ループの実行時間プロファイル (config.h の PROFILE_ISR で有効化)
 #if PROFILE_ISR

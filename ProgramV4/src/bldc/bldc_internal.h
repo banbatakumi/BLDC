@@ -22,6 +22,7 @@ extern int16_t bldc_capture[BLDC_CAPTURE_SAMPLES];
 typedef struct {
   // --- エンコーダ (校正値はフラッシュ) ---
   volatile uint16_t* encoder_buf;  // ADC2のDMAが更新するエンコーダの生値 (ENCODER_ADC_SAMPLES 個)
+  volatile uint16_t* supply_raw;   // 母線電圧の ADC 値 (校正中の追従用)
   float encoder_raw;               // 制御周期ごとの平均値 [LSB] (小数部も有効)
   uint16_t max_encoder_val;        // 上側レール [LSB]
   uint16_t min_encoder_val;        // 下側レール [LSB]
@@ -31,6 +32,7 @@ typedef struct {
   float encoder_scale;             // (2π - 盲点) / (max - min)。事前計算して割り算を避ける
   float encoder_offset_theta;      // 電気角0に対する機械角のオフセット [rad]
   int16_t encoder_lut[ENCODER_LUT_SIZE];  // 角度の補正テーブル (calib_math.h)
+  volatile bool encoder_lut_off;          // 試験用: 真なら補正テーブルを使わない (線形の写像だけ)
 
   // --- モータ定数 (スイッチ校正の実測値。既定値は持たない) ---
   float motor_r;           // 相抵抗 [Ω]
@@ -49,6 +51,9 @@ typedef struct {
   uint32_t saturated_total;       // 飽和で棄却した総数     (調査用)
   uint32_t glitch_total;          // グリッチで棄却した総数 (調査用)
   float max_innovation;           // 採用したイノベーションのピーク [rad] (調査用)
+  float max_innovation_raw;       // そのときの生のADC値 [LSB] (継ぎ目の近くかどうかの調査用)
+  uint16_t max_innovation_after_sat;  // そのとき、最後の飽和サンプルから何サンプル目だったか
+  uint16_t since_saturated;       // 最後の飽和サンプルからのサンプル数 (上限で止まる)
 
   // --- 指令 ---
   volatile BLDCMode mode;
@@ -93,6 +98,7 @@ typedef struct {
 
   bool is_overcurrent;
   uint16_t overcurrent_count;  // 連続してしきい値を超えた回数
+  uint16_t overspeed_count;    // 過速度が続いた時間 [ms] (外側ループで数える)
   BLDCTripInfo trip;           // 保護が働いた瞬間の状態
   float peak_current;          // 相電流ピークの記録 [A]
 
@@ -159,8 +165,10 @@ static inline float BLDC_EncoderLinear(float raw) {
 // θ_meas は線形写像のあと補正テーブルで磁石偏心・INL を取り除いた値。
 static inline void BLDC_UpdateEncoder(float raw) {
   float theta_lin = BLDC_EncoderLinear(raw);
-  float theta_meas = theta_lin - svc.encoder_offset_theta -
-                     CalibMath_LutCorrection(svc.encoder_lut, ENCODER_LUT_SIZE, theta_lin);
+  float theta_meas = theta_lin - svc.encoder_offset_theta;
+  if (!svc.encoder_lut_off) {
+    theta_meas -= CalibMath_LutCorrection(svc.encoder_lut, ENCODER_LUT_SIZE, theta_lin);
+  }
   theta_meas = FOC_NormalizeRadians(theta_meas);
 
   // 初回は推定値を実測値に張り付ける (しないと 0 から実角度まで電気角が何回転もして破綻する)
@@ -178,8 +186,16 @@ static inline void BLDC_UpdateEncoder(float raw) {
 
   // --- 観測値の妥当性チェック (棄却したサンプルは ω̂ の外挿だけで進む) ---
   // 「観測できない」と「推定がずれている」は区別すること (config.h 参照)。
-  if (BLDC_IsEncoderSaturated(raw)) {
-    // (a) 飽和: 角度情報が無いと生のADC値から確実に分かるので、長めに外挿してよい
+  const bool saturated = BLDC_IsEncoderSaturated(raw);
+  if (saturated) {
+    svc.since_saturated = 0;
+  } else if (svc.since_saturated < 0xFFFFu) {
+    svc.since_saturated++;
+  }
+
+  if (saturated || svc.since_saturated <= ENCODER_SAT_HOLDOFF_SAMPLES) {
+    // (a) 飽和とその直後: 角度情報が無い/当てにならないと生のADC値から確実に分かるので、長めに外挿してよい
+    //     (直後は出力がレール間を移る途中の値。config.h の ENCODER_SAT_HOLDOFF_SAMPLES)
     if (svc.encoder_reject_count < ENCODER_REJECT_MAX) {
       svc.encoder_reject_count++;
       svc.saturated_total++;
@@ -212,7 +228,12 @@ static inline void BLDC_UpdateEncoder(float raw) {
 
   // 採用したイノベーションのピーク (継ぎ目の段差の大きさ = 校正の善し悪し)
   float abs_e = Abs(e);
-  if (abs_e > svc.max_innovation) svc.max_innovation = abs_e;
+  // 継ぎ目の直後か (飽和からのサンプル数) と生値も残す: emax が AS5600 の出力の遷移中の値によるものかの調査用
+  if (abs_e > svc.max_innovation) {
+    svc.max_innovation = abs_e;
+    svc.max_innovation_raw = raw;
+    svc.max_innovation_after_sat = svc.since_saturated;
+  }
 }
 
 // エンコーダのレンジからラジアン変換係数を作り直す。max/min/盲点幅を変えたら必ず呼ぶこと。
