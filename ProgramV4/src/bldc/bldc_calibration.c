@@ -17,9 +17,16 @@
 // 全体で約40秒 (1分以内に収める。延ばしても結果が変わらなかった測定は削った)。
 
 #define CALIB_CURRENT (CALIB_CURRENT_RATIO * MAX_CURRENT)  // 校正に流す電流 [A]
+// エンコーダ校正 (強制転流) の電流 [A]。保持を強くして、負荷の摩擦とコギングによるロータの遅れ・ずれを小さくする
+// (タイヤ付きでは 3A で電気角 24° 遅れた)。流すのは約6.5秒なので発熱は問題にならない
+#define ENC_CURRENT (2.0f * CALIB_CURRENT)
 #define ELEC_PER_REV (TWO_PI_F * POLE_PAIRS)               // 機械角1周ぶんの電気角 [rad]
 #define ENC_SWEEP_S 2.0f        // エンコーダ校正で機械角1周にかける時間 [s]
 #define ENC_HIST 64             // レール探しのヒストグラムの幅 [LSB]
+// エンコーダ校正でロータが強制角から遅れる量 (正逆差の半分) の電気角での上限 [rad]。
+// 保持トルクは sin(遅れ) に比例するので、遅れは「摩擦 ÷ 保持トルク」の目安になる。45° (摩擦が保持トルクの7割) を
+// 超えるとコギングで滑りうるので失敗にする。遅れ自体は正逆の平均で打ち消すので、オフセットの精度にはほとんど効かない
+#define ENC_LAG_MAX_E 0.78f
 // 補正テーブルの惰性回転。正転・逆転を交互に。記録は格子線1本あたり 2 バイトで、
 // 4回 × 約2周 × 128本 が入る (RAM の都合でこれ以上増やさない)
 #define COAST_RUNS 4
@@ -520,11 +527,11 @@ static bool Calib_EncPair(float speed, float* out, bool* valid, float* max_lag) 
 }
 
 static bool Calib_Encoder(void) {
-  printf("[CAL] エンコーダ (%sA で正逆1周)\n", FixFmt(CALIB_CURRENT, 1));
+  printf("[CAL] エンコーダ (%sA で正逆1周)\n", FixFmt(ENC_CURRENT, 1));
   const float speed = ELEC_PER_REV / ENC_SWEEP_S;
 
   // (a) 強制角のまま電流制御で保持し、静止ノイズを測る
-  svc.target_id_override = CALIB_CURRENT;
+  svc.target_id_override = ENC_CURRENT;
   HAL_Delay(300);
   float a[AVG_COUNT];
   if (!Calib_Average(4000, a)) return false;
@@ -556,13 +563,11 @@ static bool Calib_Encoder(void) {
     return false;
   }
 
-  // (c) 2つの電流で正逆往復
+  // (c) 正逆往復
   bool valid[ENCODER_LUT_SIZE];
   for (uint16_t b = 0; b < ENCODER_LUT_SIZE; b++) valid[b] = true;
   enc_total = enc_sat = 0;
   float max_lag = 0.0f;
-  svc.target_id_override = CALIB_CURRENT;
-  HAL_Delay(200);
   if (!Calib_EncPair(speed, work.enc.raw_i1, valid, &max_lag)) return false;
   svc.target_id_override = 0.0f;
 
@@ -605,12 +610,15 @@ static bool Calib_Encoder(void) {
          svc.min_encoder_val, svc.max_encoder_val, (int)enc_lo, (int)enc_hi, FixFmt(sigma, 2),
          FixFmt(svc.encoder_margin, 1), (int)svc.encoder_dir,
          FixFmt(svc.encoder_dead_zone * 100.0f / TWO_PI_F, 2), FixFmt(offset, 4));
-  printf("  正逆差 %srad  有効 %u/%u  隣接差 %srad\n", FixFmt(max_lag * k_rad, 4), n_valid,
+  const float lag_e = 0.5f * max_lag * k_rad * POLE_PAIRS;
+  printf("  正逆差 %srad (遅れ 電気角 %s°)  有効 %u/%u  隣接差 %srad\n",
+         FixFmt(max_lag * k_rad, 4), FixFmt(lag_e * 57.3f, 1), n_valid,
          (unsigned)ENCODER_LUT_SIZE, FixFmt(max_step, 4));
 
-  // 隣接差が大きい = θ_lin − φ が途中で跳んでいる (滑り・POLE_PAIRS の不一致)。
-  // 正逆差が大きい = 強制角にロータが付いてきていない (摩擦・負荷が大きい)
-  if (offset < 0.0f || !(max_step < 0.1f) || max_lag * k_rad > 0.1f ||
+  // 隣接差が大きい = θ_lin − φ が途中で跳んでいる。1極対ぶん滑ると 2π/P (= 0.9rad) 跳ぶので
+  // その 1/3 で判定する (摩擦とコギングで引っかかりながら付いてくると 0.08rad 程度は出る)。
+  // 遅れが大きい = 強制角にロータが付いてきていない (ENC_LAG_MAX_E)
+  if (offset < 0.0f || !(max_step < TWO_PI_F / POLE_PAIRS / 3.0f) || lag_e > ENC_LAG_MAX_E ||
       n_valid < ENCODER_LUT_SIZE * 3 / 4) {
     printf("  校正不良 (滑り・POLE_PAIRS・負荷を確認)\n");
     return false;

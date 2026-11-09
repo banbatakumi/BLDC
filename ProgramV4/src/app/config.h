@@ -351,7 +351,9 @@ _Static_assert(CURRENT_SENSE_TRIG_ADVANCE > 0 && CURRENT_SENSE_TRIG_ADVANCE < PW
 //
 // 校正に流す電流 = CALIB_CURRENT_RATIO × MAX_CURRENT。各測定の電圧・電流・速度はここから自動で決まる。
 // 大きいほど摩擦・コギングに対して精度が上がるが発熱が増える。
+// エンコーダ校正 (強制転流) はこの2倍を流す (保持を強くして負荷の摩擦・コギングによる遅れを減らす。2倍が MAX_CURRENT 以下であること)。
 #define CALIB_CURRENT_RATIO 0.3f
+_Static_assert(2.0f * CALIB_CURRENT_RATIO <= 1.0f, "Encoder calibration uses 2x CALIB_CURRENT.");
 
 // 角度の遅れ補償の初期値 [s]。校正 6 の掃引で実測値に置き換わる。
 // 制御用の電気角には実ロータ位置に対する時間遅れがあり、回転中は δ = ω_e × 遅れ時間 の
