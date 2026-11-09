@@ -24,7 +24,7 @@
 //
 // --- 送信フレーム (MD → 上位): 11バイト固定長 ---
 //   0    : 0xAA          ヘッダ
-//   1    : status        bit4:エンコーダ未校正 bit3:過電流 bit2:過熱 bit1:電源電圧異常 bit0:指令あり
+//   1    : status        bit4:エンコーダ未校正 bit3:保護ラッチ(過電流・過速度) bit2:過熱 bit1:電源電圧異常 bit0:指令あり
 //                        (SERIAL_STATUS_BIT_*。bit0 は「受理済みの指令を実行中」で、回転中かどうかではない)
 //   2    : temperature   u8  × 1 degC
 //   3-4  : theta         u16 BE × 0.0001 rad

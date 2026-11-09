@@ -5,11 +5,9 @@
 // 電流ループとモータの電気系は理想 (Iq指令 = 実Iq) とみなす。ここで確かめたいのは
 // 制限とアンチワインドアップの振る舞いなので、その近似で十分。
 //
-// **速度制限は撤廃済み。** MD が上位から受け取る制限はトルクだけになったので、
-// 位置制御も「目標角との偏差をそのまま PID に入れる」素の構成になっている。
-// 以前あった位置指令のランプと引き戻し (POSITION_RAMP_LEAD_RAD) は、
-// 速度制限が無いと毎周期 引き戻しが効いて出力が kp×引き戻し幅 の定数に化け、
-// torque_limit が効かなくなるため撤廃した。[C] がその回帰テスト。
+// MD が上位から受け取る制限はトルクだけなので、位置制御は「目標角との偏差をそのまま PID に
+// 入れる」素の構成。位置指令のランプと引き戻しは、速度制限が無いと出力が kp×引き戻し幅 の
+// 定数に化けて torque_limit が効かなくなるため持たない。[C] がその回帰テスト。
 //
 //   make -C tests
 #include <math.h>
@@ -23,9 +21,15 @@
 #define TWO_PI_F 6.28318531f
 
 #define OUTER_LOOP_DT 0.001f
-#define POSITION_DEADBAND_RAD 0.05f
-#define POSITION_SETTLE_SPEED_RAD_S 0.05f
-#define POSITION_INTEGRAL_STOP_RAD 0.05f
+// bldc.h と同じ値にすること (このテストは単体でビルドする)
+#define POSITION_DEADBAND_RAD 0.01f
+#define POSITION_SETTLE_SPEED_RAD_S 0.02f
+#define POSITION_INTEGRAL_STOP_RAD 0.01f
+// bldc.c の BLDC_InitOuterGains と同じ値にすること
+#define POSITION_KP 20.0f
+#define POSITION_KI 50.0f
+#define POSITION_KD 0.02f
+#define POSITION_D_LPF 0.8f
 
 static float FOC_NormalizeRadians(float rad) {
   while (rad < 0.0f) rad += TWO_PI_F;
@@ -115,7 +119,7 @@ static void Plant(Sim* s) {
 }
 
 static void SimInit(Sim* s, float torque_limit_nm) {
-  Sim z = {{7.5f, 15.0f, 0.05f, 0, 0, 0, 0.8f, 0}, 0, 0, 0, 0, 0, false};
+  Sim z = {{POSITION_KP, POSITION_KI, POSITION_KD, 0, 0, 0, POSITION_D_LPF, 0}, 0, 0, 0, 0, 0, false};
   *s = z;
   s->iq_limit = Constrain(torque_limit_nm / KT, 0.0f, MAX_CURRENT);
 }
@@ -171,10 +175,9 @@ static void TestTorqueLimitHolds(void) {
 // **この改修で一番大事な検証。**
 // 軸を固定したまま保持させたとき、流れる電流が torque_limit に比例すること。
 //
-// 旧実装 (位置指令のランプ + 引き戻し) では、拘束中の保持トルクを決めるのは
-// torque_limit ではなく kp × POSITION_RAMP_LEAD_RAD = 7.5 × 0.2 = 1.5 A の定数だった。
-// 速度制限を撤廃するとこれが常時成立してしまい、torque_limit が全く効かなくなる。
-// ここが比例していれば、その退行が起きていないことの証明になる。
+// 位置指令のランプと引き戻しを入れると、拘束中の保持トルクが torque_limit ではなく
+// kp × 引き戻し幅 の定数で決まり、torque_limit が効かなくなる。ここが比例していれば、
+// その退行が起きていないことの証明になる。
 static void TestHoldingTorqueFollowsLimit(void) {
   printf("[C] 拘束中の保持トルクが torque_limit そのものになる\n");
   const float limits[4] = {0.02f, 0.05f, 0.10f, 0.19f};
@@ -192,7 +195,7 @@ static void TestHoldingTorqueFollowsLimit(void) {
     }
     float hold = Abs(s.target_iq);
     printf("       torque_limit=%.2f N・m (= %.3f A) → 保持電流 %.3f A%s\n", limits[trial],
-           s.iq_limit, hold, (hold < 1.6f && s.iq_limit > 1.6f) ? "  ← 旧実装ならここで頭打ち" : "");
+           s.iq_limit, hold, (hold < 1.6f && s.iq_limit > 1.6f) ? "  ← ランプ+引き戻しがあるとここで頭打ち" : "");
     if (hold < s.iq_limit - 1e-3f) proportional = 0;
   }
   Check(proportional, "保持電流が torque_limit まで出る (定数に化けていない)");
@@ -311,9 +314,11 @@ static void TestSpeedProfile(void) {
       Plant(&s);
       if (Abs(s.angular_speed) > peak_speed) peak_speed = Abs(s.angular_speed);
     }
-    // 2つの上界: トルク律速 (三角速度プロファイル) と kp/kd の包絡線
-    float torque_bound = sqrtf(KT * s.iq_limit / g_inertia * targets[trial]);
-    float gain_bound = (7.5f / 0.05f) * targets[trial];
+    // 2つの上界: トルク律速と kp/kd の包絡線。トルク律速は「移動量の全部を torque_limit で
+    // 加速し続けた」ときの √(2·a·d)。減速を始める位置は kp/kd で決まるので、三角プロファイルの
+    // √(a·d) は上界にならない (kp/kd が大きいほど減速が遅れ、ピークが √(a·d) を超える)
+    float torque_bound = sqrtf(2.0f * KT * s.iq_limit / g_inertia * targets[trial]);
+    float gain_bound = (POSITION_KP / POSITION_KD) * targets[trial];
     printf("       移動量 %.1f rad → 速度ピーク %6.2f rad/s "
            "(トルク律速の上界 %.1f / kp/kd 包絡線 %.1f)\n",
            targets[trial], peak_speed, torque_bound, gain_bound);

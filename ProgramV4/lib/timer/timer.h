@@ -11,10 +11,8 @@ static inline void Timer_Reset(Timer *timer) {
       timer->start_time = DWT->CYCCNT;
 }
 
-// DWTサイクルカウンタを動かして、計測開始点を「いま」に合わせる。
-// 以前は引数を一切使わず DWT を有効にするだけだったので、呼び出し側が
-// 必ず Timer_Reset を続けて書く必要があった (書き忘れると起動からの
-// 経過時間が入って初回だけ挙動が変わる)。ここで一緒にリセットしておく。
+// DWTサイクルカウンタを動かして、計測開始点を「いま」に合わせる (Timer_Reset も兼ねる。
+// 分けると書き忘れたとき起動からの経過時間が入り、初回だけ挙動が変わる)。
 static inline void Timer_Init(Timer *timer) {
       CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
       DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;

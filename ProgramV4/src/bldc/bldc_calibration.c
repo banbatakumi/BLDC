@@ -14,7 +14,8 @@
 // スイッチ校正 (エンコーダ/モータ定数の実測) とフラッシュの読み書き。手順と順序の理由は config.h。
 // 測定はすべて制御ループ (20kHz/1kHz) の中で記録・平均する。メインループの HAL_Delay は
 // 待ち時間にしか使わない (HAL_Delay(1) は実際には約2ms 待つので、周期の基準にはできない)。
-// 全体で約40秒 (1分以内に収める。延ばしても結果が変わらなかった測定は削った)。
+// 全体で1分以内に収める (延ばしても結果が変わらなかった測定は削った)。惰性回転・加減速の時間は
+// 摩擦と慣性で変わるので、実際の所要時間は終わりに表示する。
 
 #define CALIB_CURRENT (CALIB_CURRENT_RATIO * MAX_CURRENT)  // 校正に流す電流 [A]
 // エンコーダ校正 (強制転流) の電流 [A]。保持を強くして、負荷の摩擦とコギングによるロータの遅れ・ずれを小さくする
@@ -481,7 +482,7 @@ static bool Calib_TuneCurrentBw(void) {
 //                         飽和サンプルの割合が盲点幅 (強制角は等速なので時間の割合 = 角度の割合)
 // 線形写像した角度と φ の差の平均が d軸オフセット。補正テーブル (センサの非線形) はここでは作らず、
 // 後で惰性回転で測る (Calib_EncoderLut)。強制転流ではロータの位置ずれと区別できず、
-// 2026-10-19 の実機ではテーブルに 14回/周の偽の誤差が入って速度が揺れた。
+// テーブルに偽の周期誤差 (実機で 14回/周) が入って速度が揺れるため。
 static void Calib_ClearBins(void) {
   for (uint16_t b = 0; b < ENCODER_LUT_SIZE; b++) {
     work.enc.sum[0][b] = work.enc.sum[1][b] = 0.0f;
@@ -968,7 +969,7 @@ static bool Calib_Verify(float w_test) {
 // 全体
 // ---------------------------------------------------------------------------
 bool BLDC_Calibrate(void) {
-  printf("[CAL] スイッチ校正を開始 (校正電流 %sA、約36秒)\n", FixFmt(CALIB_CURRENT, 1));
+  printf("[CAL] スイッチ校正を開始 (校正電流 %sA、1分以内)\n", FixFmt(CALIB_CURRENT, 1));
   const uint32_t t_start = HAL_GetTick();
   svc.iq_limit = MAX_CURRENT;  // Kt が未定なので BLDC_SetLimits を介さず開ける (BLDC_Init の最後で閉じる)
   svc.calib_hook = true;

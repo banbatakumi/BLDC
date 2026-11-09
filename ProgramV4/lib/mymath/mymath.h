@@ -5,12 +5,8 @@
 //
 // **三角関数と角度の正規化はここには置かない。** FOC で使うものは
 // src/bldc/foc.h の FOC_SinCos / FOC_NormalizeRadians / FOC_AngleDiff にある。
-// 以前はここにも1度刻みテーブルの Sin/Cos と double 定数を使う
-// NormalizeRadians/GapRadians があったが、
-//   - 精度が Park 変換には粗い (1度刻み = 最大0.5°の誤差)
-//   - double リテラル経由なので単精度FPUでは倍精度演算に落ちる
-//   - foc.h と同じ役割の関数が2組あり、どちらを使うべきか分からない
-// という理由で消した。角度を扱うコードは foc.h 側を使うこと。
+// 角度を扱うコードは foc.h 側を使うこと (1度刻みテーブルや double 定数の版は Park 変換には
+// 粗く、単精度FPUでは倍精度演算に落ちるため置かない)。
 
 #ifndef PI
 #define PI 3.1415926535897932384626433832795
