@@ -110,6 +110,11 @@ static bool BLDC_IsDirectIqMode(BLDCMode mode) {
   return mode != BLDC_MODE_SPEED && mode != BLDC_MODE_POSITION;
 }
 
+// 過速度保護のしきい値 [rad/s]。モードで分ける理由は config.h の OVERSPEED_DIRECT_IQ_RAD_S
+static float BLDC_OverspeedLimit(BLDCMode mode) {
+  return BLDC_IsDirectIqMode(mode) ? OVERSPEED_DIRECT_IQ_RAD_S : MAX_ANGULAR_SPEED * OVERSPEED_LIMIT_RATIO;
+}
+
 static void BLDC_Trip(BLDCTripReason reason, float peak, float iu, float iv, float iw);
 
 // 外側ループ (1kHz)。各モードに応じてq軸電流指令を作る。
@@ -122,8 +127,9 @@ static void BLDC_OuterLoop(void) {
   svc.speed_pid.output_limit = iq_limit;
   svc.position_pid.output_limit = iq_limit;
 
-  // 過速度保護 (config.h の OVERSPEED_LIMIT_RATIO)。電気角が狂ってトルクが逆向きに出る暴走を止める
-  if (Abs(svc.angular_speed) > MAX_ANGULAR_SPEED * OVERSPEED_LIMIT_RATIO) {
+  // 過速度保護 (config.h の OVERSPEED_LIMIT_RATIO / OVERSPEED_DIRECT_IQ_RAD_S)。電気角が狂ってトルクが
+  // 逆向きに出る暴走を止める。トルク・制動・停止は車輪として外から回されるので、しきい値を上げてある
+  if (Abs(svc.angular_speed) > BLDC_OverspeedLimit(svc.mode)) {
     if (++svc.overspeed_count >= OVERSPEED_TRIP_MS && !svc.is_overcurrent) {
       BLDC_Trip(BLDC_TRIP_OVERSPEED, 0.0f, svc.iu, svc.iv, -(svc.iu + svc.iv));
     }

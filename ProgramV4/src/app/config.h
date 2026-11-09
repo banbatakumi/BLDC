@@ -274,8 +274,16 @@ _Static_assert(CURRENT_SENSE_TRIG_ADVANCE > 0 && CURRENT_SENSE_TRIG_ADVANCE < PW
 // 止めてラッチする (過電流と同じ扱い。スイッチで復帰)。速度指令は MAX_ANGULAR_SPEED でクランプして
 // いるので、これを超えるのは電気角が狂ってトルクが逆向きに出る暴走か、外から回されたとき
 // (2026-10-19 に +30 rad/s 指令で −187 rad/s まで暴走した。それまで速度の保護は無かった)
+// このしきい値は速度・位置モードだけ。トルク・制動・停止モードは下の OVERSPEED_DIRECT_IQ_RAD_S。
 #define OVERSPEED_LIMIT_RATIO 1.2f
 #define OVERSPEED_TRIP_MS 50
+// トルク・制動・停止モードの過速度のしきい値 [rad/s]。後輪の駆動ではここで回るのが正常なので
+// MAX_ANGULAR_SPEED と切り離す (車輪半径 0.03m で 180 rad/s = 5.4m/s。車速 5m/s では空転込みで
+// 後輪が 6〜7m/s = 200〜230 rad/s まで回る。2026-11-08 の記録で車速 3.9m/s のとき後輪÷車速が最大 1.37)。
+// 270 rad/s = 8.1m/s は、メイン STM32 が後輪の周速 7.5m/s (250 rad/s。DRIVE_WHEEL_LIFT_MAX_WHEEL_SPEED_M_S)
+// でトルクを 0 にする防壁より上に置き、無負荷の天井 (約 406 rad/s) よりは下に残して暴走を捕まえる。
+// トレードオフ: 上限より下でつり合う暴走 (電気角のずれでトルクが弱まった場合など) は捕まえられない
+#define OVERSPEED_DIRECT_IQ_RAD_S 270.0f
 
 // ---------------------------------------------------------------------------
 // 電流PI制御のゲイン

@@ -426,8 +426,8 @@ static void ReportOvercurrentTrip(void) {
   BLDCTripInfo t;
   BLDC_GetTripInfo(&t);
   if (t.reason == BLDC_TRIP_OVERSPEED) {
-    printf("=== Overspeed (limit %s rad/s) ===\n",
-           FixFmt(MAX_ANGULAR_SPEED * OVERSPEED_LIMIT_RATIO, 0));
+    printf("=== Overspeed (limit speed/position %s, torque/brake/stop %s rad/s) ===\n",
+           FixFmt(MAX_ANGULAR_SPEED * OVERSPEED_LIMIT_RATIO, 0), FixFmt(OVERSPEED_DIRECT_IQ_RAD_S, 0));
   } else {
     printf("=== Overcurrent (limit %sA) ===\n", FixFmt(OVERCURRENT_LIMIT, 1));
   }
