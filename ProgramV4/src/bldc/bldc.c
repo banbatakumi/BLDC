@@ -403,9 +403,9 @@ static Profile prof_outer;    // 外側ループ (1kHzのときだけカウン�
 // ---------------------------------------------------------------------------
 // 速度の揺れの調査 (bldc.h の BLDCRippleStats。状態表示が有効なときだけ使われる)
 // ---------------------------------------------------------------------------
-#define RIPPLE_LPF 0.09f        // 1 − exp(−2π·300Hz/20kHz)。揺れを見る帯域 (300Hz まで)
-#define RIPPLE_SLOW 0.001f      // 遅い平均 (時定数 50ms)
-#define RIPPLE_HYST 0.3f        // ゼロ交差のヒステリシス [rad/s]
+#define RIPPLE_LPF 0.09f    // 1 − exp(−2π·300Hz/20kHz)。揺れを見る帯域 (300Hz まで)
+#define RIPPLE_SLOW 0.001f  // 遅い平均 (時定数 50ms)
+#define RIPPLE_HYST 0.3f    // ゼロ交差のヒステリシス [rad/s]
 static struct {
   float est_f, volt_f, est_slow, volt_slow;  // LPF の状態
   uint32_t n;
@@ -414,7 +414,7 @@ static struct {
   float s_t, s_tt, t0;               // Iq 指令 (t0 を引いて桁落ちを防ぐ)
   int8_t sign;                       // ω̂ のずれの符号 (ヒステリシス付き)
   uint32_t crossings;
-  float angle;                       // 集計中に回った機械角 [rad]
+  float angle;                               // 集計中に回った機械角 [rad]
   float fc_v[4], fs_v[4], fc_t[4], fs_t[4];  // 次数ごとのフーリエ係数の和 (cos / sin)
   bool reset;
 } ripple;
@@ -644,9 +644,9 @@ static void BLDC_InitOuterGains(void) {
   svc.speed_pid.d_lpf = 0.0f;
   svc.speed_pid.output_limit = 0.0f;
 
-  svc.position_pid.kp = 15.0f;
-  svc.position_pid.ki = 30.0f;
-  svc.position_pid.kd = 0.05f;
+  svc.position_pid.kp = 20.0f;
+  svc.position_pid.ki = 50.0f;
+  svc.position_pid.kd = 0.02f;
   svc.position_pid.d_term = 0;
   svc.position_pid.d_lpf = 0.8f;
   svc.position_pid.output_limit = 0.0f;
@@ -840,7 +840,6 @@ void BLDC_BrakeControlNm(float brake_torque_nm) {
 float BLDC_GetMechTheta(void) { return svc.mech_theta; }
 
 void BLDC_SetEncoderLutEnabled(bool on) { svc.encoder_lut_off = !on; }
-
 
 // 割り込み内では正規化していないので、表示・送信用にここで 0〜2π に畳む
 float BLDC_GetElecTheta(void) { return FOC_NormalizeRadians(svc.elec_theta); }
